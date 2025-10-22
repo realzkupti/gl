@@ -505,6 +505,13 @@
     <p class="mt-4 text-sm text-gray-600">This is a plain server-rendered page (no Livewire) — useful for debugging DB queries and avoiding Livewire runtime dispatch issues.</p>
 </div>
 @endsection
+@if(!empty($error))
+    @push('scripts')
+    <script>
+        if (window.showError) window.showError(@json($error));
+    </script>
+    @endpush
+@endif
 @push('styles')
 <style>
     .sticky-note { position: fixed; width: 300px; z-index: 1000; }

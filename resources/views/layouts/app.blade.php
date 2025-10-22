@@ -9,6 +9,7 @@
     @endif
     @livewireStyles
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @stack('styles')
     <style>
         /* Simple Dark Mode Overrides */
@@ -44,7 +45,7 @@
                 <div class="flex items-center justify-between">
                     <a href="/" class="font-bold">{{ config('app.name', 'Laravel') }}</a>
                     <div class="flex items-center gap-3">
-                        <a href="/" class="px-2 py-1 rounded border text-sm">Back</a>
+                        <a href="/" class="px-2 py-1 rounded border text-sm">กลับเมนู</a>
                         <button id="theme-toggle" class="px-2 py-1 rounded border text-sm" title="Toggle Dark Mode">Dark</button>
                     </div>
                 </div>
@@ -77,6 +78,15 @@
                 applyTheme(isDark ? 'light' : 'dark');
             });
         })();
+        // Global helpers for alerts
+        window.showLoading = function(title){
+            if (!window.Swal) return;
+            Swal.fire({ title: title || 'กำลังโหลด...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        }
+        window.showError = function(message){
+            if (!window.Swal) return;
+            Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: message || 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้', confirmButtonText: 'ปิด' });
+        }
     </script>
 </body>
 </html>
