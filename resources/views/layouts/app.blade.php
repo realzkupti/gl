@@ -21,9 +21,7 @@
         body.dark table thead tr { background-color: #111827 !important; }
         body.dark table tbody tr { background-color: #0f172a; }
         body.dark .modal-scroll { background-color: #111827 !important; color: #e5e7eb; }
-        body.dark .sticky-note .sn-wrap { background: #1f2937; border-color: #374151; }
-        body.dark .sticky-note .sn-head { background: #374151; color: #f1f5f9; }
-        body.dark .sticky-note textarea { color: #f1f5f9; }
+        /* Sticky notes keep their own colors regardless of theme */
         /* Form controls in dark mode */
         body.dark input[type="text"],
         body.dark input[type="search"],

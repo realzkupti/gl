@@ -57,7 +57,7 @@
     </div>
 
     @php
-        $selectedPeriod = collect($periods ?? [])->firstWhere('GLP_KEY', $periodKey);
+        $selectedPeriod = collect($periods ?? [])->firstWhere('GLP_KEY', $periodKey ?? null);
     @endphp
 
     @if($selectedPeriod)

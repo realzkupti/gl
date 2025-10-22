@@ -537,9 +537,12 @@
   var companyKey = @json($selectedCompany ?? 'default');
   var keyBase = 'gl_sn2_';
   var keyItems = keyBase + 'items_' + companyKey;
+  var keyTrash = keyBase + 'trash_' + companyKey;
 
   function load(){ try { return JSON.parse(localStorage.getItem(keyItems) || '[]'); } catch(e){ return []; } }
   function save(items){ try { localStorage.setItem(keyItems, JSON.stringify(items)); } catch(e){} }
+  function loadTrash(){ try { return JSON.parse(localStorage.getItem(keyTrash) || '[]'); } catch(e){ return []; } }
+  function saveTrash(items){ try { localStorage.setItem(keyTrash, JSON.stringify(items)); } catch(e){} }
   function uid(){ return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
   function createEl(tag, cls){ var el=document.createElement(tag); if(cls) el.className=cls; return el; }
@@ -547,12 +550,15 @@
   function renderToolbar(){
     var tb = document.querySelector('.sticky-toolbar');
     if (!tb){ tb = createEl('div','sticky-toolbar'); document.body.appendChild(tb); }
-    tb.innerHTML = '<button type="button" class="sn-add">+ Note</button>';
+    tb.innerHTML = '<button type="button" class="sn-add">+ Note</button><button type="button" class="sn-trash">ถังขยะ</button>';
     tb.querySelector('.sn-add').addEventListener('click', function(){
       var items = load();
       var id = uid();
-      items.push({ id, x: window.innerWidth-340, y: window.innerHeight-220, w: 300, h: 180, min: false, text: '' });
+      items.push({ id, x: window.innerWidth-340, y: window.innerHeight-220, w: 300, h: 180, min: false, text: '', color: 'yellow' });
       save(items); renderAll();
+    });
+    tb.querySelector('.sn-trash').addEventListener('click', function(){
+      toggleTrashPanel();
     });
   }
 
@@ -582,23 +588,43 @@
       if(!resizing) return; resizing=false; var items=load(); var it=items.find(i=>i.id===item.id); if(it){ var r=note.getBoundingClientRect(); it.w=r.width; it.h=r.height; save(items);} });
   }
 
+  function noteColors(c){
+    var map = {
+      yellow: { head:'#fff1a6', body:'#fffbe6', border:'#e5d17d' },
+      blue:   { head:'#c7e1ff', body:'#eaf4ff', border:'#9fc5fb' },
+      green:  { head:'#cde9d7', body:'#eaf7f0', border:'#a8d8be' },
+      pink:   { head:'#ffd1dc', body:'#ffebf0', border:'#f5a3b5' },
+      purple: { head:'#e1d4ff', body:'#f3edff', border:'#c7b2ff' },
+      gray:   { head:'#e5e7eb', body:'#f3f4f6', border:'#d1d5db' }
+    }; return map[c] || map.yellow;
+  }
+
   function renderNote(item){
     var note = createEl('div','sticky-note');
     note.style.left = (item.x|| (window.innerWidth-340)) + 'px';
     note.style.top = (item.y || (window.innerHeight-220)) + 'px';
     note.style.width = (item.w || 300) + 'px';
+    var col = noteColors(item.color||'yellow');
     note.innerHTML = '\
       <div class="sn-wrap">\
-        <div class="sn-head">\
+        <div class="sn-head" style="background:'+col.head+'; border-bottom:1px solid '+col.border+';">\
           <div class="sn-title">Note — ' + (companyKey||'default') + '</div>\
           <div class="sn-ctrls">\
+            <select class="sn-color sn-btn" title="สี">\
+              <option value="yellow"'+((item.color||'yellow')==='yellow'?' selected':'')+'>เหลือง</option>\
+              <option value="blue"'+((item.color||'yellow')==='blue'?' selected':'')+'>น้ำเงิน</option>\
+              <option value="green"'+((item.color||'yellow')==='green'?' selected':'')+'>เขียว</option>\
+              <option value="pink"'+((item.color||'yellow')==='pink'?' selected':'')+'>ชมพู</option>\
+              <option value="purple"'+((item.color||'yellow')==='purple'?' selected':'')+'>ม่วง</option>\
+              <option value="gray"'+((item.color||'yellow')==='gray'?' selected':'')+'>เทา</option>\
+            </select>\
             <button type="button" class="sn-btn sn-min">_</button>\
             <button type="button" class="sn-btn sn-del">×</button>\
           </div>\
         </div>\
-        <div class="sn-body">\
+        <div class="sn-body" style="background:'+col.body+'; border-top:1px solid '+col.border+';">\
           <textarea class="sn-text" placeholder="จดโน้ตสำหรับบริษัทนี้... (auto-save)"></textarea>\
-          <div class="sn-resize"></div>\
+          <div class="sn-resize" style="border-color:'+col.border+';"></div>\
         </div>\
       </div>';
     document.body.appendChild(note);
@@ -609,7 +635,8 @@
 
     txt.addEventListener('input', function(){ var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.text=this.value; save(items);} });
     note.querySelector('.sn-min').addEventListener('click', function(){ note.classList.toggle('min'); var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.min = note.classList.contains('min'); save(items);} });
-    note.querySelector('.sn-del').addEventListener('click', function(){ var items=load().filter(i=>i.id!==item.id); save(items); note.remove(); });
+    note.querySelector('.sn-del').addEventListener('click', function(){ var items=load(); var keep=items.filter(i=>i.id!==item.id); var trash=loadTrash(); var tItem=Object.assign({}, item); trash.unshift(tItem); saveTrash(trash); save(keep); note.remove(); renderTrashBadge(); });
+    note.querySelector('.sn-color').addEventListener('change', function(){ var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.color=this.value; save(items); } renderAll(); });
 
     bindDrag(note,item);
     bindResize(note,item);
@@ -623,7 +650,47 @@
     items.forEach(renderNote);
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderAll); else renderAll();
+  function renderTrashBadge(){
+    var tb = document.querySelector('.sticky-toolbar'); if(!tb) return;
+    var btn = tb.querySelector('.sn-trash'); if(!btn) return;
+    var c = (loadTrash().length)||0; btn.textContent = 'ถังขยะ' + (c? (' ('+c+')') : '');
+  }
+
+  function toggleTrashPanel(){
+    var panel = document.getElementById('sn-trash-panel');
+    if (panel){ panel.remove(); return; }
+    panel = document.createElement('div');
+    panel.id = 'sn-trash-panel';
+    panel.style.position='fixed'; panel.style.right='16px'; panel.style.bottom='60px'; panel.style.zIndex='1002'; panel.style.width='320px';
+    panel.style.background='#ffffff'; panel.style.border='1px solid #e5e7eb'; panel.style.borderRadius='6px'; panel.style.boxShadow='0 4px 16px rgba(0,0,0,.15)';
+    panel.innerHTML = '<div style="padding:.5rem; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">'
+      + '<strong>ถังขยะ</strong><button type="button" id="sn-trash-close" class="px-2 py-1 border rounded text-sm">ปิด</button></div>'
+      + '<div id="sn-trash-list" style="max-height:240px; overflow:auto;"></div>'
+      + '<div style="padding:.5rem; border-top:1px solid #e5e7eb; text-align:right;"><button type="button" id="sn-trash-empty" class="px-2 py-1 border rounded text-sm">ลบถาวรทั้งหมด</button></div>';
+    document.body.appendChild(panel);
+    document.getElementById('sn-trash-close').onclick=function(){ panel.remove(); };
+    document.getElementById('sn-trash-empty').onclick=function(){ saveTrash([]); renderTrashBadge(); panel.remove(); };
+    var list = document.getElementById('sn-trash-list');
+    var trash = loadTrash();
+    if (!trash.length){ list.innerHTML = '<div style="padding:.5rem; color:#6b7280;">ถังขยะว่างเปล่า</div>'; return; }
+    list.innerHTML = '';
+    trash.forEach(function(it, idx){
+      var row = document.createElement('div');
+      row.style.padding='.5rem'; row.style.borderBottom='1px solid #e5e7eb';
+      var preview = (it.text||'').split('\n')[0].slice(0,40);
+      row.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; gap:.5rem;">'
+        + '<div style="flex:1 1 auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+ (preview||'(ไม่มีข้อความ)') +'</div>'
+        + '<div style="flex:0 0 auto; display:flex; gap:.25rem;">'
+        + '<button type="button" class="px-2 py-1 border rounded text-sm sn-restore">กู้คืน</button>'
+        + '<button type="button" class="px-2 py-1 border rounded text-sm sn-destroy">ลบถาวร</button>'
+        + '</div></div>';
+      list.appendChild(row);
+      row.querySelector('.sn-restore').onclick=function(){ var t=loadTrash(); var found=t.splice(idx,1)[0]; saveTrash(t); var items=load(); items.unshift(found); save(items); renderAll(); toggleTrashPanel(); };
+      row.querySelector('.sn-destroy').onclick=function(){ var t=loadTrash(); t.splice(idx,1); saveTrash(t); renderTrashBadge(); row.remove(); if(!loadTrash().length) toggleTrashPanel(); };
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ renderAll(); renderTrashBadge(); }); else { renderAll(); renderTrashBadge(); }
 })();
 </script>
 @endpush
