@@ -9,7 +9,7 @@
         "password": "Bplus2025",
         "charset": "utf8",
         "collation": "Thai_CI_AS",
-        "encrypt": "yes",
+        "encrypt": "no",
         "TrustServerCertificate": true,
         "MultipleActiveResultSets": true
     },
@@ -23,7 +23,7 @@
         "password": "Bplus2025",
         "charset": "utf8",
         "collation": "Thai_CI_AS",
-        "encrypt": "yes",
+        "encrypt": "no",
         "TrustServerCertificate": true,
         "MultipleActiveResultSets": true
     },
@@ -37,7 +37,7 @@
         "password": "Sy$temB+",
         "charset": "utf8",
         "collation": "Thai_CI_AS",
-        "encrypt": "yes",
+        "encrypt": "no",
         "TrustServerCertificate": true,
         "MultipleActiveResultSets": true
     }
