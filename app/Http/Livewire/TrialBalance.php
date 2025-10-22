@@ -205,8 +205,10 @@ class TrialBalance extends Component
         // Build rows array with balances
         $rows = [];
         foreach ($map as $k => $v) {
-            $opening_debit = $v['opening_debit'];
-            $opening_credit = $v['opening_credit'];
+            // Net opening (ยอดยกมา): show only the difference on one side
+            $openNet = $v['opening_debit'] - $v['opening_credit'];
+            $opening_debit = $openNet >= 0 ? $openNet : 0;
+            $opening_credit = $openNet < 0 ? abs($openNet) : 0;
             $movement_debit = $v['movement_debit'];
             $movement_credit = $v['movement_credit'];
 
