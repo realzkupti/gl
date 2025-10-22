@@ -33,9 +33,7 @@ class TrialBalanceController extends Controller
                 'rows' => [],
                 'periods' => TrialBalance::getGLPeriods(),
                 'selectedPeriod' => null,
-                'error' => 'Invalid period selected',
-                'companies' => \App\Services\CompanyManager::listCompanies(),
-                'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
+                'error' => 'Invalid period selected'
             ]);
         }
 
@@ -48,8 +46,6 @@ class TrialBalanceController extends Controller
             'rows' => $rows,
             'periods' => TrialBalance::getGLPeriods(),
             'selectedPeriod' => $period,
-            'companies' => \App\Services\CompanyManager::listCompanies(),
-            'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
         ]);
     }
 

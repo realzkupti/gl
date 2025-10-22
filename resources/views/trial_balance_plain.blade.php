@@ -11,7 +11,20 @@
         </p>
     @endif
 
-    <form method="get" class="mb-4 flex items-end space-x-2">
+    <form method="get" class="mb-4 flex items-end space-x-4">
+        <div>
+            <label>Company</label>
+            <select name="company" class="border rounded px-2 py-1" onchange="this.form.submit()">
+                @php
+                    $companies = $companies ?? (\App\Services\CompanyManager::listCompanies());
+                    $selectedCompany = $selectedCompany ?? (\App\Services\CompanyManager::getSelectedKey());
+                @endphp
+                @foreach(($companies ?? []) as $key => $c)
+                    @php $label = is_array($c) ? ($c['label'] ?? $key) : $key; @endphp
+                    <option value="{{ $key }}" {{ ($selectedCompany === $key) ? 'selected' : '' }}>{{ $label }}</option>
+                @endforeach
+            </select>
+        </div>
         <div>
             <label>Period</label>
             <select name="period" class="border rounded px-2 py-1">
@@ -95,8 +108,8 @@
 
     <!-- Modal -->
     <div id="detail-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);">
-    <div style="background:#fff; padding:1rem; width:95%; max-width:1200px; margin:0 auto; border-radius:6px; max-height:90vh; overflow:auto;">
-            <div class="flex justify-between items-center mb-2">
+    <div class="modal-scroll" style="background:#fff; padding:1rem; width:95%; max-width:1200px; margin:0 auto; border-radius:6px; max-height:90vh; overflow:auto;">
+            <div class="flex justify-between items-center mb-2 modal-header" style="position:sticky; top:0; background:#fff; z-index:20; padding-bottom:.5rem;">
                 <div style="white-space:nowrap; display:flex; align-items:center; gap:1rem;">
                     <h3 id="detail-title" class="text-lg font-semibold" style="margin:0;">Detail</h3>
                     <div id="detail-subheader" class="text-sm text-gray-600" style="display:inline-block;">Account: <span id="detail-account"></span> — <span id="detail-account-name"></span> | Branch: <span id="detail-branch"></span></div>
@@ -123,6 +136,8 @@
                         text-align: right;
                         white-space: nowrap;
                     }
+                    /* sticky table headers inside scrollable modal */
+                    #detail-table thead th { position: sticky; top: var(--detail-head-top, 48px); z-index: 10; background: #f8fafc; }
                 </style>
                 <table id="detail-table" class="min-w-full display stripe" style="table; width:100%;">
                     <thead>
@@ -153,13 +168,17 @@
 
     <!-- Nested entries modal -->
     <div id="entries-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);">
-    <div style="background:#fff; padding:1rem; width:95%; max-width:1200px; margin:0 auto; border-radius:6px; max-height:90vh; overflow:auto;">
-            <div class="flex justify-between items-center mb-2">
+    <div class="modal-scroll" style="background:#fff; padding:1rem; width:95%; max-width:1200px; margin:0 auto; border-radius:6px; max-height:90vh; overflow:auto;">
+            <div class="flex justify-between items-center mb-2 modal-header" style="position:sticky; top:0; background:#fff; z-index:20; padding-bottom:.5rem;">
                 <h3 id="entries-title" class="text-lg font-semibold">Entries</h3>
                 <button id="entries-close" class="px-2 py-1 bg-gray-200 rounded">Close</button>
             </div>
                 <div>
                 <table id="entries-table" class="min-w-full display stripe" style="table-layout:fixed; width:100%;">
+                    <style>
+                        /* sticky table headers inside scrollable modal */
+                        #entries-table thead th { position: sticky; top: var(--entries-head-top, 48px); z-index: 10; background: #f8fafc; }
+                    </style>
                     <thead>
                         <tr>
                             <th class="border px-2 py-1 col-account">Account</th>
@@ -202,6 +221,10 @@
             function performDetailLoad(acc, acctName) {
                 var period = $('select[name="period"]').val();
                 $('#detail-modal').css('display','flex');
+                try {
+                    var dh = $('#detail-modal .modal-header').outerHeight() || 48;
+                    $('#detail-modal .modal-scroll')[0].style.setProperty('--detail-head-top', dh + 'px');
+                } catch(e) {}
 
                 if ($.fn.DataTable.isDataTable('#detail-table')) {
                     try { $('#detail-table').DataTable().destroy(); } catch(e) {}
@@ -269,6 +292,10 @@
                 $('#entries-sub-dr').text('');
                 $('#entries-sub-cr').text('');
                 $('#entries-modal').css('display','flex');
+                try {
+                    var eh = $('#entries-modal .modal-header').outerHeight() || 48;
+                    $('#entries-modal .modal-scroll')[0].style.setProperty('--entries-head-top', eh + 'px');
+                } catch(e) {}
 
                 // destroy entries table if exists
                 if ($.fn.DataTable.isDataTable('#entries-table')) {
