@@ -15,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'company.connection' => App\Http\Middleware\SetCompanyConnection::class,
         ]);
+        // Ensure Livewire (and all web requests) also get the company connection applied
+        $middleware->appendToGroup('web', [App\Http\Middleware\SetCompanyConnection::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
