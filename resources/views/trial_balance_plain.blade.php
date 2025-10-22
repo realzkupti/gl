@@ -599,6 +599,16 @@
     }; return map[c] || map.yellow;
   }
 
+  function applyColors(note, color){
+    var col = noteColors(color||'yellow');
+    var head = note.querySelector('.sn-head');
+    var body = note.querySelector('.sn-body');
+    var res = note.querySelector('.sn-resize');
+    if (head){ head.style.background = col.head; head.style.borderBottom = '1px solid '+col.border; }
+    if (body){ body.style.background = col.body; body.style.borderTop = '1px solid '+col.border; }
+    if (res){ res.style.borderColor = col.border; }
+  }
+
   function renderNote(item){
     var note = createEl('div','sticky-note');
     note.style.left = (item.x|| (window.innerWidth-340)) + 'px';
@@ -635,8 +645,26 @@
 
     txt.addEventListener('input', function(){ var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.text=this.value; save(items);} });
     note.querySelector('.sn-min').addEventListener('click', function(){ note.classList.toggle('min'); var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.min = note.classList.contains('min'); save(items);} });
-    note.querySelector('.sn-del').addEventListener('click', function(){ var items=load(); var keep=items.filter(i=>i.id!==item.id); var trash=loadTrash(); var tItem=Object.assign({}, item); trash.unshift(tItem); saveTrash(trash); save(keep); note.remove(); renderTrashBadge(); });
-    note.querySelector('.sn-color').addEventListener('change', function(){ var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.color=this.value; save(items); } renderAll(); });
+    note.querySelector('.sn-del').addEventListener('click', function(){
+      var items=load();
+      var it=items.find(i=>i.id===item.id);
+      var trash=loadTrash();
+      var currentText = note.querySelector('.sn-text') ? note.querySelector('.sn-text').value : (it?.text||'');
+      var currentColor = note.querySelector('.sn-color') ? note.querySelector('.sn-color').value : (it?.color||'yellow');
+      var r = note.getBoundingClientRect();
+      var tItem = Object.assign({}, it||item, { text: currentText, color: currentColor, x: r.left, y: r.top, w: r.width, h: r.height });
+      trash.unshift(tItem);
+      saveTrash(trash);
+      var keep = items.filter(i=>i.id!==item.id);
+      save(keep);
+      note.remove();
+      renderTrashBadge();
+    });
+    note.querySelector('.sn-color').addEventListener('change', function(){
+      var color = this.value;
+      var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.color=color; save(items);} 
+      applyColors(note, color);
+    });
 
     bindDrag(note,item);
     bindResize(note,item);
@@ -646,7 +674,7 @@
     document.querySelectorAll('.sticky-note').forEach(function(n){ n.remove(); });
     renderToolbar();
     var items = load();
-    if (!items.length){ items=[{ id: uid(), x: window.innerWidth-340, y: window.innerHeight-220, w: 300, h: 180, min:false, text:'' }]; save(items); }
+    if (!items.length){ items=[{ id: uid(), x: window.innerWidth-340, y: window.innerHeight-220, w: 300, h: 180, min:false, text:'', color:'yellow' }]; save(items); }
     items.forEach(renderNote);
   }
 
@@ -674,10 +702,11 @@
     var trash = loadTrash();
     if (!trash.length){ list.innerHTML = '<div style="padding:.5rem; color:#6b7280;">ถังขยะว่างเปล่า</div>'; return; }
     list.innerHTML = '';
-    trash.forEach(function(it, idx){
+    trash.forEach(function(it){
       var row = document.createElement('div');
       row.style.padding='.5rem'; row.style.borderBottom='1px solid #e5e7eb';
       var preview = (it.text||'').split('\n')[0].slice(0,40);
+      row.dataset.id = it.id;
       row.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; gap:.5rem;">'
         + '<div style="flex:1 1 auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+ (preview||'(ไม่มีข้อความ)') +'</div>'
         + '<div style="flex:0 0 auto; display:flex; gap:.25rem;">'
@@ -685,8 +714,8 @@
         + '<button type="button" class="px-2 py-1 border rounded text-sm sn-destroy">ลบถาวร</button>'
         + '</div></div>';
       list.appendChild(row);
-      row.querySelector('.sn-restore').onclick=function(){ var t=loadTrash(); var found=t.splice(idx,1)[0]; saveTrash(t); var items=load(); items.unshift(found); save(items); renderAll(); toggleTrashPanel(); };
-      row.querySelector('.sn-destroy').onclick=function(){ var t=loadTrash(); t.splice(idx,1); saveTrash(t); renderTrashBadge(); row.remove(); if(!loadTrash().length) toggleTrashPanel(); };
+      row.querySelector('.sn-restore').onclick=function(){ var id=row.dataset.id; var t=loadTrash(); var idx=t.findIndex(x=>x.id===id); if(idx>=0){ var found=t.splice(idx,1)[0]; if(!found.color) found.color='yellow'; saveTrash(t); var items=load(); items.unshift(found); save(items); renderAll(); toggleTrashPanel(); } };
+      row.querySelector('.sn-destroy').onclick=function(){ var id=row.dataset.id; var t=loadTrash(); var idx=t.findIndex(x=>x.id===id); if(idx>=0){ t.splice(idx,1); saveTrash(t); renderTrashBadge(); row.remove(); if(!loadTrash().length) toggleTrashPanel(); } };
     });
   }
 
