@@ -4,16 +4,24 @@
 <div class="container mx-auto py-6">
     <h1 class="text-2xl font-semibold mb-4">Trial Balance (Plain)</h1>
 
+    @if($selectedPeriod)
+        <p class="mb-2 text-sm text-gray-600">
+            Showing balances for period: {{ $selectedPeriod->GLP_SEQUENCE }}/{{ $selectedPeriod->GLP_YEAR }}
+            ({{ \Carbon\Carbon::parse($selectedPeriod->GLP_ST_DATE)->format('M j, Y') }} - {{ \Carbon\Carbon::parse($selectedPeriod->GLP_EN_DATE)->format('M j, Y') }})
+        </p>
+    @endif
+
     <form method="get" class="mb-4 flex items-end space-x-2">
         <div>
-            <label>Start date</label>
-            <input type="date" name="dateStart" value="{{ $dateStart }}" class="border rounded px-2 py-1" />
+            <label>Period</label>
+            <select name="period" class="border rounded px-2 py-1">
+                @foreach($periods ?? [] as $p)
+                    <option value="{{ $p->GLP_KEY }}" {{ ($selectedPeriod && $selectedPeriod->GLP_KEY == $p->GLP_KEY) ? 'selected' : '' }}>
+                        {{ $p->GLP_SEQUENCE }}/{{ $p->GLP_YEAR }} ({{ \Carbon\Carbon::parse($p->GLP_ST_DATE)->format('M Y') }})
+                    </option>
+                @endforeach
+            </select>
         </div>
-        <div>
-            <label>End date</label>
-            <input type="date" name="dateEnd" value="{{ $dateEnd }}" class="border rounded px-2 py-1" />
-        </div>
-        <!-- branch removed per request -->
         <div>
             <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded">Load</button>
         </div>
@@ -34,6 +42,17 @@
         #detail-table, #entries-table { table-layout: fixed; }
         /* keep type column in detail modal truncated to avoid overlapping numbers */
         #detail-table th.col-type, #detail-table td.col-type { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Fixed width for DR and CR columns in modal tables to ensure equal width */
+        #detail-table th:nth-child(4), #detail-table td:nth-child(4),
+        #detail-table th:nth-child(5), #detail-table td:nth-child(5),
+        #entries-table th:nth-child(3), #entries-table td:nth-child(3),
+        #entries-table th:nth-child(4), #entries-table td:nth-child(4) {
+            width: 120px;
+            min-width: 100px;
+            max-width: 140px;
+            text-align: right;
+            white-space: nowrap;
+        }
     </style>
 
     <style>
@@ -93,6 +112,17 @@
                     .entries-account { font-weight:700; color: #1f2937; text-decoration: underline; cursor: pointer; }
                     /* constrain Type column to avoid overlapping numbers; show ellipsis */
                     th.col-type, td.col-type { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                    /* Fixed width for DR and CR columns in modal tables to ensure equal width */
+                    #detail-table th:nth-child(4), #detail-table td:nth-child(4),
+                    #detail-table th:nth-child(5), #detail-table td:nth-child(5),
+                    #entries-table th:nth-child(3), #entries-table td:nth-child(3),
+                    #entries-table th:nth-child(4), #entries-table td:nth-child(4) {
+                        width: 120px;
+                        min-width: 100px;
+                        max-width: 140px;
+                        text-align: right;
+                        white-space: nowrap;
+                    }
                 </style>
                 <table id="detail-table" class="min-w-full display stripe" style="table; width:100%;">
                     <thead>
@@ -170,8 +200,7 @@
 
             // helper to load detail for an account and populate the detail modal
             function performDetailLoad(acc, acctName) {
-                var dateStart = $('input[name="dateStart"]').val();
-                var dateEnd = $('input[name="dateEnd"]').val();
+                var period = $('select[name="period"]').val();
                 $('#detail-modal').css('display','flex');
 
                 if ($.fn.DataTable.isDataTable('#detail-table')) {
@@ -186,7 +215,7 @@
                 $('#detail-account-name').text(acctName || '');
                 $('#detail-branch').text('');
 
-                $.getJSON('/trial-balance-detail', { account: acc, dateStart: dateStart, dateEnd: dateEnd }, function(res){
+                $.getJSON('/trial-balance-detail', { account: acc, period: period }, function(res){
                     var rows = res.data || [];
                     var html = '';
                     var sumDr = 0.0, sumCr = 0.0;

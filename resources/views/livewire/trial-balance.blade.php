@@ -1,12 +1,26 @@
 <div>
+    <style>
+        /* Fixed width for DR and CR columns in modal table to ensure equal width */
+        .detail-modal-table th:nth-child(4), .detail-modal-table td:nth-child(4),
+        .detail-modal-table th:nth-child(5), .detail-modal-table td:nth-child(5) {
+            width: 120px;
+            min-width: 100px;
+            max-width: 140px;
+            text-align: right;
+            white-space: nowrap;
+        }
+    </style>
+
     <div class="mb-4 flex items-center space-x-4">
         <div>
-            <label>Start date</label>
-            <input type="date" wire:model.lazy="dateStart" class="border rounded px-2 py-1" />
-        </div>
-        <div>
-            <label>End date</label>
-            <input type="date" wire:model.lazy="dateEnd" class="border rounded px-2 py-1" />
+            <label>Period</label>
+            <select wire:model="periodKey" class="border rounded px-2 py-1">
+                @foreach($periods ?? [] as $p)
+                    <option value="{{ $p->GLP_KEY }}">
+                        {{ $p->GLP_SEQUENCE }}/{{ $p->GLP_YEAR }} ({{ \Carbon\Carbon::parse($p->GLP_ST_DATE)->format('M Y') }})
+                    </option>
+                @endforeach
+            </select>
         </div>
 
         <div>
@@ -27,6 +41,17 @@
             <button wire:click="$emit('load')" class="bg-blue-600 text-white px-3 py-1 rounded">Load</button>
         </div>
     </div>
+
+    @php
+        $selectedPeriod = collect($periods ?? [])->firstWhere('GLP_KEY', $periodKey);
+    @endphp
+
+    @if($selectedPeriod)
+        <p class="mb-2 text-sm text-gray-600">
+            Showing balances for period: {{ $selectedPeriod->GLP_SEQUENCE }}/{{ $selectedPeriod->GLP_YEAR }}
+            ({{ \Carbon\Carbon::parse($selectedPeriod->GLP_ST_DATE)->format('M j, Y') }} - {{ \Carbon\Carbon::parse($selectedPeriod->GLP_EN_DATE)->format('M j, Y') }})
+        </p>
+    @endif
 
     <div class="overflow-auto">
         <table class="min-w-full border-collapse">
@@ -82,7 +107,7 @@
                 </div>
 
                 <div class="overflow-auto max-h-96">
-                    <table class="min-w-full">
+                    <table class="min-w-full detail-modal-table">
                         <thead>
                             <tr class="bg-gray-100">
                                 <th class="border px-2 py-1">Date</th>
