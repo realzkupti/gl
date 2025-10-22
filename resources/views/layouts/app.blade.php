@@ -23,6 +23,18 @@
         body.dark .sticky-note .sn-wrap { background: #1f2937; border-color: #374151; }
         body.dark .sticky-note .sn-head { background: #374151; color: #f1f5f9; }
         body.dark .sticky-note textarea { color: #f1f5f9; }
+        /* Form controls in dark mode */
+        body.dark input[type="text"],
+        body.dark input[type="search"],
+        body.dark input[type="number"],
+        body.dark input[type="date"],
+        body.dark select,
+        body.dark textarea {
+            background-color: #0b1220 !important;
+            color: #e5e7eb !important;
+            border-color: #374151 !important;
+        }
+        body.dark ::placeholder { color: #9ca3af !important; }
     </style>
 </head>
 <body class="antialiased bg-gray-100" id="app-body">
@@ -32,6 +44,7 @@
                 <div class="flex items-center justify-between">
                     <a href="/" class="font-bold">{{ config('app.name', 'Laravel') }}</a>
                     <div class="flex items-center gap-3">
+                        <a href="/" class="px-2 py-1 rounded border text-sm">Back</a>
                         <button id="theme-toggle" class="px-2 py-1 rounded border text-sm" title="Toggle Dark Mode">Dark</button>
                     </div>
                 </div>

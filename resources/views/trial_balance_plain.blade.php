@@ -507,107 +507,116 @@
 @endsection
 @push('styles')
 <style>
-    .sticky-note { position: fixed; right: 16px; bottom: 16px; width: 300px; z-index: 1000; }
+    .sticky-note { position: fixed; width: 300px; z-index: 1000; }
     .sticky-note .sn-wrap { background: #fffbe6; border: 1px solid #e5d17d; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); overflow: hidden; }
-    .sticky-note .sn-head { background: #fff1a6; padding: .4rem .6rem; display:flex; align-items:center; justify-content:space-between; }
-    .sticky-note .sn-head .sn-title { font-weight: 600; font-size: .9rem; color:#6b5d00; }
-    .sticky-note .sn-head button { font-size: .8rem; color:#6b5d00; }
-    .sticky-note .sn-body { padding: .4rem; }
-    .sticky-note textarea { width: 100%; height: 160px; resize: vertical; background: transparent; outline: none; border: none; font-family: inherit; }
+    .sticky-note .sn-head { background: #fff1a6; padding: .35rem .5rem; display:flex; align-items:center; justify-content:space-between; }
+    .sticky-note .sn-head .sn-title { font-weight: 600; font-size: .85rem; color:#6b5d00; }
+    .sticky-note .sn-head .sn-ctrls { display:flex; gap:.4rem; }
+    .sticky-note .sn-btn { font-size: .8rem; color:#6b5d00; padding:.1rem .35rem; border:1px solid transparent; border-radius:4px; }
+    .sticky-note .sn-body { padding: .4rem; position: relative; }
+    .sticky-note textarea { width: 100%; min-height: 120px; height: 160px; resize: none; background: transparent; outline: none; border: none; font-family: inherit; }
     .sticky-note.min .sn-body { display:none; }
-    .sticky-note.min { width: 220px; }
-    @media print { .sticky-note { display:none; } }
-    /* simple drag handle */
-    .sticky-note { cursor: default; }
+    .sticky-note .sn-resize { position:absolute; right:4px; bottom:4px; width:14px; height:14px; cursor: se-resize; border-right:2px solid #bda74a; border-bottom:2px solid #bda74a; }
+    .sticky-toolbar { position: fixed; right: 16px; bottom: 16px; z-index: 1001; display:flex; gap:.5rem; }
+    .sticky-toolbar .sn-add { background:#fffbe6; border:1px solid #e5d17d; padding:.35rem .6rem; border-radius:6px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    @media print { .sticky-note,.sticky-toolbar { display:none; } }
     .sticky-note .sn-head { cursor: move; }
-  </style>
+</style>
 @endpush
 
 @push('scripts')
 <script>
-    (function(){
-        var companyKey = @json($selectedCompany ?? 'default');
-        var keyBase = 'gl_sn_';
-        var keyText = keyBase + 'text_' + companyKey;
-        var keyMin = keyBase + 'min_' + companyKey;
-        var keyPos = keyBase + 'pos_' + companyKey;
+(function(){
+  var companyKey = @json($selectedCompany ?? 'default');
+  var keyBase = 'gl_sn2_';
+  var keyItems = keyBase + 'items_' + companyKey;
 
-        function el(id){ return document.getElementById(id); }
-        function savePos(x,y){ try{ localStorage.setItem(keyPos, JSON.stringify({x:x,y:y})); }catch(e){} }
-        function loadPos(){ try{ return JSON.parse(localStorage.getItem(keyPos)||'{}'); }catch(e){ return {}; } }
+  function load(){ try { return JSON.parse(localStorage.getItem(keyItems) || '[]'); } catch(e){ return []; } }
+  function save(items){ try { localStorage.setItem(keyItems, JSON.stringify(items)); } catch(e){} }
+  function uid(){ return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
-        function init(){
-            var wrap = document.createElement('div');
-            wrap.className = 'sticky-note';
-            wrap.id = 'sticky-note';
-            wrap.innerHTML = '\
-              <div class="sn-wrap">\
-                <div class="sn-head">\
-                  <div class="sn-title">Note — ' + (companyKey||'default') + '</div>\
-                  <div>\
-                    <button type="button" id="sn-min">_</button>\
-                  </div>\
-                </div>\
-                <div class="sn-body">\
-                  <textarea id="sn-text" placeholder="จดโน้ตสำหรับบริษัทนี้... (auto-save)"></textarea>\
-                </div>\
-              </div>';
-            document.body.appendChild(wrap);
+  function createEl(tag, cls){ var el=document.createElement(tag); if(cls) el.className=cls; return el; }
 
-            // restore
-            try {
-                var txt = localStorage.getItem(keyText) || '';
-                el('sn-text').value = txt;
-                var isMin = localStorage.getItem(keyMin) === '1';
-                if (isMin) wrap.classList.add('min');
-                var pos = loadPos();
-                if (typeof pos.x === 'number' && typeof pos.y === 'number') {
-                    wrap.style.right = 'auto';
-                    wrap.style.bottom = 'auto';
-                    wrap.style.left = pos.x + 'px';
-                    wrap.style.top = pos.y + 'px';
-                }
-            } catch(e) {}
+  function renderToolbar(){
+    var tb = document.querySelector('.sticky-toolbar');
+    if (!tb){ tb = createEl('div','sticky-toolbar'); document.body.appendChild(tb); }
+    tb.innerHTML = '<button type="button" class="sn-add">+ Note</button>';
+    tb.querySelector('.sn-add').addEventListener('click', function(){
+      var items = load();
+      var id = uid();
+      items.push({ id, x: window.innerWidth-340, y: window.innerHeight-220, w: 300, h: 180, min: false, text: '' });
+      save(items); renderAll();
+    });
+  }
 
-            // save-on-input
-            el('sn-text').addEventListener('input', function(){
-                try { localStorage.setItem(keyText, this.value); } catch(e) {}
-            });
+  function bindDrag(note, item){
+    var head = note.querySelector('.sn-head');
+    var dragging=false, sx=0, sy=0, ox=0, oy=0;
+    head.addEventListener('mousedown', function(ev){
+      dragging=true; sx=ev.clientX; sy=ev.clientY; var r=note.getBoundingClientRect(); ox=r.left; oy=r.top; ev.preventDefault();
+    });
+    document.addEventListener('mousemove', function(ev){
+      if(!dragging) return; var nx=ox+(ev.clientX-sx), ny=oy+(ev.clientY-sy); note.style.left=nx+'px'; note.style.top=ny+'px';
+    });
+    document.addEventListener('mouseup', function(){
+      if(!dragging) return; dragging=false; var items=load(); var it=items.find(i=>i.id===item.id); if(it){ var r=note.getBoundingClientRect(); it.x=r.left; it.y=r.top; save(items);} });
+  }
 
-            // toggle minimize
-            el('sn-min').addEventListener('click', function(){
-                wrap.classList.toggle('min');
-                try { localStorage.setItem(keyMin, wrap.classList.contains('min') ? '1' : '0'); } catch(e) {}
-            });
+  function bindResize(note, item){
+    var handle = note.querySelector('.sn-resize');
+    var resizing=false, sx=0, sy=0, sw=0, sh=0;
+    handle.addEventListener('mousedown', function(ev){
+      resizing=true; sx=ev.clientX; sy=ev.clientY; var r=note.getBoundingClientRect(); sw=r.width; sh=r.height; ev.preventDefault();
+    });
+    document.addEventListener('mousemove', function(ev){
+      if(!resizing) return; var nw=Math.max(220, sw+(ev.clientX-sx)); var nh=Math.max(120, sh+(ev.clientY-sy)); note.style.width=nw+'px'; note.querySelector('textarea').style.height=(nh-64)+'px';
+    });
+    document.addEventListener('mouseup', function(){
+      if(!resizing) return; resizing=false; var items=load(); var it=items.find(i=>i.id===item.id); if(it){ var r=note.getBoundingClientRect(); it.w=r.width; it.h=r.height; save(items);} });
+  }
 
-            // drag
-            var dragging = false, sx=0, sy=0, ox=0, oy=0;
-            var head = wrap.querySelector('.sn-head');
-            head.addEventListener('mousedown', function(ev){
-                dragging = true; sx = ev.clientX; sy = ev.clientY;
-                var rect = wrap.getBoundingClientRect();
-                ox = rect.left; oy = rect.top;
-                document.body.classList.add('noselect');
-                ev.preventDefault();
-            });
-            document.addEventListener('mousemove', function(ev){
-                if (!dragging) return;
-                var nx = ox + (ev.clientX - sx);
-                var ny = oy + (ev.clientY - sy);
-                wrap.style.left = nx + 'px';
-                wrap.style.top = ny + 'px';
-                wrap.style.right = 'auto';
-                wrap.style.bottom = 'auto';
-            });
-            document.addEventListener('mouseup', function(){
-                if (!dragging) return;
-                dragging = false;
-                var rect = wrap.getBoundingClientRect();
-                savePos(rect.left, rect.top);
-                document.body.classList.remove('noselect');
-            });
-        }
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
-    })();
-  </script>
+  function renderNote(item){
+    var note = createEl('div','sticky-note');
+    note.style.left = (item.x|| (window.innerWidth-340)) + 'px';
+    note.style.top = (item.y || (window.innerHeight-220)) + 'px';
+    note.style.width = (item.w || 300) + 'px';
+    note.innerHTML = '\
+      <div class="sn-wrap">\
+        <div class="sn-head">\
+          <div class="sn-title">Note — ' + (companyKey||'default') + '</div>\
+          <div class="sn-ctrls">\
+            <button type="button" class="sn-btn sn-min">_</button>\
+            <button type="button" class="sn-btn sn-del">×</button>\
+          </div>\
+        </div>\
+        <div class="sn-body">\
+          <textarea class="sn-text" placeholder="จดโน้ตสำหรับบริษัทนี้... (auto-save)"></textarea>\
+          <div class="sn-resize"></div>\
+        </div>\
+      </div>';
+    document.body.appendChild(note);
+
+    var txt = note.querySelector('.sn-text');
+    txt.value = item.text || '';
+    if (item.min) note.classList.add('min');
+
+    txt.addEventListener('input', function(){ var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.text=this.value; save(items);} });
+    note.querySelector('.sn-min').addEventListener('click', function(){ note.classList.toggle('min'); var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.min = note.classList.contains('min'); save(items);} });
+    note.querySelector('.sn-del').addEventListener('click', function(){ var items=load().filter(i=>i.id!==item.id); save(items); note.remove(); });
+
+    bindDrag(note,item);
+    bindResize(note,item);
+  }
+
+  function renderAll(){
+    document.querySelectorAll('.sticky-note').forEach(function(n){ n.remove(); });
+    renderToolbar();
+    var items = load();
+    if (!items.length){ items=[{ id: uid(), x: window.innerWidth-340, y: window.innerHeight-220, w: 300, h: 180, min:false, text:'' }]; save(items); }
+    items.forEach(renderNote);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderAll); else renderAll();
+})();
+</script>
 @endpush
