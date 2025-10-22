@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
+use App\Http\Controllers\TrialBalanceController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -42,8 +43,8 @@ Route::get('trial-balance-open', function () {
 })->name('trial-balance.open');
 
 // Plain server-rendered trial balance for debugging (no Livewire)
-Route::get('trial-balance-plain', [App\Http\Controllers\TrialBalanceController::class, 'index'])->name('trial-balance.plain');
+Route::get('trial-balance-plain', [TrialBalanceController::class, 'index'])->name('trial-balance.plain');
 
 // AJAX detail endpoint for trial balance rows
-Route::get('trial-balance-detail', [App\Http\Controllers\TrialBalanceController::class, 'detail'])->name('trial-balance.detail');
-Route::get('trial-balance-entries', [App\Http\Controllers\TrialBalanceController::class, 'entries'])->name('trial-balance.entries');
+Route::get('trial-balance-detail', [TrialBalanceController::class, 'detail'])->name('trial-balance.detail');
+Route::get('trial-balance-entries', [TrialBalanceController::class, 'entries'])->name('trial-balance.entries');
