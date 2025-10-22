@@ -207,9 +207,13 @@
                     @endforeach
                     @foreach($nets as $label => $pair)
                         <tr>
-                            <td class="border px-2 py-1" colspan="6"><strong>{{ $label }}</strong></td>
+                            <td class="border px-2 py-1" colspan="2"><strong>{{ $label }}</strong></td>
+                            <td class="border px-2 py-1 text-right"></td>
+                            <td class="border px-2 py-1 text-right"></td>
                             <td class="border px-2 py-1 text-right">{{ number_format($pair[0],2) }}</td>
                             <td class="border px-2 py-1 text-right">{{ number_format($pair[1],2) }}</td>
+                            <td class="border px-2 py-1 text-right"></td>
+                            <td class="border px-2 py-1 text-right"></td>
                         </tr>
                         @if($label === 'รวมค่าใช้จ่ายสุทธิ')
                         <tr>
@@ -228,7 +232,7 @@
         </div>
     </div>
 
-    
+
 
     <!-- Modal -->
     <div id="detail-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);">
@@ -271,7 +275,7 @@
                             <th class="border px-2 py-1 col-type">ประเภทเอกสาร</th>
                             <th class="border px-2 py-1 text-right">เดบิต</th>
                             <th class="border px-2 py-1 text-right">เครดิต</th>
-                            <th class="border px-2 py-1">หมายเหตุ</th>
+                            <th class="border px-2 py-1">ยอดคงเหลือ</th>
                             <th class="border px-2 py-1">สาขา</th>
                         </tr>
                     </thead>
@@ -363,24 +367,30 @@
 
                 $.getJSON('/trial-balance-detail', { account: acc, period: period }, function(res){
                     var rows = res.data || [];
+                    var opening = Number(res.opening || 0);
+                    var running = opening; // start with opening balance
                     var html = '';
                     var sumDr = 0.0, sumCr = 0.0;
+                    function fmtBal(x){
+                        var v = Number(x||0);
+                        var s = Math.abs(v).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+                        return v < 0 ? '('+ s +')' : s;
+                    }
                     rows.forEach(function(r){
                         var dr = r.DR ? Number(r.DR) : 0;
                         var cr = r.CR ? Number(r.CR) : 0;
                         sumDr += dr; sumCr += cr;
-                        // add title attributes for tooltips on truncated fields
                         var docRef = r.doc_ref || '';
                         var docType = r.doc_type || '';
-                        var sourceText = r.source || '';
                         var branchText = r.branch_code || '';
+                        running += (dr - cr); // always DR-CR
                         html += '<tr>'+
                             '<td class="border px-2 py-1">'+ r.doc_date +'</td>'+
                     '<td class="border px-2 py-1"><a href="#" class="doc-link" title="'+ docRef.replace(/"/g,'&quot;') +'" data-doc_key="'+ r.doc_key +'" data-doc_ref="'+ docRef +'">'+ docRef +'</a></td>'+
                     '<td class="border px-2 py-1 col-type" title="'+ docType.replace(/"/g,'&quot;') +'">'+ (docType) +'</td>'+
                     '<td class="border px-2 py-1 text-right">'+ (dr ? dr.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : '') +'</td>'+
                     '<td class="border px-2 py-1 text-right">'+ (cr ? cr.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : '') +'</td>'+
-                    '<td class="border px-2 py-1" title="'+ sourceText.replace(/"/g,'&quot;') +'">'+ sourceText +'</td>'+
+                    '<td class="border px-2 py-1 text-right">'+ fmtBal(running) +'</td>'+
                     '<td class="border px-2 py-1" title="'+ branchText.replace(/"/g,'&quot;') +'">'+ branchText +'</td>'+
                 '</tr>';
                     });
@@ -495,3 +505,109 @@
     <p class="mt-4 text-sm text-gray-600">This is a plain server-rendered page (no Livewire) — useful for debugging DB queries and avoiding Livewire runtime dispatch issues.</p>
 </div>
 @endsection
+@push('styles')
+<style>
+    .sticky-note { position: fixed; right: 16px; bottom: 16px; width: 300px; z-index: 1000; }
+    .sticky-note .sn-wrap { background: #fffbe6; border: 1px solid #e5d17d; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); overflow: hidden; }
+    .sticky-note .sn-head { background: #fff1a6; padding: .4rem .6rem; display:flex; align-items:center; justify-content:space-between; }
+    .sticky-note .sn-head .sn-title { font-weight: 600; font-size: .9rem; color:#6b5d00; }
+    .sticky-note .sn-head button { font-size: .8rem; color:#6b5d00; }
+    .sticky-note .sn-body { padding: .4rem; }
+    .sticky-note textarea { width: 100%; height: 160px; resize: vertical; background: transparent; outline: none; border: none; font-family: inherit; }
+    .sticky-note.min .sn-body { display:none; }
+    .sticky-note.min { width: 220px; }
+    @media print { .sticky-note { display:none; } }
+    /* simple drag handle */
+    .sticky-note { cursor: default; }
+    .sticky-note .sn-head { cursor: move; }
+  </style>
+@endpush
+
+@push('scripts')
+<script>
+    (function(){
+        var companyKey = @json($selectedCompany ?? 'default');
+        var keyBase = 'gl_sn_';
+        var keyText = keyBase + 'text_' + companyKey;
+        var keyMin = keyBase + 'min_' + companyKey;
+        var keyPos = keyBase + 'pos_' + companyKey;
+
+        function el(id){ return document.getElementById(id); }
+        function savePos(x,y){ try{ localStorage.setItem(keyPos, JSON.stringify({x:x,y:y})); }catch(e){} }
+        function loadPos(){ try{ return JSON.parse(localStorage.getItem(keyPos)||'{}'); }catch(e){ return {}; } }
+
+        function init(){
+            var wrap = document.createElement('div');
+            wrap.className = 'sticky-note';
+            wrap.id = 'sticky-note';
+            wrap.innerHTML = '\
+              <div class="sn-wrap">\
+                <div class="sn-head">\
+                  <div class="sn-title">Note — ' + (companyKey||'default') + '</div>\
+                  <div>\
+                    <button type="button" id="sn-min">_</button>\
+                  </div>\
+                </div>\
+                <div class="sn-body">\
+                  <textarea id="sn-text" placeholder="จดโน้ตสำหรับบริษัทนี้... (auto-save)"></textarea>\
+                </div>\
+              </div>';
+            document.body.appendChild(wrap);
+
+            // restore
+            try {
+                var txt = localStorage.getItem(keyText) || '';
+                el('sn-text').value = txt;
+                var isMin = localStorage.getItem(keyMin) === '1';
+                if (isMin) wrap.classList.add('min');
+                var pos = loadPos();
+                if (typeof pos.x === 'number' && typeof pos.y === 'number') {
+                    wrap.style.right = 'auto';
+                    wrap.style.bottom = 'auto';
+                    wrap.style.left = pos.x + 'px';
+                    wrap.style.top = pos.y + 'px';
+                }
+            } catch(e) {}
+
+            // save-on-input
+            el('sn-text').addEventListener('input', function(){
+                try { localStorage.setItem(keyText, this.value); } catch(e) {}
+            });
+
+            // toggle minimize
+            el('sn-min').addEventListener('click', function(){
+                wrap.classList.toggle('min');
+                try { localStorage.setItem(keyMin, wrap.classList.contains('min') ? '1' : '0'); } catch(e) {}
+            });
+
+            // drag
+            var dragging = false, sx=0, sy=0, ox=0, oy=0;
+            var head = wrap.querySelector('.sn-head');
+            head.addEventListener('mousedown', function(ev){
+                dragging = true; sx = ev.clientX; sy = ev.clientY;
+                var rect = wrap.getBoundingClientRect();
+                ox = rect.left; oy = rect.top;
+                document.body.classList.add('noselect');
+                ev.preventDefault();
+            });
+            document.addEventListener('mousemove', function(ev){
+                if (!dragging) return;
+                var nx = ox + (ev.clientX - sx);
+                var ny = oy + (ev.clientY - sy);
+                wrap.style.left = nx + 'px';
+                wrap.style.top = ny + 'px';
+                wrap.style.right = 'auto';
+                wrap.style.bottom = 'auto';
+            });
+            document.addEventListener('mouseup', function(){
+                if (!dragging) return;
+                dragging = false;
+                var rect = wrap.getBoundingClientRect();
+                savePos(rect.left, rect.top);
+                document.body.classList.remove('noselect');
+            });
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+    })();
+  </script>
+@endpush

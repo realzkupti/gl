@@ -78,9 +78,12 @@ class TrialBalanceController extends Controller
         $dateS = $period->GLP_ST_DATE;
         $dateE = $period->GLP_EN_DATE;
 
+        // Opening net balance before start date (DR-CR)
+        $opening = TrialBalance::getAccountOpeningNet($account, $dateS);
+
         $rows = TrialBalance::getAccountDetails($account, $dateS, $dateE);
 
-        return response()->json(['data' => $rows]);
+        return response()->json(['data' => $rows, 'opening' => $opening]);
     }
 
     // Return accounting entries (postings) for a given document DI_KEY

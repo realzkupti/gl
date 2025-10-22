@@ -148,6 +148,38 @@ class TrialBalance extends Model
     }
 
     /**
+     * Get opening net balance (DR-CR) for a specific account before a given date
+     */
+    public static function getAccountOpeningNet($account, $dateStart)
+    {
+        $bindings = [$account, $dateStart, $account, $dateStart];
+
+        $sql = "
+            SELECT SUM(DR) AS DR, SUM(CR) AS CR
+            FROM (
+                SELECT SUM(GL.TRJ_DEBIT) AS DR, SUM(GL.TRJ_CREDIT) AS CR
+                FROM TRANSTKJ GL
+                INNER JOIN DOCINFO DI ON GL.TRJ_DI = DI.DI_KEY
+                INNER JOIN ACCOUNTCHART AC ON GL.TRJ_AC = AC.AC_KEY
+                WHERE AC.AC_CODE = ? AND DI.DI_DATE < ?
+
+                UNION ALL
+
+                SELECT SUM(GL.TPJ_DEBIT) AS DR, SUM(GL.TPJ_CREDIT) AS CR
+                FROM TRANPAYJ GL
+                INNER JOIN ACCOUNTCHART AC ON GL.TPJ_AC = AC.AC_KEY
+                INNER JOIN DOCINFO DI ON GL.TPJ_DI = DI.DI_KEY
+                WHERE AC.AC_CODE = ? AND DI.DI_DATE < ?
+            ) x
+        ";
+
+        $rows = DB::select($sql, $bindings);
+        $dr = isset($rows[0]->DR) ? (float)$rows[0]->DR : 0.0;
+        $cr = isset($rows[0]->CR) ? (float)$rows[0]->CR : 0.0;
+        return $dr - $cr; // positive=debit balance, negative=credit balance
+    }
+
+    /**
      * Process and merge movement and opening balances into trial balance rows
      */
     public static function processTrialBalanceData($movementRows, $openingRows)
