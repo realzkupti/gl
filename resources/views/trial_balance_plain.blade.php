@@ -4,16 +4,37 @@
 <div class="container mx-auto py-6">
     <h1 class="text-2xl font-semibold mb-4">Trial Balance (Plain)</h1>
 
-    <form method="get" class="mb-4 flex items-end space-x-2">
+    @if($selectedPeriod)
+        <p class="mb-2 text-sm text-gray-600">
+            Showing balances for period: {{ $selectedPeriod->GLP_SEQUENCE }}/{{ $selectedPeriod->GLP_YEAR }}
+            ({{ \Carbon\Carbon::parse($selectedPeriod->GLP_ST_DATE)->format('M j, Y') }} - {{ \Carbon\Carbon::parse($selectedPeriod->GLP_EN_DATE)->format('M j, Y') }})
+        </p>
+    @endif
+
+    <form method="get" class="mb-4 flex items-end space-x-4">
         <div>
-            <label>Start date</label>
-            <input type="date" name="dateStart" value="{{ $dateStart }}" class="border rounded px-2 py-1" />
+            <label>Company</label>
+            <select name="company" class="border rounded px-2 py-1" onchange="this.form.submit()">
+                @php
+                    $companies = $companies ?? (\App\Services\CompanyManager::listCompanies());
+                    $selectedCompany = $selectedCompany ?? (\App\Services\CompanyManager::getSelectedKey());
+                @endphp
+                @foreach(($companies ?? []) as $key => $c)
+                    @php $label = is_array($c) ? ($c['label'] ?? $key) : $key; @endphp
+                    <option value="{{ $key }}" {{ ($selectedCompany === $key) ? 'selected' : '' }}>{{ $label }}</option>
+                @endforeach
+            </select>
         </div>
         <div>
-            <label>End date</label>
-            <input type="date" name="dateEnd" value="{{ $dateEnd }}" class="border rounded px-2 py-1" />
+            <label>Period</label>
+            <select name="period" class="border rounded px-2 py-1">
+                @foreach($periods ?? [] as $p)
+                    <option value="{{ $p->GLP_KEY }}" {{ ($selectedPeriod && $selectedPeriod->GLP_KEY == $p->GLP_KEY) ? 'selected' : '' }}>
+                        {{ $p->GLP_SEQUENCE }}/{{ $p->GLP_YEAR }} ({{ \Carbon\Carbon::parse($p->GLP_ST_DATE)->format('M Y') }})
+                    </option>
+                @endforeach
+            </select>
         </div>
-        <!-- branch removed per request -->
         <div>
             <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded">Load</button>
         </div>
@@ -34,6 +55,17 @@
         #detail-table, #entries-table { table-layout: fixed; }
         /* keep type column in detail modal truncated to avoid overlapping numbers */
         #detail-table th.col-type, #detail-table td.col-type { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Fixed width for DR and CR columns in modal tables to ensure equal width */
+        #detail-table th:nth-child(4), #detail-table td:nth-child(4),
+        #detail-table th:nth-child(5), #detail-table td:nth-child(5),
+        #entries-table th:nth-child(3), #entries-table td:nth-child(3),
+        #entries-table th:nth-child(4), #entries-table td:nth-child(4) {
+            width: 120px;
+            min-width: 100px;
+            max-width: 140px;
+            text-align: right;
+            white-space: nowrap;
+        }
     </style>
 
     <style>
@@ -76,8 +108,8 @@
 
     <!-- Modal -->
     <div id="detail-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);">
-    <div style="background:#fff; padding:1rem; width:95%; max-width:1200px; margin:0 auto; border-radius:6px; max-height:90vh; overflow:auto;">
-            <div class="flex justify-between items-center mb-2">
+    <div class="modal-scroll" style="background:#fff; padding:1rem; width:95%; max-width:1200px; margin:0 auto; border-radius:6px; max-height:90vh; overflow:auto;">
+            <div class="flex justify-between items-center mb-2 modal-header" style="position:sticky; top:0; background:#fff; z-index:20; padding-bottom:.5rem;">
                 <div style="white-space:nowrap; display:flex; align-items:center; gap:1rem;">
                     <h3 id="detail-title" class="text-lg font-semibold" style="margin:0;">Detail</h3>
                     <div id="detail-subheader" class="text-sm text-gray-600" style="display:inline-block;">Account: <span id="detail-account"></span> — <span id="detail-account-name"></span> | Branch: <span id="detail-branch"></span></div>
@@ -93,6 +125,19 @@
                     .entries-account { font-weight:700; color: #1f2937; text-decoration: underline; cursor: pointer; }
                     /* constrain Type column to avoid overlapping numbers; show ellipsis */
                     th.col-type, td.col-type { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                    /* Fixed width for DR and CR columns in modal tables to ensure equal width */
+                    #detail-table th:nth-child(4), #detail-table td:nth-child(4),
+                    #detail-table th:nth-child(5), #detail-table td:nth-child(5),
+                    #entries-table th:nth-child(3), #entries-table td:nth-child(3),
+                    #entries-table th:nth-child(4), #entries-table td:nth-child(4) {
+                        width: 120px;
+                        min-width: 100px;
+                        max-width: 140px;
+                        text-align: right;
+                        white-space: nowrap;
+                    }
+                    /* sticky table headers inside scrollable modal */
+                    #detail-table thead th { position: sticky; top: var(--detail-head-top, 48px); z-index: 10; background: #f8fafc; }
                 </style>
                 <table id="detail-table" class="min-w-full display stripe" style="table; width:100%;">
                     <thead>
@@ -123,13 +168,17 @@
 
     <!-- Nested entries modal -->
     <div id="entries-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);">
-    <div style="background:#fff; padding:1rem; width:95%; max-width:1200px; margin:0 auto; border-radius:6px; max-height:90vh; overflow:auto;">
-            <div class="flex justify-between items-center mb-2">
+    <div class="modal-scroll" style="background:#fff; padding:1rem; width:95%; max-width:1200px; margin:0 auto; border-radius:6px; max-height:90vh; overflow:auto;">
+            <div class="flex justify-between items-center mb-2 modal-header" style="position:sticky; top:0; background:#fff; z-index:20; padding-bottom:.5rem;">
                 <h3 id="entries-title" class="text-lg font-semibold">Entries</h3>
                 <button id="entries-close" class="px-2 py-1 bg-gray-200 rounded">Close</button>
             </div>
                 <div>
                 <table id="entries-table" class="min-w-full display stripe" style="table-layout:fixed; width:100%;">
+                    <style>
+                        /* sticky table headers inside scrollable modal */
+                        #entries-table thead th { position: sticky; top: var(--entries-head-top, 48px); z-index: 10; background: #f8fafc; }
+                    </style>
                     <thead>
                         <tr>
                             <th class="border px-2 py-1 col-account">Account</th>
@@ -170,9 +219,12 @@
 
             // helper to load detail for an account and populate the detail modal
             function performDetailLoad(acc, acctName) {
-                var dateStart = $('input[name="dateStart"]').val();
-                var dateEnd = $('input[name="dateEnd"]').val();
+                var period = $('select[name="period"]').val();
                 $('#detail-modal').css('display','flex');
+                try {
+                    var dh = $('#detail-modal .modal-header').outerHeight() || 48;
+                    $('#detail-modal .modal-scroll')[0].style.setProperty('--detail-head-top', dh + 'px');
+                } catch(e) {}
 
                 if ($.fn.DataTable.isDataTable('#detail-table')) {
                     try { $('#detail-table').DataTable().destroy(); } catch(e) {}
@@ -186,7 +238,7 @@
                 $('#detail-account-name').text(acctName || '');
                 $('#detail-branch').text('');
 
-                $.getJSON('/trial-balance-detail', { account: acc, dateStart: dateStart, dateEnd: dateEnd }, function(res){
+                $.getJSON('/trial-balance-detail', { account: acc, period: period }, function(res){
                     var rows = res.data || [];
                     var html = '';
                     var sumDr = 0.0, sumCr = 0.0;
@@ -240,6 +292,10 @@
                 $('#entries-sub-dr').text('');
                 $('#entries-sub-cr').text('');
                 $('#entries-modal').css('display','flex');
+                try {
+                    var eh = $('#entries-modal .modal-header').outerHeight() || 48;
+                    $('#entries-modal .modal-scroll')[0].style.setProperty('--entries-head-top', eh + 'px');
+                } catch(e) {}
 
                 // destroy entries table if exists
                 if ($.fn.DataTable.isDataTable('#entries-table')) {

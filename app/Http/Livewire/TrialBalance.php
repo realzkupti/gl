@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\DB;
 
 class TrialBalance extends Component
 {
-    public $dateStart;
-    public $dateEnd;
+    public $periodKey = null;
     public $branchId = null; // nullable, when null show all branches grouped (this holds branch code)
     public $branches = [];
+    public $periods = [];
 
     // Data for the table
     public $rows = [];
@@ -28,8 +28,20 @@ class TrialBalance extends Component
 
     public function mount()
     {
-        $this->dateStart = now()->startOfMonth()->toDateString();
-        $this->dateEnd = now()->endOfMonth()->toDateString();
+        // Load GL periods
+        $this->periods = DB::select("SELECT GLP_KEY, GLP_YEAR, GLP_SEQUENCE, GLP_ST_DATE, GLP_EN_DATE FROM GLPERIOD ORDER BY GLP_ST_DATE");
+
+        // Default to current month
+        $currentMonth = now()->format('Y-m');
+        foreach ($this->periods as $period) {
+            if (substr($period->GLP_ST_DATE, 0, 7) === $currentMonth) {
+                $this->periodKey = $period->GLP_KEY;
+                break;
+            }
+        }
+        if (!$this->periodKey && $this->periods) {
+            $this->periodKey = $this->periods[0]->GLP_KEY;
+        }
 
         // Load branches from BRANCH table (Bplus): BR_KEY, BR_CODE, BR_THAIDESC
         if (DB::getSchemaBuilder()->hasTable('BRANCH')) {
@@ -69,9 +81,15 @@ class TrialBalance extends Component
     // Main loader - replace the SQL inside with your existing query
     public function loadData()
     {
-        // Use the user's provided logic: union TRANSTKJ and TRANPAYJ for movements inside range
-        $dateS = $this->dateStart;
-        $dateE = $this->dateEnd;
+        if (!$this->periodKey) return;
+
+        // Get period details
+        $period = collect($this->periods)->firstWhere('GLP_KEY', $this->periodKey);
+        if (!$period) return;
+
+        // Use period range for proper trial balance
+        $dateS = $period->GLP_ST_DATE; // Start of selected period
+        $dateE = $period->GLP_EN_DATE; // End of selected period
 
         $branchWhere = '';
         $bindingsMovement = [$dateS, $dateE, $dateS, $dateE];
@@ -221,12 +239,7 @@ class TrialBalance extends Component
         $this->rows = $rows;
     }
 
-    public function updatedDateStart()
-    {
-        $this->load();
-    }
-
-    public function updatedDateEnd()
+    public function updatedPeriodKey()
     {
         $this->load();
     }
@@ -248,8 +261,13 @@ class TrialBalance extends Component
         $this->detailAccount = $accountNumber;
         $this->showDetail = true;
 
-        $dateS = $this->dateStart;
-        $dateE = $this->dateEnd;
+        if (!$this->periodKey) return;
+
+        $period = collect($this->periods)->firstWhere('GLP_KEY', $this->periodKey);
+        if (!$period) return;
+
+        $dateS = $period->GLP_ST_DATE;
+        $dateE = $period->GLP_EN_DATE;
 
         $branchWhere = '';
         $bindings = [$accountNumber, $dateS, $dateE, $accountNumber, $dateS, $dateE];
