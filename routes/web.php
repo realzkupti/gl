@@ -44,6 +44,10 @@ Route::get('trial-balance-open', function () {
 
 // Plain server-rendered trial balance for debugging (no Livewire)
 Route::get('trial-balance-plain', [TrialBalanceController::class, 'index'])->middleware(['company.connection'])->name('trial-balance.plain');
+// PDF export for trial balance
+Route::get('trial-balance-pdf', [TrialBalanceController::class, 'pdf'])->middleware(['company.connection'])->name('trial-balance.pdf');
+// Excel export for trial balance
+Route::get('trial-balance-excel', [TrialBalanceController::class, 'excel'])->middleware(['company.connection'])->name('trial-balance.excel');
 
 // AJAX detail endpoint for trial balance rows
 Route::get('trial-balance-detail', [TrialBalanceController::class, 'detail'])->middleware(['company.connection'])->name('trial-balance.detail');

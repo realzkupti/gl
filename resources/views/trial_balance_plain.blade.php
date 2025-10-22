@@ -2,18 +2,18 @@
 
 @section('content')
 <div class="container mx-auto py-6">
-    <h1 class="text-2xl font-semibold mb-4">Trial Balance (Plain)</h1>
+    <h1 class="text-2xl font-semibold mb-4">งบทดลอง (แบบธรรมดา)</h1>
 
     @if($selectedPeriod)
         <p class="mb-2 text-sm text-gray-600">
-            Showing balances for period: {{ $selectedPeriod->GLP_SEQUENCE }}/{{ $selectedPeriod->GLP_YEAR }}
-            ({{ \Carbon\Carbon::parse($selectedPeriod->GLP_ST_DATE)->format('M j, Y') }} - {{ \Carbon\Carbon::parse($selectedPeriod->GLP_EN_DATE)->format('M j, Y') }})
+            แสดงงวดบัญชี: {{ $selectedPeriod->GLP_SEQUENCE }}/{{ $selectedPeriod->GLP_YEAR }}
+            ({{ \Carbon\Carbon::parse($selectedPeriod->GLP_ST_DATE)->format('j M Y') }} - {{ \Carbon\Carbon::parse($selectedPeriod->GLP_EN_DATE)->format('j M Y') }})
         </p>
     @endif
 
-    <form method="get" class="mb-4 flex items-end space-x-4">
+    <form method="get" class="mb-4 flex items-end space-x-4 print:hidden">
         <div>
-            <label>Company</label>
+            <label>บริษัท</label>
             <select name="company" class="border rounded px-2 py-1" onchange="this.form.submit()">
                 @php
                     $companies = $companies ?? (\App\Services\CompanyManager::listCompanies());
@@ -26,7 +26,7 @@
             </select>
         </div>
         <div>
-            <label>Period</label>
+            <label>งวดบัญชี</label>
             <select name="period" class="border rounded px-2 py-1">
                 @foreach($periods ?? [] as $p)
                     <option value="{{ $p->GLP_KEY }}" {{ ($selectedPeriod && $selectedPeriod->GLP_KEY == $p->GLP_KEY) ? 'selected' : '' }}>
@@ -36,7 +36,9 @@
             </select>
         </div>
         <div>
-            <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded">Load</button>
+            <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded">แสดงผล</button>
+            <a href="{{ route('trial-balance.pdf', ['period' => $selectedPeriod?->GLP_KEY]) }}" target="_blank" class="ml-2 inline-block bg-gray-700 text-white px-3 py-1 rounded">พิมพ์ PDF</a>
+            <a href="{{ route('trial-balance.excel', ['period' => $selectedPeriod?->GLP_KEY]) }}" class="ml-2 inline-block bg-green-700 text-white px-3 py-1 rounded">Export Excel</a>
         </div>
     </form>
 
@@ -72,32 +74,39 @@
         /* small account column for Entries modal */
         .col-account { width:100px; min-width:80px; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     </style>
+    <style>
+        @media print { .print\:hidden { display:none !important; } }
+        @page { size: A4 landscape; margin: 10mm; }
+    </style>
 
     <div class="overflow-auto">
         <table id="tb-trial" class="display stripe" style="width:100%">
             <thead>
                 <tr class="bg-gray-100">
-                    <th class="border px-2 py-1 col-text">Account</th>
-                    <th class="border px-2 py-1 col-text">Name</th>
-                    <th class="border px-2 py-1 col-num">Opening Dr</th>
-                    <th class="border px-2 py-1 col-num">Opening Cr</th>
-                    <th class="border px-2 py-1 col-num">Movement Dr</th>
-                    <th class="border px-2 py-1 col-num">Movement Cr</th>
-                    <th class="border px-2 py-1 text-center">Detail</th>
-                    <th class="border px-2 py-1 col-num">Balance Dr</th>
-                    <th class="border px-2 py-1 col-num">Balance Cr</th>
+                    <th class="border px-2 py-1 col-text" rowspan="2">เลขบัญชี</th>
+                    <th class="border px-2 py-1 col-text" rowspan="2">ชื่อบัญชี</th>
+                    <th class="border px-2 py-1 text-center" colspan="2">ยอดยกมา</th>
+                    <th class="border px-2 py-1 text-center" colspan="2">ยอดเคลื่อนไหว</th>
+                    <th class="border px-2 py-1 text-center" colspan="2">ยอดคงเหลือ</th>
+                </tr>
+                <tr class="bg-gray-100">
+                    <th class="border px-2 py-1 col-num">เดบิต</th>
+                    <th class="border px-2 py-1 col-num">เครดิต</th>
+                    <th class="border px-2 py-1 col-num">เดบิต</th>
+                    <th class="border px-2 py-1 col-num">เครดิต</th>
+                    <th class="border px-2 py-1 col-num">เดบิต</th>
+                    <th class="border px-2 py-1 col-num">เครดิต</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($rows ?? [] as $r)
                     <tr>
-                        <td class="border px-2 py-1 col-text" title="{{ $r['account_number'] }}">{{ $r['account_number'] }}</td>
+                        <td class="border px-2 py-1 col-text" title="{{ $r['account_number'] }}"><a href="#" class="detail-link underline text-blue-700" data-account="{{ $r['account_number'] }}" data-account-name="{{ $r['account_name'] }}">{{ $r['account_number'] }}</a></td>
                         <td class="border px-2 py-1 col-text" title="{{ $r['account_name'] }}">{{ $r['account_name'] }}</td>
                         <td class="border px-2 py-1 col-num">{{ number_format($r['opening_debit'],2) }}</td>
                         <td class="border px-2 py-1 col-num">{{ number_format($r['opening_credit'],2) }}</td>
                         <td class="border px-2 py-1 col-num">{{ number_format($r['movement_debit'],2) }}</td>
                         <td class="border px-2 py-1 col-num">{{ number_format($r['movement_credit'],2) }}</td>
-                        <td class="border px-2 py-1 text-center"><button class="detail-btn bg-gray-200 px-2 py-1 rounded" data-account="{{ $r['account_number'] }}" data-account-name="{{ $r['account_name'] }}">Details</button></td>
                         <td class="border px-2 py-1 col-num">{{ number_format($r['balance_debit'],2) }}</td>
                         <td class="border px-2 py-1 col-num">{{ number_format($r['balance_credit'],2) }}</td>
                     </tr>
@@ -106,15 +115,99 @@
         </table>
     </div>
 
+    @php
+        // Build totals like PDF: opening, movement, balance for each group
+        $mk = function(){ return ['o_dr'=>0,'o_cr'=>0,'m_dr'=>0,'m_cr'=>0,'b_dr'=>0,'b_cr'=>0]; };
+        $total = $mk();
+        $assets = $mk(); $liab = $mk(); $equity = $mk(); $revenue = $mk(); $expense = $mk();
+        $add = function(&$t, $r){
+            $t['o_dr'] += (float)($r['opening_debit'] ?? 0);
+            $t['o_cr'] += (float)($r['opening_credit'] ?? 0);
+            $t['m_dr'] += (float)($r['movement_debit'] ?? 0);
+            $t['m_cr'] += (float)($r['movement_credit'] ?? 0);
+            $t['b_dr'] += (float)($r['balance_debit'] ?? 0);
+            $t['b_cr'] += (float)($r['balance_credit'] ?? 0);
+        };
+        foreach(($rows ?? []) as $r){
+            $add($total, $r);
+            $first = substr((string)($r['account_number'] ?? ''),0,1);
+            if ($first==='1') $add($assets,$r);
+            elseif ($first==='2') $add($liab,$r);
+            elseif ($first==='3') $add($equity,$r);
+            elseif ($first==='4') $add($revenue,$r);
+            else $add($expense,$r);
+        }
+        $rowsSum = [
+            'รวมทั้งหมด' => $total,
+            'รวมสินทรัพย์' => $assets,
+            'รวมหนี้สิน' => $liab,
+            'รวมส่วนของเจ้าของ' => $equity,
+            'รวมรายได้' => $revenue,
+            'รวมค่าใช้จ่าย' => $expense,
+        ];
+        $net = function($t){ $d = ($t['b_dr'] ?? 0) - ($t['b_cr'] ?? 0); return [max($d,0), max(-$d,0)]; };
+        $nets = [
+            'รวมสินทรัพย์สุทธิ' => $net($assets),
+            'รวมหนี้สินสุทธิ' => $net($liab),
+            'รวมรายได้สุทธิ' => $net($revenue),
+            'รวมค่าใช้จ่ายสุทธิ' => $net($expense),
+        ];
+    @endphp
+
+    <div class="mt-4">
+        <h3 class="font-semibold mb-2">สรุปยอดท้ายงบทดลอง</h3>
+        <div class="overflow-auto">
+            <table class="min-w-full border-collapse" style="width:100%">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border px-2 py-1" colspan="2">รายการ</th>
+                        <th class="border px-2 py-1 text-center" colspan="2">ยอดยกมา</th>
+                        <th class="border px-2 py-1 text-center" colspan="2">ยอดเคลื่อนไหว</th>
+                        <th class="border px-2 py-1 text-center" colspan="2">ยอดคงเหลือ</th>
+                    </tr>
+                    <tr class="bg-gray-100">
+                        <th class="border px-2 py-1" colspan="2"></th>
+                        <th class="border px-2 py-1 text-right">เดบิต</th>
+                        <th class="border px-2 py-1 text-right">เครดิต</th>
+                        <th class="border px-2 py-1 text-right">เดบิต</th>
+                        <th class="border px-2 py-1 text-right">เครดิต</th>
+                        <th class="border px-2 py-1 text-right">เดบิต</th>
+                        <th class="border px-2 py-1 text-right">เครดิต</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($rowsSum as $label => $t)
+                        <tr>
+                            <td class="border px-2 py-1" colspan="2"><strong>{{ $label }}</strong></td>
+                            <td class="border px-2 py-1 text-right">{{ number_format($t['o_dr'],2) }}</td>
+                            <td class="border px-2 py-1 text-right">{{ number_format($t['o_cr'],2) }}</td>
+                            <td class="border px-2 py-1 text-right">{{ number_format($t['m_dr'],2) }}</td>
+                            <td class="border px-2 py-1 text-right">{{ number_format($t['m_cr'],2) }}</td>
+                            <td class="border px-2 py-1 text-right">{{ number_format($t['b_dr'],2) }}</td>
+                            <td class="border px-2 py-1 text-right">{{ number_format($t['b_cr'],2) }}</td>
+                        </tr>
+                    @endforeach
+                    @foreach($nets as $label => $pair)
+                        <tr>
+                            <td class="border px-2 py-1" colspan="6"><strong>{{ $label }}</strong></td>
+                            <td class="border px-2 py-1 text-right">{{ number_format($pair[0],2) }}</td>
+                            <td class="border px-2 py-1 text-right">{{ number_format($pair[1],2) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Modal -->
     <div id="detail-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);">
     <div class="modal-scroll" style="background:#fff; padding:1rem; width:95%; max-width:1200px; margin:0 auto; border-radius:6px; max-height:90vh; overflow:auto;">
             <div class="flex justify-between items-center mb-2 modal-header" style="position:sticky; top:0; background:#fff; z-index:20; padding-bottom:.5rem;">
                 <div style="white-space:nowrap; display:flex; align-items:center; gap:1rem;">
-                    <h3 id="detail-title" class="text-lg font-semibold" style="margin:0;">Detail</h3>
-                    <div id="detail-subheader" class="text-sm text-gray-600" style="display:inline-block;">Account: <span id="detail-account"></span> — <span id="detail-account-name"></span> | Branch: <span id="detail-branch"></span></div>
+                    <h3 id="detail-title" class="text-lg font-semibold" style="margin:0;">รายละเอียด</h3>
+                    <div id="detail-subheader" class="text-sm text-gray-600" style="display:inline-block;">บัญชี: <span id="detail-account"></span> — <span id="detail-account-name"></span> | สาขา: <span id="detail-branch"></span></div>
                 </div>
-                <button id="detail-close" class="px-2 py-1 bg-gray-200 rounded">Close</button>
+                <button id="detail-close" class="px-2 py-1 bg-gray-200 rounded">ปิด</button>
             </div>
             <div>
                 <style>
@@ -142,20 +235,20 @@
                 <table id="detail-table" class="min-w-full display stripe" style="table; width:100%;">
                     <thead>
                         <tr>
-                            <th class="border px-2 py-1">Date</th>
-                            <th class="border px-2 py-1">Ref</th>
-                            <th class="border px-2 py-1 col-type">Type</th>
-                            <th class="border px-2 py-1 text-right">Dr</th>
-                            <th class="border px-2 py-1 text-right">Cr</th>
-                            <th class="border px-2 py-1">Remark</th>
-                            <th class="border px-2 py-1">Branch</th>
+                            <th class="border px-2 py-1">วันที่</th>
+                            <th class="border px-2 py-1">เลขที่อ้างอิง</th>
+                            <th class="border px-2 py-1 col-type">ประเภทเอกสาร</th>
+                            <th class="border px-2 py-1 text-right">เดบิต</th>
+                            <th class="border px-2 py-1 text-right">เครดิต</th>
+                            <th class="border px-2 py-1">หมายเหตุ</th>
+                            <th class="border px-2 py-1">สาขา</th>
                         </tr>
                     </thead>
                     <tbody id="detail-body"></tbody>
                     <tfoot>
                         <tr>
                             <!-- colspan = total columns (7) - 2 (DR/CR) = 5 -->
-                            <td class="border px-2 py-1 font-semibold" colspan="3">SubTotal</td>
+                            <td class="border px-2 py-1 font-semibold" colspan="3">รวมย่อย</td>
                             <td class="border px-2 py-1 font-semibold text-right" id="detail-sub-dr" style="text-align:right;"></td>
                             <td class="border px-2 py-1 font-semibold text-right" id="detail-sub-cr" style="text-align:right;"></td>
                             <td class="border px-2 py-1 font-semibold" colspan="2"></td>
@@ -170,8 +263,8 @@
     <div id="entries-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);">
     <div class="modal-scroll" style="background:#fff; padding:1rem; width:95%; max-width:1200px; margin:0 auto; border-radius:6px; max-height:90vh; overflow:auto;">
             <div class="flex justify-between items-center mb-2 modal-header" style="position:sticky; top:0; background:#fff; z-index:20; padding-bottom:.5rem;">
-                <h3 id="entries-title" class="text-lg font-semibold">Entries</h3>
-                <button id="entries-close" class="px-2 py-1 bg-gray-200 rounded">Close</button>
+                <h3 id="entries-title" class="text-lg font-semibold">รายการบันทึกบัญชี</h3>
+                <button id="entries-close" class="px-2 py-1 bg-gray-200 rounded">ปิด</button>
             </div>
                 <div>
                 <table id="entries-table" class="min-w-full display stripe" style="table-layout:fixed; width:100%;">
@@ -181,18 +274,18 @@
                     </style>
                     <thead>
                         <tr>
-                            <th class="border px-2 py-1 col-account">Account</th>
-                            <th class="border px-2 py-1">Name</th>
-                            <th class="border px-2 py-1 text-right">Dr</th>
-                            <th class="border px-2 py-1 text-right">Cr</th>
-                            <th class="border px-2 py-1">Source</th>
+                            <th class="border px-2 py-1 col-account">เลขบัญชี</th>
+                            <th class="border px-2 py-1">ชื่อบัญชี</th>
+                            <th class="border px-2 py-1 text-right">เดบิต</th>
+                            <th class="border px-2 py-1 text-right">เครดิต</th>
+                            <th class="border px-2 py-1">ที่มา</th>
                         </tr>
                     </thead>
                     <tbody id="entries-body"></tbody>
                     <tfoot>
                         <tr>
                             <!-- colspan = total columns (5) - 2 (DR/CR) = 3 -->
-                                <td class="border px-2 py-1 font-semibold" colspan="2">Total</td>
+                                <td class="border px-2 py-1 font-semibold" colspan="2">รวม</td>
                                 <td class="border px-2 py-1 font-semibold text-right" id="entries-sub-dr" style="text-align:right;"></td>
                                 <td class="border px-2 py-1 font-semibold text-right" id="entries-sub-cr" style="text-align:right;"></td>
                                 <td class="border px-2 py-1 font-semibold" ></td>
@@ -211,8 +304,7 @@
                 info: true,
                 autoWidth: false,
                 columnDefs: [
-                    { orderable: false, targets: 6 }, // Detail column not orderable (index starts at 0)
-                    { targets: [2,3,4,5,7,8], className: 'col-num', width: '140px' },
+                    { targets: [2,3,4,5,6,7], className: 'col-num', width: '140px' },
                     { targets: [0,1], className: 'col-text' }
                 ]
             });
@@ -276,8 +368,9 @@
                 });
             }
 
-            // click handler for main Details buttons
-            $(document).on('click', '.detail-btn', function(e){
+            // click handler for account number (open details)
+            $(document).on('click', '.detail-link', function(e){
+                e.preventDefault();
                 var acc = $(this).data('account');
                 var acctName = $(this).data('account-name') || $(this).data('accountName') || '';
                 performDetailLoad(acc, acctName);
@@ -329,7 +422,7 @@
 
                     // set title with doc ref and doc type if available
                     var docType = (rows.length && rows[0].doc_type) ? rows[0].doc_type : '';
-                    $('#entries-title').text('Entries — ' + docRef + (docType ? ' ('+docType+')' : ''));
+                    $('#entries-title').text('รายการบันทึกบัญชี — ' + docRef + (docType ? ' ('+docType+')' : ''));
 
                     $('#entries-table').DataTable({ paging: false, searching: false, info: false, order: [[0, 'asc']] });
                 });

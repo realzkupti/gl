@@ -186,12 +186,18 @@ class TrialBalance extends Model
 
         $rows = [];
         foreach ($map as $k => $v) {
-            $net = ($v['opening_debit'] - $v['opening_credit']) + ($v['movement_debit'] - $v['movement_credit']);
+            // Net opening: show difference on one side only
+            $openNet = ($v['opening_debit'] - $v['opening_credit']);
+            $openingDebit = $openNet >= 0 ? $openNet : 0;
+            $openingCredit = $openNet < 0 ? abs($openNet) : 0;
+
+            // Net balance: opening + movement
+            $net = ($openingDebit - $openingCredit) + ($v['movement_debit'] - $v['movement_credit']);
             $rows[] = [
                 'account_number' => $v['account_number'],
                 'account_name' => $v['account_name'],
-                'opening_debit' => $v['opening_debit'],
-                'opening_credit' => $v['opening_credit'],
+                'opening_debit' => $openingDebit,
+                'opening_credit' => $openingCredit,
                 'movement_debit' => $v['movement_debit'],
                 'movement_credit' => $v['movement_credit'],
                 'balance_debit' => $net >= 0 ? $net : 0,
