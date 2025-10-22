@@ -5,6 +5,7 @@ use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
 use App\Http\Controllers\TrialBalanceController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ChequeApiController;
 use App\Services\CompanyManager;
 
 Route::get('/', [HomeController::class, 'index'])->middleware(['company.connection'])->name('home');
@@ -62,3 +63,12 @@ Route::get('companies.json', function () {
     $current = CompanyManager::getSelectedKey();
     return response()->json(['data' => $companies, 'current' => $current]);
 })->name('companies.json');
+
+// Cheque UI + minimal API migrated to Laravel
+Route::get('cheque', [ChequeApiController::class, 'ui'])->name('cheque.ui');
+Route::get('cheque/styles.css', [ChequeApiController::class, 'css'])->name('cheque.css');
+Route::get('api/branches', [ChequeApiController::class, 'branches']);
+Route::get('api/cheques', [ChequeApiController::class, 'chequesIndex']);
+Route::post('api/cheques', [ChequeApiController::class, 'chequesStore']);
+Route::delete('api/cheques/{id}', [ChequeApiController::class, 'chequesDestroy']);
+Route::get('api/cheques/next', [ChequeApiController::class, 'chequesNext']);
