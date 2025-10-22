@@ -176,6 +176,24 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @php
+                        // Prepare Profit/Loss from movement: (Revenue 4,7) - (Expenses 5,6,8,9)
+                        $__revCats = ['4','7'];
+                        $__expCats = ['5','6','8','9'];
+                        $__rev = 0.0; $__exp = 0.0;
+                        foreach(($rows ?? []) as $__r){
+                            $__acc = (string)($__r['account_number'] ?? '');
+                            $__cat = strlen($__acc) ? $__acc[0] : '';
+                            $__mvDr = (float)($__r['movement_debit'] ?? 0);
+                            $__mvCr = (float)($__r['movement_credit'] ?? 0);
+                            if (in_array($__cat, $__revCats, true)) {
+                                $__rev += ($__mvCr - $__mvDr);
+                            } elseif (in_array($__cat, $__expCats, true)) {
+                                $__exp += ($__mvDr - $__mvCr);
+                            }
+                        }
+                        $__pl = $__rev - $__exp; // positive = profit (credit), negative = loss (debit)
+                    @endphp
                     @foreach($rowsSum as $label => $t)
                         <tr>
                             <td class="border px-2 py-1" colspan="2"><strong>{{ $label }}</strong></td>
@@ -193,41 +211,24 @@
                             <td class="border px-2 py-1 text-right">{{ number_format($pair[0],2) }}</td>
                             <td class="border px-2 py-1 text-right">{{ number_format($pair[1],2) }}</td>
                         </tr>
+                        @if($label === 'รวมค่าใช้จ่ายสุทธิ')
+                        <tr>
+                            <td class="border px-2 py-1" colspan="2"><strong>กำไร/ขาดทุน</strong></td>
+                            <td class="border px-2 py-1 text-right"></td>
+                            <td class="border px-2 py-1 text-right"></td>
+                            <td class="border px-2 py-1 text-right">{{ number_format($__pl < 0 ? abs($__pl) : 0, 2) }}</td>
+                            <td class="border px-2 py-1 text-right">{{ number_format($__pl > 0 ? $__pl : 0, 2) }}</td>
+                            <td class="border px-2 py-1 text-right"></td>
+                            <td class="border px-2 py-1 text-right"></td>
+                        </tr>
+                        @endif
                     @endforeach
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Summary: Profit/Loss by category (4,7 revenue; 5,6,8,9 expense) -->
-    @php
-        $revCats = ['4','7'];
-        $expCats = ['5','6','8','9'];
-        $totalRevenue = 0.0; $totalExpense = 0.0;
-        foreach(($rows ?? []) as $r){
-            $acc = (string)($r['account_number'] ?? '');
-            $cat = strlen($acc) ? $acc[0] : '';
-            $mvDr = (float)($r['movement_debit'] ?? 0);
-            $mvCr = (float)($r['movement_credit'] ?? 0);
-            if (in_array($cat, $revCats, true)) {
-                $totalRevenue += ($mvCr - $mvDr);
-            } elseif (in_array($cat, $expCats, true)) {
-                $totalExpense += ($mvDr - $mvCr);
-            }
-        }
-        $profitLoss = $totalRevenue - $totalExpense;
-    @endphp
-    <div class="mt-4 p-3 border rounded bg-white max-w-xl">
-        <h3 class="text-lg font-semibold mb-2">สรุปกำไร/ขาดทุน</h3>
-        <div class="grid grid-cols-2 gap-y-1">
-            <div>รายได้ (หมวด 4, 7)</div>
-            <div class="text-right">{{ number_format($totalRevenue, 2) }}</div>
-            <div>ค่าใช้จ่าย (หมวด 5, 6, 8, 9)</div>
-            <div class="text-right">{{ number_format($totalExpense, 2) }}</div>
-            <div class="font-semibold">กำไร / (ขาดทุน)</div>
-            <div class="text-right font-semibold">{{ number_format($profitLoss, 2) }}</div>
-        </div>
-    </div>
+    
 
     <!-- Modal -->
     <div id="detail-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);">
