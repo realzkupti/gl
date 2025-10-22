@@ -67,6 +67,36 @@
         </p>
     @endif
 
+    <!-- Summary: Profit/Loss (movement only) -->
+    @php
+        $revCats = ['4','7'];
+        $expCats = ['5','6','8','9'];
+        $totalRevenue = 0.0; $totalExpense = 0.0;
+        foreach(($rows ?? []) as $r){
+            $acc = (string)($r['account_number'] ?? '');
+            $cat = strlen($acc) ? $acc[0] : '';
+            $mvDr = (float)($r['movement_debit'] ?? 0);
+            $mvCr = (float)($r['movement_credit'] ?? 0);
+            if (in_array($cat, $revCats, true)) {
+                $totalRevenue += ($mvCr - $mvDr);
+            } elseif (in_array($cat, $expCats, true)) {
+                $totalExpense += ($mvDr - $mvCr);
+            }
+        }
+        $profitLoss = $totalRevenue - $totalExpense;
+    @endphp
+    <div class="mt-2 mb-4 p-3 border rounded bg-white max-w-xl">
+        <h3 class="text-lg font-semibold mb-2">สรุปกำไร/ขาดทุน</h3>
+        <div class="grid grid-cols-2 gap-y-1">
+            <div>รายได้ (หมวด 4, 7)</div>
+            <div class="text-right">{{ number_format($totalRevenue, 2) }}</div>
+            <div>ค่าใช้จ่าย (หมวด 5, 6, 8, 9)</div>
+            <div class="text-right">{{ number_format($totalExpense, 2) }}</div>
+            <div class="font-semibold">กำไร / (ขาดทุน)</div>
+            <div class="text-right font-semibold">{{ number_format($profitLoss, 2) }}</div>
+        </div>
+    </div>
+
     <div class="overflow-auto">
         <table class="min-w-full border-collapse">
             <thead>
