@@ -6,9 +6,18 @@ use Livewire\Volt\Volt;
 use App\Http\Controllers\TrialBalanceController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ChequeApiController;
+use App\Http\Controllers\Admin\UserPermissionController;
 use App\Services\CompanyManager;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\TailAdminController;
 
 Route::get('/', [HomeController::class, 'index'])->middleware(['company.connection'])->name('home');
+
+// Admin demo dashboard (no auth for now)
+Route::get('admin/dashboard-demo', [HomeController::class, 'dashboardDemo'])->middleware(['company.connection'])->name('admin.dashboard.demo');
+
+// TailAdmin static build, served via Laravel with <base href="/tailadmin/">
+Route::get('tailadmin-demo', [TailAdminController::class, 'index'])->name('tailadmin.index');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
@@ -54,6 +63,10 @@ Route::get('trial-balance-excel', [TrialBalanceController::class, 'excel'])->mid
 Route::get('trial-balance-detail', [TrialBalanceController::class, 'detail'])->middleware(['company.connection'])->name('trial-balance.detail');
 Route::get('trial-balance-entries', [TrialBalanceController::class, 'entries'])->middleware(['company.connection'])->name('trial-balance.entries');
 
+// New: Branch trial balance (Blade + JS)
+Route::get('trial-balance-branch', [TrialBalanceController::class, 'branch'])->middleware(['company.connection'])->name('trial-balance.branch');
+Route::get('trial-balance-branch-data', [TrialBalanceController::class, 'branchData'])->middleware(['company.connection'])->name('trial-balance.branch-data');
+
 // Admin/settings endpoints
 Route::post('settings/companies', [HomeController::class, 'saveCompanies'])->middleware(['company.connection'])->name('settings.companies.save');
 
@@ -72,3 +85,21 @@ Route::get('api/cheques', [ChequeApiController::class, 'chequesIndex']);
 Route::post('api/cheques', [ChequeApiController::class, 'chequesStore']);
 Route::delete('api/cheques/{id}', [ChequeApiController::class, 'chequesDestroy']);
 Route::get('api/cheques/next', [ChequeApiController::class, 'chequesNext']);
+
+// Admin: mock user/permission management UI
+Route::get('admin/users', [UserPermissionController::class, 'index'])->name('admin.users');
+// Admin: Cheque (embedded UI)
+Route::get('admin/cheque', function () {
+    return view('admin.cheque');
+})->name('admin.cheque');
+
+// Auth (basic)
+Route::get('login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('login', [AuthController::class, 'login']);
+Route::post('logout', [AuthController::class, 'logout'])->name('logout');
+
+
+
+
+
+

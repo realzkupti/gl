@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Response;
+use App\Models\Branch;
+use App\Models\Cheque;
+use App\Models\ChequeTemplate;
 
 class ChequeApiController extends Controller
 {
@@ -36,8 +38,7 @@ class ChequeApiController extends Controller
             if (!DB::getSchemaBuilder()->hasTable('branches')) {
                 return response()->json([]);
             }
-            $rows = DB::table('branches')->orderBy('code')->get();
-            return response()->json($rows);
+            return response()->json(Branch::query()->orderBy('code')->get());
         } catch (\Throwable $e) {
             return response()->json([]);
         }
@@ -51,14 +52,14 @@ class ChequeApiController extends Controller
                 return response()->json([]);
             }
             $q = trim((string) $request->query('q', ''));
-            $query = DB::table('cheques')->orderByDesc('id');
+            $query = Cheque::query()->orderByDesc('id');
             if ($q !== '') {
                 $query->where(function ($w) use ($q) {
-                    $w->where('payee', 'ILIKE', "%$q%")
-                      ->orWhere('bank', 'ILIKE', "%$q%")
-                      ->orWhere('branch_code', 'ILIKE', "%$q%")
-                      ->orWhere('cheque_number', 'ILIKE', "%$q%")
-                      ->orWhere('date', 'ILIKE', "%$q%");
+                    $w->where('payee', 'ilike', "%$q%")
+                      ->orWhere('bank', 'ilike', "%$q%")
+                      ->orWhere('branch_code', 'ilike', "%$q%")
+                      ->orWhere('cheque_number', 'ilike', "%$q%")
+                      ->orWhere('date', 'ilike', "%$q%");
                 });
             }
             return response()->json($query->get());
@@ -82,7 +83,7 @@ class ChequeApiController extends Controller
             if (!DB::getSchemaBuilder()->hasTable('cheques')) {
                 return response()->json(['error' => 'missing table'], 400);
             }
-            $id = DB::table('cheques')->insertGetId([
+            $cheque = Cheque::create([
                 'branch_code' => $data['branch_code'] ?? null,
                 'bank' => $data['bank'],
                 'cheque_number' => $data['cheque_number'],
@@ -90,9 +91,8 @@ class ChequeApiController extends Controller
                 'payee' => $data['payee'],
                 'amount' => $data['amount'],
                 'printed_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
             ]);
+            $id = $cheque->id;
             return response()->json(['id' => $id], 201);
         } catch (\Throwable $e) {
             return response()->json(['error' => 'db error'], 500);
@@ -106,7 +106,7 @@ class ChequeApiController extends Controller
             if (!DB::getSchemaBuilder()->hasTable('cheques')) {
                 return response()->json(['ok' => true]);
             }
-            DB::table('cheques')->where('id', $id)->delete();
+            Cheque::where('id', $id)->delete();
             return response()->json(['ok' => true]);
         } catch (\Throwable $e) {
             return response()->json(['ok' => false], 500);
@@ -120,7 +120,7 @@ class ChequeApiController extends Controller
             if (!DB::getSchemaBuilder()->hasTable('cheques')) {
                 return response()->json(['cheque_number' => '']);
             }
-            $row = DB::table('cheques')->orderByDesc('id')->first();
+            $row = Cheque::query()->orderByDesc('id')->first();
             $last = $row->cheque_number ?? '';
             $next = $this->incrementCheque($last);
             return response()->json(['cheque_number' => $next]);
@@ -142,4 +142,3 @@ class ChequeApiController extends Controller
         return $prefix . $next;
     }
 }
-

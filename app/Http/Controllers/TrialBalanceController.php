@@ -173,7 +173,8 @@ class TrialBalanceController extends Controller
         // Use mPDF for better Thai rendering
         $html = view('trial_balance_pdf', $data)->render();
 
-        if ($engine === 'dompdf') {
+        // If explicitly requested or mPDF class not available, use DomPDF
+        if ($engine === 'dompdf' || !class_exists('Mpdf\\Mpdf')) {
             // Optional fallback engine for debugging viewer differences
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('a4', 'landscape');
             $file = 'trial-balance-'.($period->GLP_YEAR).'_'.$period->GLP_SEQUENCE.'.pdf';
@@ -270,5 +271,47 @@ class TrialBalanceController extends Controller
             fclose($out);
         };
         return response()->stream($callback, 200, $headers);
+    }
+
+    // Blade + JS branch trial balance page (no Livewire)
+    public function branch(Request $request)
+    {
+        $periods = TrialBalance::getGLPeriods();
+        $selected = $request->query('period');
+        if (!$selected && $periods) {
+            $currentMonth = now()->format('Y-m');
+            foreach ($periods as $p) {
+                if (substr($p->GLP_ST_DATE,0,7) === $currentMonth) { $selected = $p->GLP_KEY; break; }
+            }
+            if (!$selected) $selected = $periods[0]->GLP_KEY ?? null;
+        }
+        $branches = [];
+        if (\DB::getSchemaBuilder()->hasTable('BRANCH')) {
+            $branches = \DB::table('BRANCH')->select('BR_CODE as code','BR_THAIDESC as name')->orderBy('BR_CODE')->get();
+        } elseif (\DB::getSchemaBuilder()->hasTable('DOCTYPE')) {
+            $branches = \DB::table('DOCTYPE')->select(\DB::raw('DT_1ST_BR_CODE as code'))
+                ->distinct()->orderBy('DT_1ST_BR_CODE')->get()->map(function($r){ $r->name=$r->code; return $r; });
+        } elseif (\DB::getSchemaBuilder()->hasTable('branches')) {
+            $branches = \DB::table('branches')->select('code','name')->orderBy('code')->get();
+        }
+        return view('trial_balance_branch', [
+            'periods' => $periods,
+            'selectedPeriodKey' => $selected,
+            'branches' => $branches,
+        ]);
+    }
+
+    // JSON data endpoint for branch trial balance table
+    public function branchData(Request $request)
+    {
+        $periodKey = $request->query('period');
+        $branch = $request->query('branch');
+        if (!$periodKey) return response()->json(['data'=>[]]);
+        try {
+            $rows = TrialBalance::getBranchPeriodData($periodKey, $branch ?: null);
+            return response()->json(['data'=>$rows]);
+        } catch (\Throwable $e) {
+            return response()->json(['data'=>[], 'error'=>'connection error']);
+        }
     }
 }

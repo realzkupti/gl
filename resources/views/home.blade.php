@@ -38,10 +38,13 @@
                     <a class="text-blue-700 underline report-link" href="{{ route('trial-balance.plain') }}">งบทดลอง (แบบธรรมดา)</a>
                 </li>
                 <li>
-                    <a class="text-blue-700 underline report-link" href="{{ route('trial-balance.open') }}">งบทดลอง (แยกสาขา)</a>
+                    <a class="text-blue-700 underline report-link" href="{{ route('trial-balance.branch') }}">งบทดลอง (แยกสาขา)</a>
                 </li>
                 <li>
                     <a class="text-blue-700 underline report-link" href="{{ route('trial-balance') }}">งบทดลอง (แยกสาขา, ต้องล็อกอิน)</a>
+                </li>
+                <li>
+                    <a class="text-blue-700 underline" href="{{ route('cheque.ui') }}">ระบบเช็ค</a>
                 </li>
             </ul>
         </div>

@@ -8,7 +8,15 @@
         <meta name="robots" content="noindex,nofollow">
     @endif
     @livewireStyles
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    @php
+        $hasViteBuild = file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot'));
+    @endphp
+    @if ($hasViteBuild)
+        @vite(['resources/css/app.css','resources/js/app.js'])
+    @else
+        <!-- Temporary fallback so the app doesn't crash before Vite build is available -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    @endif
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @stack('styles')
     <style>

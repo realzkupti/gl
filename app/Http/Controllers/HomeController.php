@@ -48,5 +48,20 @@ class HomeController extends Controller
 
         return back()->with('status', 'Companies configuration saved.');
     }
-}
 
+    public function dashboardDemo()
+    {
+        $metrics = [
+            'revenue' => 1250000.50,
+            'expense' => 873245.75,
+            'profit' => 376754.75,
+            'customers' => 428,
+        ];
+        $activities = [
+            ['time' => '10:20', 'text' => 'ออเดอร์ #10294 สร้างโดย ผู้ใช้ A'],
+            ['time' => '09:58', 'text' => 'บันทึกรายการรับเช็ค 3 รายการ'],
+            ['time' => '09:30', 'text' => 'ปิดงวดบัญชีทดลองเดือนล่าสุด'],
+        ];
+        return view('admin.dashboard-demo', compact('metrics','activities'));
+    }
+}
