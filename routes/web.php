@@ -13,11 +13,31 @@ use App\Http\Controllers\TailAdminController;
 
 Route::get('/', [HomeController::class, 'index'])->middleware(['company.connection'])->name('home');
 
-// Admin demo dashboard (no auth for now)
+// Admin demo dashboard (redirects to new TailAdmin)
 Route::get('admin/dashboard-demo', [HomeController::class, 'dashboardDemo'])->middleware(['company.connection'])->name('admin.dashboard.demo');
 
-// TailAdmin static build, served via Laravel with <base href="/tailadmin/">
-Route::get('tailadmin-demo', [TailAdminController::class, 'index'])->name('tailadmin.index');
+// TailAdmin Pages
+Route::prefix('tailadmin')->name('tailadmin.')->middleware(['company.connection'])->group(function () {
+    Route::get('dashboard', [HomeController::class, 'tailadminDashboard'])->name('dashboard');
+    Route::get('analytics', [TailAdminController::class, 'analytics'])->name('analytics');
+    Route::get('alerts', [TailAdminController::class, 'alerts'])->name('alerts');
+    Route::get('buttons', [TailAdminController::class, 'buttons'])->name('buttons');
+    Route::get('cards', [TailAdminController::class, 'cards'])->name('cards');
+    Route::get('tables', [TailAdminController::class, 'tables'])->name('tables');
+    Route::get('forms', [TailAdminController::class, 'forms'])->name('forms');
+
+    // Original HTML demo (deprecated)
+    Route::get('demo-html', [TailAdminController::class, 'index'])->name('demo.html');
+});
+
+// Cheque System Pages
+Route::prefix('cheque')->name('cheque.')->middleware(['company.connection'])->group(function () {
+    Route::get('print', [TailAdminController::class, 'chequePrint'])->name('print');
+    Route::get('designer', [TailAdminController::class, 'chequeDesigner'])->name('designer');
+    Route::get('reports', [TailAdminController::class, 'chequeReports'])->name('reports');
+    Route::get('branches', [TailAdminController::class, 'chequeBranches'])->name('branches');
+    Route::get('settings', [TailAdminController::class, 'chequeSettings'])->name('settings');
+});
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

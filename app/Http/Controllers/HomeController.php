@@ -9,17 +9,8 @@ class HomeController extends Controller
 {
     public function index(Request $request)
     {
-        $companies = CompanyManager::listCompanies();
-        $selected = CompanyManager::getSelectedKey();
-
-        $path = base_path('config/companies.json');
-        $jsonText = file_exists($path) ? file_get_contents($path) : "{}";
-
-        return view('home', [
-            'companies' => $companies,
-            'selectedCompany' => $selected,
-            'companiesJson' => $jsonText,
-        ]);
+        // Redirect to TailAdmin Dashboard (all features now in TailAdmin)
+        return redirect()->route('tailadmin.dashboard');
     }
 
     public function saveCompanies(Request $request)
@@ -51,17 +42,38 @@ class HomeController extends Controller
 
     public function dashboardDemo()
     {
-        $metrics = [
-            'revenue' => 1250000.50,
-            'expense' => 873245.75,
-            'profit' => 376754.75,
-            'customers' => 428,
+        // Redirect to new TailAdmin dashboard
+        return redirect()->route('tailadmin.dashboard');
+    }
+
+    public function tailadminDashboard()
+    {
+        // Stats for dashboard
+        $stats = [
+            'views' => 3456,
+            'profit' => 45200.50,
+            'products' => 2450,
+            'users' => 189,
         ];
+
+        // Recent activities
         $activities = [
-            ['time' => '10:20', 'text' => 'ออเดอร์ #10294 สร้างโดย ผู้ใช้ A'],
-            ['time' => '09:58', 'text' => 'บันทึกรายการรับเช็ค 3 รายการ'],
-            ['time' => '09:30', 'text' => 'ปิดงวดบัญชีทดลองเดือนล่าสุด'],
+            ['user' => 'สมชาย ใจดี', 'action' => 'เพิ่มรายการสินค้าใหม่ 5 รายการ', 'time' => '10 นาทีที่แล้ว'],
+            ['user' => 'สมหญิง รักงาน', 'action' => 'อนุมัติใบเสนอราคา #QT-2024-001', 'time' => '25 นาทีที่แล้ว'],
+            ['user' => 'ประชา ขยัน', 'action' => 'ปิดงวดบัญชีเดือนมกราคม 2025', 'time' => '1 ชั่วโมงที่แล้ว'],
+            ['user' => 'วิไล สุขใจ', 'action' => 'บันทึกรายการรับเช็ค 3 ฉบับ', 'time' => '2 ชั่วโมงที่แล้ว'],
         ];
-        return view('admin.dashboard-demo', compact('metrics','activities'));
+
+        // Company selection data
+        $companies = CompanyManager::listCompanies();
+        $selectedCompany = CompanyManager::getSelectedKey();
+
+        $path = base_path('config/companies.json');
+        $companiesJson = file_exists($path) ? file_get_contents($path) : "{}";
+
+        // Pass page identifier for active menu state
+        $page = 'dashboard';
+
+        return view('tailadmin.pages.dashboard', compact('stats', 'activities', 'page', 'companies', 'selectedCompany', 'companiesJson'));
     }
 }

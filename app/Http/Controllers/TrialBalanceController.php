@@ -273,7 +273,7 @@ class TrialBalanceController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    // Blade + JS branch trial balance page (no Livewire)
+    // Blade + JS branch trial balance page (no Livewire) - now using TailAdmin layout
     public function branch(Request $request)
     {
         $periods = TrialBalance::getGLPeriods();
@@ -294,10 +294,14 @@ class TrialBalanceController extends Controller
         } elseif (\DB::getSchemaBuilder()->hasTable('branches')) {
             $branches = \DB::table('branches')->select('code','name')->orderBy('code')->get();
         }
-        return view('trial_balance_branch', [
+
+        $page = 'trial-balance'; // For active menu state
+
+        return view('tailadmin.pages.trial-balance', [
             'periods' => $periods,
             'selectedPeriodKey' => $selected,
             'branches' => $branches,
+            'page' => $page,
         ]);
     }
 
