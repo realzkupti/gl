@@ -7,8 +7,9 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        if (!Schema::hasTable('cheque_templates')) {
-            Schema::create('cheque_templates', function (Blueprint $table) {
+        $schema = Schema::connection('pgsql');
+        if (!$schema->hasTable('cheque_templates')) {
+            $schema->create('cheque_templates', function (Blueprint $table) {
                 $table->bigIncrements('id');
                 $table->string('bank', 50);
                 $table->jsonb('template_json');
@@ -19,7 +20,6 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::dropIfExists('cheque_templates');
+        Schema::connection('pgsql')->dropIfExists('cheque_templates');
     }
 };
-

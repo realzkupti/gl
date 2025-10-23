@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('menus', function (Blueprint $table) {
+        $schema = Schema::connection('pgsql');
+        if (!$schema->hasTable('menus')) {
+            $schema->create('menus', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('key', 100)->unique();
             $table->string('name_th', 150);
@@ -16,12 +18,12 @@ return new class extends Migration {
             $table->integer('sort_order')->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-        });
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('menus');
+        Schema::connection('pgsql')->dropIfExists('menus');
     }
 };
-

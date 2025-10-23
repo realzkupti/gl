@@ -7,8 +7,9 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        if (!Schema::hasTable('cheques')) {
-            Schema::create('cheques', function (Blueprint $table) {
+        $schema = Schema::connection('pgsql');
+        if (!$schema->hasTable('cheques')) {
+            $schema->create('cheques', function (Blueprint $table) {
                 $table->bigIncrements('id');
                 $table->string('branch_code', 50)->nullable();
                 $table->string('bank', 50);
@@ -25,7 +26,6 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::dropIfExists('cheques');
+        Schema::connection('pgsql')->dropIfExists('cheques');
     }
 };
-

@@ -7,17 +7,19 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('user_roles', function (Blueprint $table) {
+        $schema = Schema::connection('pgsql');
+        if (!$schema->hasTable('user_roles')) {
+            $schema->create('user_roles', function (Blueprint $table) {
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('role_id')->constrained('roles')->cascadeOnDelete();
             $table->timestamps();
             $table->primary(['user_id', 'role_id']);
-        });
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('user_roles');
+        Schema::connection('pgsql')->dropIfExists('user_roles');
     }
 };
-

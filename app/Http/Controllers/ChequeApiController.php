@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\Branch;
 use App\Models\Cheque;
 use App\Models\ChequeTemplate;
+
 
 class ChequeApiController extends Controller
 {
@@ -35,7 +37,8 @@ class ChequeApiController extends Controller
     public function branches()
     {
         try {
-            if (!DB::getSchemaBuilder()->hasTable('branches')) {
+            $schema = DB::connection('pgsql')->getSchemaBuilder();
+            if (!$schema->hasTable('branches')) {
                 return response()->json([]);
             }
             return response()->json(Branch::query()->orderBy('code')->get());
@@ -48,7 +51,8 @@ class ChequeApiController extends Controller
     public function chequesIndex(Request $request)
     {
         try {
-            if (!DB::getSchemaBuilder()->hasTable('cheques')) {
+            $schema = DB::connection('pgsql')->getSchemaBuilder();
+            if (!$schema->hasTable('cheques')) {
                 return response()->json([]);
             }
             $q = trim((string) $request->query('q', ''));
@@ -80,7 +84,8 @@ class ChequeApiController extends Controller
             'amount' => 'required|numeric',
         ]);
         try {
-            if (!DB::getSchemaBuilder()->hasTable('cheques')) {
+            $schema = DB::connection('pgsql')->getSchemaBuilder();
+            if (!$schema->hasTable('cheques')) {
                 return response()->json(['error' => 'missing table'], 400);
             }
             $cheque = Cheque::create([
@@ -103,7 +108,8 @@ class ChequeApiController extends Controller
     public function chequesDestroy($id)
     {
         try {
-            if (!DB::getSchemaBuilder()->hasTable('cheques')) {
+            $schema = DB::connection('pgsql')->getSchemaBuilder();
+            if (!$schema->hasTable('cheques')) {
                 return response()->json(['ok' => true]);
             }
             Cheque::where('id', $id)->delete();
@@ -117,7 +123,8 @@ class ChequeApiController extends Controller
     public function chequesNext()
     {
         try {
-            if (!DB::getSchemaBuilder()->hasTable('cheques')) {
+            $schema = DB::connection('pgsql')->getSchemaBuilder();
+            if (!$schema->hasTable('cheques')) {
                 return response()->json(['cheque_number' => '']);
             }
             $row = Cheque::query()->orderByDesc('id')->first();

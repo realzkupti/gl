@@ -258,6 +258,25 @@
                 </ul>
             </div>
 
+            <!-- Accounting Group -->
+            <div>
+                <h3 class="mb-4 text-xs leading-[20px] text-gray-400 uppercase">
+                    <span class="menu-group-title" :class="sidebarToggle ? 'xl:hidden' : ''">บัญชี</span>
+                </h3>
+
+                <ul class="mb-6 flex flex-col gap-1">
+                    <li>
+                        <a href="{{ route('trial-balance.plain') }}" class="menu-item group" :class="page === 'trial-balance-plain' ? 'menu-item-active' : 'menu-item-inactive'">
+                            <svg :class="page === 'trial-balance-plain' ? 'menu-item-icon-active' : 'menu-item-icon-inactive'" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6Z" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M8 8H16M8 12H16M8 16H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span class="menu-item-text" :class="sidebarToggle ? 'xl:hidden' : ''">งบทดลอง (ธรรมดา)</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
             <!-- Demo Components Group -->
             <div>
                 <h3 class="mb-4 text-xs leading-[20px] text-gray-400 uppercase">
@@ -322,6 +341,23 @@
                             :class="page === 'forms' ? 'menu-item-active' : 'menu-item-inactive'"
                         >
                             <span class="menu-item-text" :class="sidebarToggle ? 'xl:hidden' : ''">Forms</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Admin Group -->
+            <div>
+                <h3 class="mb-4 text-xs leading-[20px] text-gray-400 uppercase">
+                    <span class="menu-group-title" :class="sidebarToggle ? 'xl:hidden' : ''">ผู้ดูแล</span>
+                </h3>
+                <ul class="mb-6 flex flex-col gap-1">
+                    <li>
+                        <a href="{{ route('admin.user-approvals') }}" class="menu-item group" :class="page === 'admin-user-approvals' ? 'menu-item-active' : 'menu-item-inactive'">
+                            <svg :class="page === 'admin-user-approvals' ? 'menu-item-icon-active' : 'menu-item-icon-inactive'" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 7a5 5 0 1 1 10 0A5 5 0 0 1 5 7Zm-3 14a8 8 0 1 1 16 0H2Z" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                            <span class="menu-item-text" :class="sidebarToggle ? 'xl:hidden' : ''">อนุมัติผู้ใช้</span>
                         </a>
                     </li>
                 </ul>

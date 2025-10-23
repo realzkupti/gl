@@ -76,6 +76,18 @@
                         <div class="text-xs text-gray-600 dark:text-gray-400">ดูงบทดลองแยกตามสาขา</div>
                     </div>
                 </a>
+                <a
+                    href="{{ route('trial-balance.plain') }}"
+                    class="flex items-center gap-3 rounded-lg border border-gray-200 p-4 transition-colors hover:border-brand-500 hover:bg-brand-50 dark:border-gray-700 dark:hover:border-brand-500 dark:hover:bg-brand-900/20"
+                >
+                    <svg class="h-8 w-8 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6C4 4.895 4.895 4 6 4H18C19.105 4 20 4.895 20 6V18C20 19.105 19.105 20 18 20H6C4.895 20 4 19.105 4 18V6Z M8 8H16M8 12H16M8 16H12"/>
+                    </svg>
+                    <div>
+                        <div class="font-semibold text-gray-900 dark:text-white">งบทดลอง (แบบธรรมดา)</div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400">เวอร์ชันเรนเดอร์ฝั่งเซิร์ฟเวอร์</div>
+                    </div>
+                </a>
 
                 <a
                     href="{{ route('cheque.print') }}"

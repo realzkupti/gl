@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Cheque extends Model
 {
+    protected $connection = 'pgsql';
     protected $table = 'cheques';
     protected $fillable = [
         'branch_code','bank','cheque_number','date','payee','amount','printed_at'
@@ -16,4 +17,3 @@ class Cheque extends Model
         'amount' => 'decimal:2',
     ];
 }
-

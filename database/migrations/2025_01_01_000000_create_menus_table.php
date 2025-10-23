@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('menus', function (Blueprint $table) {
+        $schema = Schema::connection('pgsql');
+        if ($schema->hasTable('menus')) { return; }
+        $schema->create('menus', function (Blueprint $table) {
             $table->id();
             $table->string('key')->unique();
             $table->string('label');
@@ -25,7 +27,6 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::dropIfExists('menus');
+        Schema::connection('pgsql')->dropIfExists('menus');
     }
 };
-

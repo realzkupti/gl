@@ -7,6 +7,7 @@ use App\Http\Controllers\TrialBalanceController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ChequeApiController;
 use App\Http\Controllers\Admin\UserPermissionController;
+use App\Http\Controllers\Admin\UserApprovalController;
 use App\Services\CompanyManager;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TailAdminController;
@@ -30,8 +31,8 @@ Route::prefix('tailadmin')->name('tailadmin.')->middleware(['company.connection'
     Route::get('demo-html', [TailAdminController::class, 'index'])->name('demo.html');
 });
 
-// Cheque System Pages
-Route::prefix('cheque')->name('cheque.')->middleware(['company.connection'])->group(function () {
+// Cheque System Pages (protected by login + permission)
+Route::prefix('cheque')->name('cheque.')->middleware(['auth','company.connection','menu:cheque,view'])->group(function () {
     Route::get('print', [TailAdminController::class, 'chequePrint'])->name('print');
     Route::get('designer', [TailAdminController::class, 'chequeDesigner'])->name('designer');
     Route::get('reports', [TailAdminController::class, 'chequeReports'])->name('reports');
@@ -44,24 +45,7 @@ Route::view('dashboard', 'dashboard')
     ->name('dashboard');
 
 Route::middleware(['auth', 'company.connection'])->group(function () {
-    Route::redirect('settings', 'settings/profile');
-
-    Volt::route('settings/profile', 'settings.profile')->name('profile.edit');
-    Volt::route('settings/password', 'settings.password')->name('user-password.edit');
-    Volt::route('settings/appearance', 'settings.appearance')->name('appearance.edit');
-
-    Volt::route('settings/two-factor', 'settings.two-factor')
-        ->middleware(
-            when(
-                Features::canManageTwoFactorAuthentication()
-                    && Features::optionEnabled(Features::twoFactorAuthentication(), 'confirmPassword'),
-                ['password.confirm'],
-                [],
-            ),
-        )
-        ->name('two-factor.show');
-
-    // Trial balance quick view
+    // Trial balance quick view (keep)
     Route::get('trial-balance', function () {
         return view('trial_balance');
     })->middleware(['auth'])->name('trial-balance');
@@ -97,17 +81,29 @@ Route::get('companies.json', function () {
     return response()->json(['data' => $companies, 'current' => $current]);
 })->name('companies.json');
 
-// Cheque UI + minimal API migrated to Laravel
-Route::get('cheque', [ChequeApiController::class, 'ui'])->name('cheque.ui');
+// Cheque UI + minimal API migrated to Laravel (protected by login + permission)
+Route::get('cheque', [ChequeApiController::class, 'ui'])
+    ->middleware(['auth','company.connection','menu:cheque,view'])
+    ->name('cheque.ui');
 Route::get('cheque/styles.css', [ChequeApiController::class, 'css'])->name('cheque.css');
-Route::get('api/branches', [ChequeApiController::class, 'branches']);
-Route::get('api/cheques', [ChequeApiController::class, 'chequesIndex']);
-Route::post('api/cheques', [ChequeApiController::class, 'chequesStore']);
-Route::delete('api/cheques/{id}', [ChequeApiController::class, 'chequesDestroy']);
-Route::get('api/cheques/next', [ChequeApiController::class, 'chequesNext']);
+Route::middleware(['auth','company.connection','menu:cheque,view'])->group(function(){
+    Route::get('api/branches', [ChequeApiController::class, 'branches']);
+    Route::get('api/cheques', [ChequeApiController::class, 'chequesIndex']);
+    Route::get('api/cheques/next', [ChequeApiController::class, 'chequesNext']);
+});
+Route::post('api/cheques', [ChequeApiController::class, 'chequesStore'])
+    ->middleware(['auth','company.connection','menu:cheque,create']);
+Route::delete('api/cheques/{id}', [ChequeApiController::class, 'chequesDestroy'])
+    ->middleware(['auth','company.connection','menu:cheque,delete']);
 
 // Admin: mock user/permission management UI
 Route::get('admin/users', [UserPermissionController::class, 'index'])->name('admin.users');
+// Admin: Approve users
+Route::middleware(['auth'])->group(function () {
+    Route::get('admin/user-approvals', [UserApprovalController::class, 'index'])->name('admin.user-approvals');
+    Route::post('admin/user-approvals/{id}/activate', [UserApprovalController::class, 'activate'])->name('admin.user-approvals.activate');
+    Route::post('admin/user-approvals/{id}/deactivate', [UserApprovalController::class, 'deactivate'])->name('admin.user-approvals.deactivate');
+});
 // Admin: Cheque (embedded UI)
 Route::get('admin/cheque', function () {
     return view('admin.cheque');
@@ -118,8 +114,8 @@ Route::get('login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('login', [AuthController::class, 'login']);
 Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
-
-
-
+// Registration
+Route::get('register', [AuthController::class, 'showRegister'])->name('register');
+Route::post('register', [AuthController::class, 'register']);
 
 

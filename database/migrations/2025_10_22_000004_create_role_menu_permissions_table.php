@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('role_menu_permissions', function (Blueprint $table) {
+        $schema = Schema::connection('pgsql');
+        if (!$schema->hasTable('role_menu_permissions')) {
+            $schema->create('role_menu_permissions', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->foreignId('role_id')->constrained('roles')->cascadeOnDelete();
             $table->foreignId('menu_id')->constrained('menus')->cascadeOnDelete();
@@ -19,12 +21,12 @@ return new class extends Migration {
             $table->boolean('can_approve')->default(false);
             $table->timestamps();
             $table->unique(['role_id', 'menu_id']);
-        });
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('role_menu_permissions');
+        Schema::connection('pgsql')->dropIfExists('role_menu_permissions');
     }
 };
-

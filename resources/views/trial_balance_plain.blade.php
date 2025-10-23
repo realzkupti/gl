@@ -1,8 +1,23 @@
-@extends('layouts.app')
+@extends('tailadmin.layouts.app')
+
+@section('title', 'งบทดลอง (แบบธรรมดา)')
+{{-- @ php($page = 'trial-balance-plain') --}}
 
 @section('content')
-<div class="container mx-auto py-6">
+<div class="p-4 md:p-6 2xl:p-10">
     <h1 class="text-2xl font-semibold mb-4">งบทดลอง (แบบธรรมดา)</h1>
+
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 class="text-title-md2 font-bold text-gray-900 dark:text-white">งบทดลอง (แบบธรรมดา)</h2>
+        <nav>
+            <ol class="flex items-center gap-2">
+                <li>
+                    <a class="font-medium text-gray-700 hover:text-brand-500 dark:text-gray-400" href="{{ route('tailadmin.dashboard') }}">Dashboard /</a>
+                </li>
+                <li class="font-medium text-brand-500">งบทดลอง</li>
+            </ol>
+        </nav>
+    </div>
 
     @if($selectedPeriod)
         <p class="mb-2 text-sm text-gray-600">
@@ -11,7 +26,8 @@
         </p>
     @endif
 
-    <form method="get" class="mb-4 flex items-end space-x-4 print:hidden">
+    <div class="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 print:hidden">
+    <form method="get" class="grid grid-cols-1 gap-4 md:grid-cols-3 items-end">
         <div>
             <label>บริษัท</label>
             <select name="company" class="border rounded px-2 py-1" onchange="this.form.submit()">
@@ -41,6 +57,7 @@
             <a href="{{ route('trial-balance.excel', ['period' => $selectedPeriod?->GLP_KEY]) }}" class="ml-2 inline-block bg-green-700 text-white px-3 py-1 rounded">Export Excel</a>
         </div>
     </form>
+    </div>
 
     <!-- DataTables (striped rows) -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
@@ -49,7 +66,7 @@
 
     <style>
         /* numeric columns: fixed width so DR/CR and balances align (no wrap) */
-    .col-num { box-sizing: border-box; width:140px; min-width:120px; max-width:160px; text-align:right; white-space:nowrap; }
+        .col-num { box-sizing: border-box; width:140px; min-width:120px; max-width:160px; text-align:right; white-space:nowrap; }
         /* text columns: allow wrapping so table expands by content (main table) */
         .col-text { min-width:120px; max-width:9999px; word-break:break-word; white-space:normal; }
         /* main table uses automatic layout so columns expand based on content; modal/detail tables keep fixed layout */
@@ -79,7 +96,8 @@
         @page { size: A4 landscape; margin: 10mm; }
     </style>
 
-    <div class="overflow-auto">
+    <div class="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <div class="overflow-auto">
         <table id="tb-trial" class="display stripe" style="width:100%">
             <thead>
                 <tr class="bg-gray-100">
@@ -230,6 +248,7 @@
                 </tbody>
             </table>
         </div>
+    </div>
     </div>
 
 
@@ -504,7 +523,7 @@
 
     <p class="mt-4 text-sm text-gray-600">This is a plain server-rendered page (no Livewire) — useful for debugging DB queries and avoiding Livewire runtime dispatch issues.</p>
 </div>
-@endsection
+
 @if(!empty($error))
     @push('scripts')
     <script>
@@ -512,8 +531,11 @@
     </script>
     @endpush
 @endif
+
 @push('styles')
 <style>
+    /* Hide legacy heading duplicated above TailAdmin header */
+    h1.text-2xl.font-semibold.mb-4 { display: none; }
     .sticky-note { position: fixed; width: 300px; z-index: 1000; }
     .sticky-note .sn-wrap { background: #fffbe6; border: 1px solid #e5d17d; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); overflow: hidden; }
     .sticky-note .sn-head { background: #fff1a6; padding: .35rem .5rem; display:flex; align-items:center; justify-content:space-between; }
@@ -530,6 +552,7 @@
     .sticky-note .sn-head { cursor: move; }
 </style>
 @endpush
+{{-- moved: endsection at bottom --}}
 
 @push('scripts')
 <script>
@@ -662,7 +685,7 @@
     });
     note.querySelector('.sn-color').addEventListener('change', function(){
       var color = this.value;
-      var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.color=color; save(items);} 
+      var items=load(); var it=items.find(i=>i.id===item.id); if(it){ it.color=color; save(items);}
       applyColors(note, color);
     });
 
@@ -723,3 +746,6 @@
 })();
 </script>
 @endpush
+@endsection
+
+
