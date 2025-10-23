@@ -3,7 +3,8 @@
     "allow": [
       "Bash(curl -s http://localhost/admin/dashboard-demo)",
       "Bash(php artisan:*)",
-      "Bash(curl -s http://localhost/cheque)"
+      "Bash(curl -s http://localhost/cheque)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

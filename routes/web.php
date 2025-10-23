@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\UserApprovalController;
 use App\Services\CompanyManager;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TailAdminController;
+use App\Http\Controllers\Admin\MenuController;
+use App\Http\Controllers\Admin\UserMenuPermissionController;
 
 Route::get('/', [HomeController::class, 'index'])->middleware(['company.connection'])->name('home');
 
@@ -97,7 +99,22 @@ Route::delete('api/cheques/{id}', [ChequeApiController::class, 'chequesDestroy']
     ->middleware(['auth','company.connection','menu:cheque,delete']);
 
 // Admin: mock user/permission management UI
-Route::get('admin/users', [UserPermissionController::class, 'index'])->name('admin.users');
+Route::middleware(['auth'])->group(function(){
+    Route::get('admin/users', [UserPermissionController::class, 'index'])->name('admin.users');
+
+    // Admin: Menus CRUD (basic)
+    Route::get('admin/menus', [MenuController::class, 'index'])->name('admin.menus');
+    Route::post('admin/menus', [MenuController::class, 'store'])->name('admin.menus.store');
+    Route::put('admin/menus/{id}', [MenuController::class, 'update'])->name('admin.menus.update');
+    Route::patch('admin/menus/{id}/toggle', [MenuController::class, 'toggle'])->name('admin.menus.toggle');
+    Route::delete('admin/menus/{id}', [MenuController::class, 'destroy'])->name('admin.menus.destroy');
+
+    // Admin: User Menu Permissions (รายคน)
+    Route::get('admin/user-permissions', [UserMenuPermissionController::class, 'index'])->name('admin.user-permissions');
+    Route::get('admin/user-permissions/{userId}', [UserMenuPermissionController::class, 'show'])->name('admin.user-permissions.show');
+    Route::put('admin/user-permissions/{userId}', [UserMenuPermissionController::class, 'update'])->name('admin.user-permissions.update');
+    Route::delete('admin/user-permissions/{userId}', [UserMenuPermissionController::class, 'reset'])->name('admin.user-permissions.reset');
+});
 // Admin: Approve users
 Route::middleware(['auth'])->group(function () {
     Route::get('admin/user-approvals', [UserApprovalController::class, 'index'])->name('admin.user-approvals');
@@ -118,4 +135,21 @@ Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('register', [AuthController::class, 'register']);
 
+// Basic settings/profile routes to satisfy links in UI (keep on pgsql)
+Route::middleware(['auth'])->group(function () {
+    Route::get('profile/edit', function () {
+        return view('profile.edit');
+    })->name('profile.edit');
 
+    Route::get('user/password', function () {
+        return view('profile.password');
+    })->name('user-password.edit');
+
+    Route::get('two-factor', function () {
+        return view('profile.two-factor');
+    })->name('two-factor.show');
+
+    Route::get('appearance', function () {
+        return view('profile.appearance');
+    })->name('appearance.edit');
+});

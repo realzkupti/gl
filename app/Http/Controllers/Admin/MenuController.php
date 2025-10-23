@@ -1,0 +1,101 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Menu;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class MenuController extends Controller
+{
+    protected function ensureAdmin(): void
+    {
+        if (!Auth::check() || (Auth::user()->email ?? '') !== 'admin@local') {
+            abort(403, 'Forbidden');
+        }
+    }
+
+    public function index()
+    {
+        $this->ensureAdmin();
+
+        // Use Model instead of Query Builder
+        $menus = Menu::orderBy('sort_order')->orderBy('id')->get();
+
+        return view('admin.menus', [
+            'menus' => $menus,
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $data = $request->validate([
+            'key' => 'required|string|max:100|unique:pgsql.menus,key',
+            'label' => 'required|string|max:255',
+            'route' => 'nullable|string|max:255',
+            'icon' => 'nullable|string|max:255',
+            'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
+            'sort_order' => 'nullable|integer',
+        ]);
+
+        // Use Model to create menu
+        Menu::create([
+            'key' => $data['key'],
+            'label' => $data['label'],
+            'route' => $data['route'] ?? null,
+            'icon' => $data['icon'] ?? null,
+            'parent_id' => $data['parent_id'] ?? null,
+            'sort_order' => $data['sort_order'] ?? 0,
+            'is_active' => true,
+        ]);
+
+        return redirect()->route('admin.menus')->with('status', 'บันทึกเมนูแล้ว');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $this->ensureAdmin();
+
+        $menu = Menu::findOrFail($id);
+
+        $data = $request->validate([
+            'key' => 'required|string|max:100|unique:pgsql.menus,key,' . $id,
+            'label' => 'required|string|max:255',
+            'route' => 'nullable|string|max:255',
+            'icon' => 'nullable|string|max:255',
+            'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
+            'sort_order' => 'nullable|integer',
+            'is_active' => 'boolean',
+        ]);
+
+        $menu->update($data);
+
+        return redirect()->route('admin.menus')->with('status', 'อัปเดตเมนูแล้ว');
+    }
+
+    public function destroy($id)
+    {
+        $this->ensureAdmin();
+
+        $menu = Menu::findOrFail($id);
+        $menu->delete();
+
+        return redirect()->route('admin.menus')->with('status', 'ลบเมนูแล้ว');
+    }
+
+    public function toggle($id)
+    {
+        $this->ensureAdmin();
+
+        $menu = Menu::findOrFail($id);
+        $menu->is_active = !$menu->is_active;
+        $menu->save();
+
+        $status = $menu->is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
+        return redirect()->route('admin.menus')->with('status', "เปลี่ยนสถานะเมนู '{$menu->label}' เป็น {$status} แล้ว");
+    }
+}
+

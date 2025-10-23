@@ -24,7 +24,8 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             if (! (Auth::user()->is_active ?? true)) {
                 Auth::logout();
-                return back()->withErrors(['email' => 'บัญชียังไม่ได้รับการอนุมัติ'])->withInput();
+                return back()->with('status', 'บัญชีของคุณรอการอนุมัติจากผู้ดูแลระบบ')
+                    ->withInput();
             }
             $request->session()->regenerate();
             return redirect()->intended('/');
@@ -50,7 +51,8 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email',
+            // Pin to pgsql connection explicitly to avoid company_default
+            'email' => 'required|email|max:255|unique:pgsql.users,email',
             'password' => 'required|string|min:6|confirmed',
         ]);
 
@@ -61,8 +63,8 @@ class AuthController extends Controller
             'is_active' => false,
         ]);
 
-        Auth::login($user);
-        $request->session()->regenerate();
-        return redirect()->intended('/');
+        // Do not auto-login inactive users; ask to wait for approval.
+        return redirect()->route('login')
+            ->with('status', 'ลงทะเบียนสำเร็จ กรุณารอผู้ดูแลระบบอนุมัติการใช้งาน');
     }
 }

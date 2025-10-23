@@ -32,20 +32,31 @@ return new class extends Migration
         ];
 
         $hasNameTh = $schema->hasColumn('menus','name_th');
+        $hasRouteName = $schema->hasColumn('menus','route_name');
         foreach ($menus as $m) {
             $exists = DB::connection('pgsql')->table('menus')->where('key',$m['key'])->exists();
             if (!$exists) {
                 $row = [
                     'key' => $m['key'],
-                    ($hasNameTh ? 'name_th' : 'label') => $m['label'],
-                    'route_name' => $hasNameTh ? $m['route'] : null,
-                    'route' => $hasNameTh ? null : $m['route'],
                     'parent_id' => null,
                     'sort_order' => 0,
                     'is_active' => true,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
+
+                if ($hasNameTh) {
+                    $row['name_th'] = $m['label'];
+                } else {
+                    $row['label'] = $m['label'];
+                }
+
+                // Only include columns that actually exist
+                if ($hasRouteName) {
+                    $row['route_name'] = $m['route'];
+                } elseif ($schema->hasColumn('menus','route')) {
+                    $row['route'] = $m['route'];
+                }
                 DB::connection('pgsql')->table('menus')->insert($row);
             }
         }
@@ -99,4 +110,3 @@ return new class extends Migration
         // no-op (keeping seeded data)
     }
 };
-

@@ -16,8 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'company.connection' => App\Http\Middleware\SetCompanyConnection::class,
             'menu' => App\Http\Middleware\MenuPermission::class,
         ]);
-        // Ensure Livewire (and all web requests) also get the company connection applied
-        $middleware->appendToGroup('web', [App\Http\Middleware\SetCompanyConnection::class]);
+        // Do NOT apply company connection globally.
+        // We keep login/permission on pgsql and opt-in per-route where needed.
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

@@ -58,6 +58,20 @@
             </div>
         </nav>
         <main class="py-6">
+            @if (session('status'))
+                <div class="container mx-auto max-w-3xl mb-4">
+                    <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded">
+                        {{ session('status') }}
+                    </div>
+                </div>
+            @endif
+            @if ($errors->any())
+                <div class="container mx-auto max-w-3xl mb-4">
+                    <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+                        {{ $errors->first() }}
+                    </div>
+                </div>
+            @endif
             @yield('content')
         </main>
     </div>

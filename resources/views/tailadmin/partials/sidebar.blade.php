@@ -60,71 +60,71 @@
                 </h3>
 
                 <ul class="mb-6 flex flex-col gap-1">
-                    <!-- Menu Item Dashboard -->
-                    <li>
-                        <a
-                            href="{{ route('tailadmin.dashboard') }}"
-                            class="menu-item group"
-                            :class="page === 'dashboard' ? 'menu-item-active' : 'menu-item-inactive'"
-                        >
-                            <svg
-                                :class="page === 'dashboard' ? 'menu-item-icon-active' : 'menu-item-icon-inactive'"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path
-                                    fill-rule="evenodd"
-                                    clip-rule="evenodd"
-                                    d="M5.5 3.25C4.25736 3.25 3.25 4.25736 3.25 5.5V8.99998C3.25 10.2426 4.25736 11.25 5.5 11.25H9C10.2426 11.25 11.25 10.2426 11.25 8.99998V5.5C11.25 4.25736 10.2426 3.25 9 3.25H5.5ZM4.75 5.5C4.75 5.08579 5.08579 4.75 5.5 4.75H9C9.41421 4.75 9.75 5.08579 9.75 5.5V8.99998C9.75 9.41419 9.41421 9.74998 9 9.74998H5.5C5.08579 9.74998 4.75 9.41419 4.75 8.99998V5.5ZM5.5 12.75C4.25736 12.75 3.25 13.7574 3.25 15V18.5C3.25 19.7426 4.25736 20.75 5.5 20.75H9C10.2426 20.75 11.25 19.7427 11.25 18.5V15C11.25 13.7574 10.2426 12.75 9 12.75H5.5ZM4.75 15C4.75 14.5858 5.08579 14.25 5.5 14.25H9C9.41421 14.25 9.75 14.5858 9.75 15V18.5C9.75 18.9142 9.41421 19.25 9 19.25H5.5C5.08579 19.25 4.75 18.9142 4.75 18.5V15ZM12.75 5.5C12.75 4.25736 13.7574 3.25 15 3.25H18.5C19.7426 3.25 20.75 4.25736 20.75 5.5V8.99998C20.75 10.2426 19.7426 11.25 18.5 11.25H15C13.7574 11.25 12.75 10.2426 12.75 8.99998V5.5ZM15 4.75C14.5858 4.75 14.25 5.08579 14.25 5.5V8.99998C14.25 9.41419 14.5858 9.74998 15 9.74998H18.5C18.9142 9.74998 19.25 9.41419 19.25 8.99998V5.5C19.25 5.08579 18.9142 4.75 18.5 4.75H15ZM15 12.75C13.7574 12.75 12.75 13.7574 12.75 15V18.5C12.75 19.7426 13.7574 20.75 15 20.75H18.5C19.7426 20.75 20.75 19.7427 20.75 18.5V15C20.75 13.7574 19.7426 12.75 18.5 12.75H15ZM14.25 15C14.25 14.5858 14.5858 14.25 15 14.25H18.5C18.9142 14.25 19.25 14.5858 19.25 15V18.5C19.25 18.9142 18.9142 19.25 18.5 19.25H15C14.5858 19.25 14.25 18.9142 14.25 18.5V15Z"
-                                    fill="currentColor"
-                                />
-                            </svg>
+                    @foreach($userMenus ?? [] as $menu)
+                        @if(empty($menu['children']))
+                            <!-- Single Menu Item -->
+                            <li>
+                                <a
+                                    href="{{ $menu['route'] ? route($menu['route']) : ($menu['url'] ?? '#') }}"
+                                    class="menu-item group"
+                                    :class="page === '{{ $menu['key'] }}' ? 'menu-item-active' : 'menu-item-inactive'"
+                                >
+                                    @if($menu['icon'])
+                                        <i class="{{ $menu['icon'] }}" :class="page === '{{ $menu['key'] }}' ? 'menu-item-icon-active' : 'menu-item-icon-inactive'"></i>
+                                    @else
+                                        <svg
+                                            :class="page === '{{ $menu['key'] }}' ? 'menu-item-icon-active' : 'menu-item-icon-inactive'"
+                                            width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                                        </svg>
+                                    @endif
+                                    <span class="menu-item-text" :class="sidebarToggle ? 'xl:hidden' : ''">
+                                        {{ $menu['label'] }}
+                                    </span>
+                                </a>
+                            </li>
+                        @else
+                            <!-- Menu with Submenu -->
+                            <li x-data="{open: false}">
+                                <button
+                                    @click="open = !open"
+                                    class="menu-item group w-full"
+                                    :class="page === '{{ $menu['key'] }}' ? 'menu-item-active' : 'menu-item-inactive'"
+                                >
+                                    @if($menu['icon'])
+                                        <i class="{{ $menu['icon'] }}" :class="page === '{{ $menu['key'] }}' ? 'menu-item-icon-active' : 'menu-item-icon-inactive'"></i>
+                                    @else
+                                        <svg :class="page === '{{ $menu['key'] }}' ? 'menu-item-icon-active' : 'menu-item-icon-inactive'" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                                        </svg>
+                                    @endif
+                                    <span class="menu-item-text" :class="sidebarToggle ? 'xl:hidden' : ''">
+                                        {{ $menu['label'] }}
+                                    </span>
+                                    <svg :class="[open ? 'rotate-180' : '', sidebarToggle ? 'xl:hidden' : '']" class="ml-auto fill-current transition-transform duration-200" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M4.41107 6.9107C4.73651 6.58527 5.26414 6.58527 5.58958 6.9107L10.0003 11.3214L14.4111 6.91071C14.7365 6.58527 15.2641 6.58527 15.5896 6.91071C15.915 7.23614 15.915 7.76378 15.5896 8.08922L10.5896 13.0892C10.2641 13.4147 9.73651 13.4147 9.41107 13.0892L4.41107 8.08922C4.08563 7.76378 4.08563 7.23614 4.41107 6.9107Z" fill="currentColor"/>
+                                    </svg>
+                                </button>
+                                <ul x-show="open" x-collapse class="mt-2 mb-2 ml-8 flex flex-col gap-1">
+                                    @foreach($menu['children'] as $child)
+                                        <li>
+                                            <a
+                                                href="{{ $child['route'] ? route($child['route']) : ($child['url'] ?? '#') }}"
+                                                class="block rounded py-2 px-4 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                :class="page === '{{ $child['key'] }}' ? 'text-brand-500 font-medium' : 'text-gray-600 dark:text-gray-400'"
+                                            >
+                                                {{ $child['label'] }}
+                                            </a>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </li>
+                        @endif
+                    @endforeach
 
-                            <span
-                                class="menu-item-text"
-                                :class="sidebarToggle ? 'xl:hidden' : ''"
-                            >
-                                Dashboard
-                            </span>
-                        </a>
-                    </li>
-
-                    <!-- Menu Item งบทดลอง -->
-                    <li>
-                        <a
-                            href="{{ route('trial-balance.branch') }}"
-                            class="menu-item group"
-                            :class="page === 'trial-balance' ? 'menu-item-active' : 'menu-item-inactive'"
-                        >
-                            <svg
-                                :class="page === 'trial-balance' ? 'menu-item-icon-active' : 'menu-item-icon-inactive'"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path
-                                    d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01"
-                                    stroke="currentColor"
-                                    stroke-width="1.5"
-                                    stroke-linecap="round"
-                                />
-                            </svg>
-
-                            <span
-                                class="menu-item-text"
-                                :class="sidebarToggle ? 'xl:hidden' : ''"
-                            >
-                                งบทดลอง
-                            </span>
-                        </a>
-                    </li>
-
-                    <!-- Menu Item ระบบเช็ค (with submenu) -->
+                    <!-- Legacy: Keep cheque menu for now (will be replaced by database menu) -->
+                    @php( $canCheque = \App\Support\Perm::can('cheque','view') )
+                    @if ($canCheque && !collect($userMenus ?? [])->where('key', 'cheque')->count())
                     <li x-data="{open: {{ in_array($page ?? '', ['cheque-print', 'cheque-designer', 'cheque-reports', 'cheque-branches', 'cheque-settings']) ? 'true' : 'false' }} }">
                         <button
                             @click="open = !open"
@@ -222,8 +222,11 @@
                             </li>
                         </ul>
                     </li>
+                    @endif
 
                     <!-- Menu Item ผู้ใช้และสิทธิ -->
+                    @php( $isAdmin = auth()->check() && (auth()->user()->email === 'admin@local') )
+                    @if ($isAdmin)
                     <li>
                         <a
                             href="{{ route('admin.users') }}"
@@ -255,6 +258,40 @@
                             </span>
                         </a>
                     </li>
+                    <li>
+                        <a
+                            href="{{ route('admin.user-approvals') }}"
+                            class="menu-item group"
+                            :class="page === 'user-approvals' ? 'menu-item-active' : 'menu-item-inactive'"
+                        >
+                            <svg
+                                :class="page === 'user-approvals' ? 'menu-item-icon-active' : 'menu-item-icon-inactive'"
+                                width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 12l4 4L19 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span class="menu-item-text" :class="sidebarToggle ? 'xl:hidden' : ''">อนุมัติผู้ใช้</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="{{ route('admin.menus') }}"
+                            class="menu-item group"
+                            :class="page === 'menus' ? 'menu-item-active' : 'menu-item-inactive'"
+                        >
+                            <svg
+                                :class="page === 'menus' ? 'menu-item-icon-active' : 'menu-item-icon-inactive'"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path d="M4 6H20M4 12H20M4 18H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            <span class="menu-item-text" :class="sidebarToggle ? 'xl:hidden' : ''">ตั้งค่าเมนู</span>
+                        </a>
+                    </li>
+                    @endif
                 </ul>
             </div>
 

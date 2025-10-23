@@ -37,8 +37,16 @@
                     <!-- Bank -->
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">ธนาคาร</label>
-                        <input type="text" id="bank" name="bank" placeholder="ธนาคาร" required
-                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
+                         <select id="bank_code" name="bank_code" class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white">
+                            <option value="">-- เลือกธนาคาร --</option>
+                            <option value="standard">เทมเพลตมาตรฐาน</option>
+                            <option value="kbank">ธนาคารกสิกรไทย</option>
+                            <option value="scb">ธนาคารไทยพาณิชย์</option>
+                            <option value="bbl">ธนาคารกรุงเทพ</option>
+                            <option value="custom">กำหนดเอง</option>
+                        </select>
+                        {{-- <input type="text" id="bank" name="bank" placeholder="ธนาคาร" required
+                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" /> --}}
                     </div>
 
                     <!-- Cheque Number -->
@@ -175,6 +183,7 @@ async function loadBranches() {
         console.error('Failed to load branches', e);
     }
 }
+
 
 // Get next cheque number
 async function getNextChequeNumber() {
