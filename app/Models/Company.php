@@ -14,7 +14,7 @@ class Company extends Model
 
     protected $fillable = [
         'key', 'label', 'driver', 'host', 'port',
-        'database', 'username', 'password', 'charset', 'collation', 'is_active'
+        'database', 'username', 'password', 'charset', 'collation', 'is_active', 'sort_order'
     ];
 
     protected $casts = [

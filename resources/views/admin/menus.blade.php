@@ -148,6 +148,17 @@
                         placeholder="0" />
                 </div>
 
+                <!-- Menu Group -->
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">กลุ่มเมนู</label>
+                    <select name="menu_group" id="input-menu-group"
+                        class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white">
+                        <option value="default">Default - เมนูทั่วไป</option>
+                        <option value="bplus">BPLUS - งบทดลองและระบบบัญชี</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">กลุ่มเมนูสำหรับแยกสิทธิการเข้าถึง</p>
+                </div>
+
                 <!-- Buttons -->
                 <div class="flex gap-2 pt-2">
                     <button type="submit" id="submit-btn"
@@ -183,6 +194,7 @@
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">ID</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">เมนู</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Icon</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase dark:text-gray-400">กลุ่ม</th>
                             <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase dark:text-gray-400">ลำดับ</th>
                             <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase dark:text-gray-400">สถานะ</th>
                             <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase dark:text-gray-400">จัดการ</th>
@@ -210,6 +222,12 @@
                                     <span class="text-gray-400">-</span>
                                 @endif
                             </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold
+                                    {{ ($m->menu_group ?? 'default') === 'bplus' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' }}">
+                                    {{ ($m->menu_group ?? 'default') === 'bplus' ? 'BPLUS' : 'Default' }}
+                                </span>
+                            </td>
                             <td class="px-4 py-3 text-center text-sm text-gray-600 dark:text-gray-400">{{ $m->sort_order }}</td>
                             <td class="px-4 py-3 text-center">
                                 <form method="post" action="{{ route('admin.menus.toggle', $m->id) }}" class="inline">
@@ -226,14 +244,21 @@
                                     <button onclick='editMenu(@json($m))' class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm">
                                         แก้ไข
                                     </button>
-                                    <span class="text-gray-300 dark:text-gray-600">|</span>
-                                    <form method="post" action="{{ route('admin.menus.destroy', $m->id) }}" class="inline" onsubmit="return confirm('ยืนยันการลบเมนู {{ $m->label }}?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm">
-                                            ลบ
-                                        </button>
-                                    </form>
+                                    @if(!$m->is_system)
+                                        <span class="text-gray-300 dark:text-gray-600">|</span>
+                                        <form method="post" action="{{ route('admin.menus.destroy', $m->id) }}" class="inline" onsubmit="return confirm('ยืนยันการลบเมนู {{ $m->label }}?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm">
+                                                ลบ
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-gray-300 dark:text-gray-600">|</span>
+                                        <span class="text-gray-400 dark:text-gray-600 text-xs italic">
+                                            System
+                                        </span>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -397,6 +422,7 @@ function editMenu(menu) {
     document.getElementById('input-icon').value = menu.icon || '';
     document.getElementById('input-parent-id').value = menu.parent_id || '';
     document.getElementById('input-sort-order').value = menu.sort_order || 0;
+    document.getElementById('input-menu-group').value = menu.menu_group || 'default';
 
     // Show icon preview if exists
     if (menu.icon) {
@@ -433,6 +459,7 @@ function resetForm() {
     document.getElementById('input-icon').value = '';
     document.getElementById('input-parent-id').value = '';
     document.getElementById('input-sort-order').value = '0';
+    document.getElementById('input-menu-group').value = 'default';
 
     // Hide icon preview
     document.getElementById('icon-preview').classList.add('hidden');

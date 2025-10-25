@@ -15,11 +15,12 @@ class Menu extends Model
     protected $table = 'menus';
 
     protected $fillable = [
-        'key', 'label', 'route', 'url', 'icon', 'parent_id', 'sort_order', 'is_active', 'roles'
+        'key', 'label', 'route', 'url', 'icon', 'parent_id', 'sort_order', 'is_active', 'is_system', 'roles', 'menu_group'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_system' => 'boolean',
         'sort_order' => 'integer',
     ];
 

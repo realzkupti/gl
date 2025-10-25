@@ -4,7 +4,10 @@
       "Bash(curl -s http://localhost/admin/dashboard-demo)",
       "Bash(php artisan:*)",
       "Bash(curl -s http://localhost/cheque)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(php -r:*)",
+      "Bash(php create_companies_view.php:*)"
     ],
     "deny": [],
     "ask": []

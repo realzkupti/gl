@@ -12,7 +12,7 @@ use App\Services\CompanyManager;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TailAdminController;
 use App\Http\Controllers\Admin\MenuController;
-use App\Http\Controllers\Admin\UserMenuPermissionController;
+use App\Http\Controllers\Admin\CompanyController;
 
 Route::get('/', [HomeController::class, 'index'])->middleware(['company.connection'])->name('home');
 
@@ -92,10 +92,18 @@ Route::middleware(['auth','company.connection','menu:cheque,view'])->group(funct
     Route::get('api/branches', [ChequeApiController::class, 'branches']);
     Route::get('api/cheques', [ChequeApiController::class, 'chequesIndex']);
     Route::get('api/cheques/next', [ChequeApiController::class, 'chequesNext']);
+    Route::get('api/templates', [ChequeApiController::class, 'templatesIndex']);
+    Route::get('api/payees', [ChequeApiController::class, 'payees']);
 });
 Route::post('api/cheques', [ChequeApiController::class, 'chequesStore'])
     ->middleware(['auth','company.connection','menu:cheque,create']);
 Route::delete('api/cheques/{id}', [ChequeApiController::class, 'chequesDestroy'])
+    ->middleware(['auth','company.connection','menu:cheque,delete']);
+Route::post('api/templates', [ChequeApiController::class, 'templatesStore'])
+    ->middleware(['auth','company.connection','menu:cheque,create']);
+Route::post('api/branches', [ChequeApiController::class, 'branchesStore'])
+    ->middleware(['auth','company.connection','menu:cheque,create']);
+Route::delete('api/branches/{code}', [ChequeApiController::class, 'branchesDestroy'])
     ->middleware(['auth','company.connection','menu:cheque,delete']);
 
 // Admin: mock user/permission management UI
@@ -109,11 +117,19 @@ Route::middleware(['auth'])->group(function(){
     Route::patch('admin/menus/{id}/toggle', [MenuController::class, 'toggle'])->name('admin.menus.toggle');
     Route::delete('admin/menus/{id}', [MenuController::class, 'destroy'])->name('admin.menus.destroy');
 
+    // Admin: Companies CRUD
+    Route::get('admin/companies', [CompanyController::class, 'index'])->name('admin.companies');
+    Route::post('admin/companies', [CompanyController::class, 'store'])->name('admin.companies.store');
+    Route::put('admin/companies/{id}', [CompanyController::class, 'update'])->name('admin.companies.update');
+    Route::patch('admin/companies/{id}/toggle', [CompanyController::class, 'toggle'])->name('admin.companies.toggle');
+    Route::post('admin/companies/{id}/test', [CompanyController::class, 'testConnection'])->name('admin.companies.test');
+    Route::delete('admin/companies/{id}', [CompanyController::class, 'destroy'])->name('admin.companies.destroy');
+
     // Admin: User Menu Permissions (รายคน)
-    Route::get('admin/user-permissions', [UserMenuPermissionController::class, 'index'])->name('admin.user-permissions');
-    Route::get('admin/user-permissions/{userId}', [UserMenuPermissionController::class, 'show'])->name('admin.user-permissions.show');
-    Route::put('admin/user-permissions/{userId}', [UserMenuPermissionController::class, 'update'])->name('admin.user-permissions.update');
-    Route::delete('admin/user-permissions/{userId}', [UserMenuPermissionController::class, 'reset'])->name('admin.user-permissions.reset');
+    Route::get('admin/user-permissions', [UserPermissionController::class, 'index'])->name('admin.user-permissions');
+    Route::get('admin/user-permissions/{userId}', [UserPermissionController::class, 'edit'])->name('admin.user-permissions.edit');
+    Route::put('admin/user-permissions/{userId}', [UserPermissionController::class, 'update'])->name('admin.user-permissions.update');
+    Route::delete('admin/user-permissions/{userId}', [UserPermissionController::class, 'reset'])->name('admin.user-permissions.reset');
 });
 // Admin: Approve users
 Route::middleware(['auth'])->group(function () {

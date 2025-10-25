@@ -39,6 +39,7 @@ class MenuController extends Controller
             'icon' => 'nullable|string|max:255',
             'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
             'sort_order' => 'nullable|integer',
+            'menu_group' => 'nullable|string|in:default,bplus',
         ]);
 
         // Use Model to create menu
@@ -49,6 +50,7 @@ class MenuController extends Controller
             'icon' => $data['icon'] ?? null,
             'parent_id' => $data['parent_id'] ?? null,
             'sort_order' => $data['sort_order'] ?? 0,
+            'menu_group' => $data['menu_group'] ?? 'default',
             'is_active' => true,
         ]);
 
@@ -68,6 +70,7 @@ class MenuController extends Controller
             'icon' => 'nullable|string|max:255',
             'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
             'sort_order' => 'nullable|integer',
+            'menu_group' => 'nullable|string|in:default,bplus',
             'is_active' => 'boolean',
         ]);
 
@@ -81,6 +84,13 @@ class MenuController extends Controller
         $this->ensureAdmin();
 
         $menu = Menu::findOrFail($id);
+
+        // Prevent deletion of system menus
+        if ($menu->is_system) {
+            return redirect()->route('admin.menus')
+                ->with('error', 'ไม่สามารถลบเมนูระบบได้ (System Menu)');
+        }
+
         $menu->delete();
 
         return redirect()->route('admin.menus')->with('status', 'ลบเมนูแล้ว');

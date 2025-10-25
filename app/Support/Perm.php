@@ -46,8 +46,9 @@ class Perm
 
     /**
      * Get user accessible menus with permissions
+     * @param string|null $menuGroup Filter by menu group (default, bplus, etc.) or null for all
      */
-    public static function getUserMenus(): array
+    public static function getUserMenus(?string $menuGroup = null): array
     {
         if (!Auth::check()) return [];
 
@@ -58,9 +59,14 @@ class Perm
 
             if ($isAdmin) {
                 // Admin sees all active menus
-                $menus = $conn->table('menus')
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
+                $query = $conn->table('menus')
+                    ->where('is_active', true);
+
+                if ($menuGroup !== null) {
+                    $query->where('menu_group', $menuGroup);
+                }
+
+                $menus = $query->orderBy('sort_order')
                     ->orderBy('id')
                     ->get();
             } else {
@@ -69,12 +75,17 @@ class Perm
                 if ($roles->isEmpty()) return [];
 
                 // Get menus user has at least 'view' permission for
-                $menus = $conn->table('menus as m')
+                $query = $conn->table('menus as m')
                     ->join('role_menu_permissions as p', 'p.menu_id', '=', 'm.id')
                     ->whereIn('p.role_id', $roles->all())
                     ->where('m.is_active', true)
-                    ->where('p.can_view', true)
-                    ->select('m.*')
+                    ->where('p.can_view', true);
+
+                if ($menuGroup !== null) {
+                    $query->where('m.menu_group', $menuGroup);
+                }
+
+                $menus = $query->select('m.*')
                     ->distinct()
                     ->orderBy('m.sort_order')
                     ->orderBy('m.id')
@@ -95,6 +106,7 @@ class Perm
                     'icon' => $menu->icon,
                     'parent_id' => $menu->parent_id,
                     'sort_order' => $menu->sort_order,
+                    'menu_group' => $menu->menu_group ?? 'default',
                     'children' => [],
                 ];
                 $lookup[$menu->id] = $menuItem;

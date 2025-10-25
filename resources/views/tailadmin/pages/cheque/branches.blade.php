@@ -1,144 +1,74 @@
 @extends('tailadmin.layouts.app')
 
-@section('title', 'จัดการสาขา - ระบบเช็ค')
+@section('title', 'จัดการสาขา - ' . config('app.name'))
+
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+@endpush
 
 @section('content')
 <div class="p-4 md:p-6 2xl:p-10">
+    <!-- Breadcrumb -->
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 class="text-title-md2 font-bold text-gray-900 dark:text-white">จัดการสาขา</h2>
+        <h2 class="text-title-md2 font-bold text-gray-900 dark:text-white">
+            🏢 จัดการสาขา
+        </h2>
+
         <nav>
             <ol class="flex items-center gap-2">
-                <li><a href="{{ route('tailadmin.dashboard') }}" class="font-medium text-gray-700 hover:text-brand-500 dark:text-gray-400">Dashboard /</a></li>
-                <li><a href="{{ route('cheque.print') }}" class="font-medium text-gray-700 hover:text-brand-500 dark:text-gray-400">ระบบเช็ค /</a></li>
+                <li><a class="font-medium text-gray-700 hover:text-brand-500 dark:text-gray-400" href="{{ route('tailadmin.dashboard') }}">Dashboard /</a></li>
+                <li><a class="font-medium text-gray-700 hover:text-brand-500 dark:text-gray-400" href="{{ route('cheque.print') }}">ระบบเช็ค /</a></li>
                 <li class="font-medium text-brand-500">จัดการสาขา</li>
             </ol>
         </nav>
     </div>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <!-- Left: Form -->
+        <!-- Left: Form (1 column) -->
         <div class="lg:col-span-1">
             <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white" id="form-title">เพิ่มสาขาใหม่</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">➕ เพิ่มสาขาใหม่</h3>
 
-                <form id="branch-form" class="space-y-4" onsubmit="saveBranch(event)">
-                    <input type="hidden" id="branch-id" />
-
+                <form id="branch_form" onsubmit="saveBranch(event)" class="space-y-4">
                     <div>
-                        <label class="mb-2 block text-sm font-medium">รหัสสาขา <span class="text-red-500">*</span></label>
-                        <input
-                            type="text"
-                            id="branch-code"
-                            required
-                            placeholder="เช่น HQ, BKK01"
-                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:focus:border-brand-500"
-                        />
+                        <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">รหัสสาขา <span class="text-red-500">*</span></label>
+                        <input type="text" id="branch_code" required placeholder="เช่น HQ, BKK01"
+                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">รหัสสำหรับระบุสาขา (ไม่ซ้ำกัน)</p>
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-sm font-medium">ชื่อสาขา <span class="text-red-500">*</span></label>
-                        <input
-                            type="text"
-                            id="branch-name"
-                            required
-                            placeholder="เช่น สำนักงานใหญ่"
-                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:focus:border-brand-500"
-                        />
+                        <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">ชื่อสาขา <span class="text-red-500">*</span></label>
+                        <input type="text" id="branch_name" required placeholder="เช่น สำนักงานใหญ่"
+                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
                     </div>
 
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">ที่อยู่</label>
-                        <textarea
-                            id="branch-address"
-                            rows="3"
-                            placeholder="ที่อยู่สาขา (ไม่บังคับ)"
-                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:focus:border-brand-500"
-                        ></textarea>
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">เบอร์โทรศัพท์</label>
-                        <input
-                            type="tel"
-                            id="branch-phone"
-                            placeholder="เช่น 02-123-4567"
-                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:focus:border-brand-500"
-                        />
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="branch-active"
-                            checked
-                            class="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                        />
-                        <label for="branch-active" class="text-sm font-medium">เปิดใช้งาน</label>
-                    </div>
-
-                    <div class="flex gap-3 pt-2">
-                        <button
-                            type="submit"
-                            class="flex-1 rounded bg-brand-500 px-4 py-2.5 text-white hover:bg-brand-600"
-                        >
-                            บันทึก
-                        </button>
-                        <button
-                            type="button"
-                            onclick="resetForm()"
-                            class="rounded border border-gray-300 px-4 py-2.5 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
-                        >
-                            ยกเลิก
-                        </button>
-                    </div>
+                    <button type="submit" class="w-full rounded bg-brand-500 px-4 py-2.5 text-white hover:bg-brand-600">
+                        💾 บันทึกสาขา
+                    </button>
                 </form>
+
+                <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <a href="{{ route('cheque.print') }}" class="block w-full rounded bg-gray-100 px-4 py-2.5 text-center text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
+                        ← กลับหน้าพิมพ์เช็ค
+                    </a>
+                </div>
             </div>
         </div>
 
-        <!-- Right: Branch List -->
+        <!-- Right: List (2 columns) -->
         <div class="lg:col-span-2">
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white">รายการสาขา</h3>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">
-                            ทั้งหมด <span id="total-branches" class="font-semibold">0</span> สาขา
-                        </div>
-                    </div>
+            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <div class="mb-4 flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">📋 รายการสาขาทั้งหมด</h3>
+                    <button onclick="loadBranches()" class="rounded bg-gray-100 px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
+                        🔄 รีเฟรช
+                    </button>
                 </div>
 
-                <div class="p-6">
-                    <!-- Search -->
-                    <div class="mb-4">
-                        <input
-                            type="text"
-                            id="search-branch"
-                            placeholder="ค้นหาสาขา..."
-                            onkeyup="filterBranches()"
-                            class="w-full rounded border border-gray-300 px-4 py-2.5 dark:border-gray-700"
-                        />
-                    </div>
-
-                    <!-- Branches Table -->
-                    <div class="overflow-x-auto">
-                        <table class="w-full table-auto">
-                            <thead>
-                                <tr class="bg-gray-50 text-left dark:bg-gray-800">
-                                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">รหัส</th>
-                                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">ชื่อสาขา</th>
-                                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">เบอร์โทร</th>
-                                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white text-center">สถานะ</th>
-                                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white text-center">จัดการ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="branches-list">
-                                <tr>
-                                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                                        กำลังโหลดข้อมูล...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div id="branches_list" class="space-y-3">
+                    <div class="text-center text-gray-500 dark:text-gray-400 py-8">
+                        กำลังโหลด...
                     </div>
                 </div>
             </div>
@@ -148,153 +78,158 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-let branches = [];
-let editingId = null;
+const API_BASE = '/api';
 
-// Load all branches
+// Load branches on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadBranches();
+});
+
+// Load branches list
 async function loadBranches() {
     try {
-        const response = await axios.get('/api/branches');
-        branches = response.data;
-        displayBranches();
-    } catch (error) {
-        console.error('Failed to load branches:', error);
-        document.getElementById('branches-list').innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
-    }
-}
+        const response = await fetch(`${API_BASE}/branches`);
+        const branches = await response.json();
 
-// Display branches in table
-function displayBranches(filteredBranches = null) {
-    const data = filteredBranches || branches;
-    const tbody = document.getElementById('branches-list');
-    document.getElementById('total-branches').textContent = data.length;
+        const listDiv = document.getElementById('branches_list');
 
-    if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">ไม่พบข้อมูลสาขา</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = data.map(branch => `
-        <tr class="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800">
-            <td class="px-4 py-3 text-gray-900 dark:text-white font-semibold">${branch.code}</td>
-            <td class="px-4 py-3">
-                <div class="text-gray-900 dark:text-white font-medium">${branch.name}</div>
-                ${branch.address ? `<div class="text-xs text-gray-500 dark:text-gray-400 mt-1">${branch.address}</div>` : ''}
-            </td>
-            <td class="px-4 py-3 text-gray-600 dark:text-gray-400">${branch.phone || '-'}</td>
-            <td class="px-4 py-3 text-center">
-                ${branch.is_active
-                    ? '<span class="inline-flex rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/20 dark:text-green-400">เปิดใช้งาน</span>'
-                    : '<span class="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-900/20 dark:text-red-400">ปิดใช้งาน</span>'
-                }
-            </td>
-            <td class="px-4 py-3">
-                <div class="flex justify-center gap-2">
-                    <button onclick="editBranch(${branch.id})" class="text-blue-500 hover:text-blue-700" title="แก้ไข">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                    </button>
-                    <button onclick="deleteBranch(${branch.id}, '${branch.name}')" class="text-red-500 hover:text-red-700" title="ลบ">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
-                    </button>
+        if (branches.length === 0) {
+            listDiv.innerHTML = `
+                <div class="text-center text-gray-500 dark:text-gray-400 py-8">
+                    <p class="text-lg">ยังไม่มีสาขา</p>
+                    <p class="text-sm mt-2">เพิ่มสาขาแรกของคุณทางซ้ายมือ</p>
                 </div>
-            </td>
-        </tr>
-    `).join('');
+            `;
+            return;
+        }
+
+        listDiv.innerHTML = branches.map(branch => `
+            <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
+                <div>
+                    <div class="font-semibold text-gray-900 dark:text-white">${branch.name}</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">รหัส: ${branch.code}</div>
+                </div>
+                <button onclick="deleteBranch('${branch.code}')" class="rounded bg-red-500 px-3 py-2 text-sm text-white hover:bg-red-600" title="ลบสาขา">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading branches:', error);
+        document.getElementById('branches_list').innerHTML = `
+            <div class="text-center text-red-500 py-8">
+                เกิดข้อผิดพลาดในการโหลดข้อมูล
+            </div>
+        `;
+    }
 }
 
-// Filter branches by search
-function filterBranches() {
-    const search = document.getElementById('search-branch').value.toLowerCase();
-    const filtered = branches.filter(b =>
-        b.code.toLowerCase().includes(search) ||
-        b.name.toLowerCase().includes(search) ||
-        (b.phone && b.phone.includes(search))
-    );
-    displayBranches(filtered);
-}
-
-// Save branch (create or update)
+// Save branch
 async function saveBranch(event) {
     event.preventDefault();
 
-    const data = {
-        code: document.getElementById('branch-code').value,
-        name: document.getElementById('branch-name').value,
-        address: document.getElementById('branch-address').value,
-        phone: document.getElementById('branch-phone').value,
-        is_active: document.getElementById('branch-active').checked
-    };
+    const code = document.getElementById('branch_code').value.trim();
+    const name = document.getElementById('branch_name').value.trim();
 
-    try {
-        if (editingId) {
-            // Update
-            await axios.put(`/api/branches/${editingId}`, data);
-            alert('อัพเดทสาขาเรียบร้อยแล้ว');
-        } else {
-            // Create
-            await axios.post('/api/branches', data);
-            alert('เพิ่มสาขาใหม่เรียบร้อยแล้ว');
-        }
-
-        resetForm();
-        loadBranches();
-    } catch (error) {
-        console.error('Save failed:', error);
-        alert('เกิดข้อผิดพลาด: ' + (error.response?.data?.message || error.message));
-    }
-}
-
-// Edit branch
-function editBranch(id) {
-    const branch = branches.find(b => b.id === id);
-    if (!branch) return;
-
-    editingId = id;
-    document.getElementById('form-title').textContent = 'แก้ไขข้อมูลสาขา';
-    document.getElementById('branch-id').value = branch.id;
-    document.getElementById('branch-code').value = branch.code;
-    document.getElementById('branch-name').value = branch.name;
-    document.getElementById('branch-address').value = branch.address || '';
-    document.getElementById('branch-phone').value = branch.phone || '';
-    document.getElementById('branch-active').checked = branch.is_active;
-
-    // Scroll to form
-    document.getElementById('branch-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-// Delete branch
-async function deleteBranch(id, name) {
-    if (!confirm(`คุณต้องการลบสาขา "${name}" ใช่หรือไม่?`)) {
+    if (!code || !name) {
+        Swal.fire({
+            title: 'ข้อมูลไม่ครบถ้วน!',
+            text: 'กรุณากรอกข้อมูลให้ครบทุกช่อง',
+            icon: 'warning',
+            confirmButtonColor: '#ff9800'
+        });
         return;
     }
 
     try {
-        await axios.delete(`/api/branches/${id}`);
-        alert('ลบสาขาเรียบร้อยแล้ว');
-        loadBranches();
+        const response = await fetch(`${API_BASE}/branches`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, name })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            Swal.fire({
+                title: 'บันทึกสำเร็จ!',
+                text: 'เพิ่มสาขาใหม่เรียบร้อยแล้ว',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            // Clear form
+            document.getElementById('branch_form').reset();
+
+            // Reload list
+            loadBranches();
+        } else if (response.status === 409) {
+            Swal.fire({
+                title: 'รหัสสาขาซ้ำ!',
+                text: 'มีรหัสสาขานี้อยู่ในระบบแล้ว กรุณาใช้รหัสอื่น',
+                icon: 'error',
+                confirmButtonColor: '#ef4444'
+            });
+        } else {
+            throw new Error('Save failed');
+        }
     } catch (error) {
-        console.error('Delete failed:', error);
-        alert('ไม่สามารถลบสาขาได้: ' + (error.response?.data?.message || error.message));
+        console.error('Error saving branch:', error);
+        Swal.fire({
+            title: 'เกิดข้อผิดพลาด!',
+            text: 'ไม่สามารถบันทึกข้อมูลได้',
+            icon: 'error',
+            confirmButtonColor: '#ef4444'
+        });
     }
 }
 
-// Reset form
-function resetForm() {
-    editingId = null;
-    document.getElementById('form-title').textContent = 'เพิ่มสาขาใหม่';
-    document.getElementById('branch-form').reset();
-    document.getElementById('branch-id').value = '';
-    document.getElementById('branch-active').checked = true;
-}
+// Delete branch
+async function deleteBranch(code) {
+    const result = await Swal.fire({
+        title: 'ต้องการลบสาขานี้?',
+        text: 'การกระทำนี้ไม่สามารถย้อนกลับได้',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'ใช่, ลบเลย',
+        cancelButtonText: 'ยกเลิก'
+    });
 
-// Initialize
-window.addEventListener('DOMContentLoaded', () => {
-    loadBranches();
-});
+    if (result.isConfirmed) {
+        try {
+            const response = await fetch(`${API_BASE}/branches/${encodeURIComponent(code)}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                Swal.fire({
+                    title: 'ลบสำเร็จ!',
+                    text: 'ลบสาขาเรียบร้อยแล้ว',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                loadBranches();
+            } else {
+                throw new Error('Delete failed');
+            }
+        } catch (error) {
+            console.error('Error deleting branch:', error);
+            Swal.fire({
+                title: 'เกิดข้อผิดพลาด!',
+                text: 'ไม่สามารถลบข้อมูลได้',
+                icon: 'error',
+                confirmButtonColor: '#ef4444'
+            });
+        }
+    }
+}
 </script>
 @endpush

@@ -1,129 +1,230 @@
 @extends('tailadmin.layouts.app')
 
-@section('title', 'ออกแบบ & ปรับแต่ง - ระบบเช็ค')
+@section('title', 'ออกแบบ & ปรับแต่งเช็ค - ' . config('app.name'))
+
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<style>
+.cheque-workspace {
+    background: #f5f5f5;
+    border-radius: 10px;
+    padding: 20px;
+    min-height: 500px;
+}
+
+.cheque-preview {
+    position: relative;
+    width: 800px;
+    height: 350px;
+    background: white;
+    border: 2px solid #ddd;
+    margin: 20px auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.draggable {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+    padding: 2px 5px;
+    border: 1px dashed transparent;
+    white-space: nowrap;
+}
+
+.draggable:hover {
+    border-color: #2196F3;
+    background: rgba(33, 150, 243, 0.05);
+}
+
+.draggable.selected {
+    border-color: #2196F3;
+    background: rgba(33, 150, 243, 0.1);
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3);
+}
+
+.ac-payee {
+    color: #ff0000;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.line-holder {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.property-panel {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.dark .property-panel {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+.control-group {
+    margin-bottom: 12px;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+    font-weight: 500;
+}
+</style>
+@endpush
 
 @section('content')
 <div class="p-4 md:p-6 2xl:p-10">
+    <!-- Breadcrumb -->
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 class="text-title-md2 font-bold text-gray-900 dark:text-white">ออกแบบ & ปรับแต่งเช็ค</h2>
+        <h2 class="text-title-md2 font-bold text-gray-900 dark:text-white">
+            🎨 ออกแบบ & ปรับแต่งเช็ค
+        </h2>
+
         <nav>
             <ol class="flex items-center gap-2">
-                <li><a href="{{ route('tailadmin.dashboard') }}" class="font-medium text-gray-700 hover:text-brand-500 dark:text-gray-400">Dashboard /</a></li>
-                <li><a href="{{ route('cheque.print') }}" class="font-medium text-gray-700 hover:text-brand-500 dark:text-gray-400">ระบบเช็ค /</a></li>
+                <li><a class="font-medium text-gray-700 hover:text-brand-500 dark:text-gray-400" href="{{ route('tailadmin.dashboard') }}">Dashboard /</a></li>
+                <li><a class="font-medium text-gray-700 hover:text-brand-500 dark:text-gray-400" href="{{ route('cheque.print') }}">ระบบเช็ค /</a></li>
                 <li class="font-medium text-brand-500">ออกแบบ</li>
             </ol>
         </nav>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <!-- Left: Settings -->
-        <div class="space-y-6">
-            <!-- Template Selection -->
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">เลือกเทมเพลต</h3>
-                <select id="template-select" class="w-full rounded border border-gray-300 px-4 py-2.5 dark:border-gray-700">
-                    <option value="standard">เทมเพลตมาตรฐาน</option>
-                    <option value="kbank">ธนาคารกสิกรไทย</option>
-                    <option value="scb">ธนาคารไทยพาณิชย์</option>
-                    <option value="bbl">ธนาคารกรุงเทพ</option>
-                    <option value="custom">กำหนดเอง</option>
-                </select>
-            </div>
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
+        <!-- Left Sidebar: Controls (1 column) -->
+        <div class="lg:col-span-1">
+            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">⚙️ การตั้งค่า</h3>
 
-            <!-- Position Settings -->
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">ปรับตำแหน่ง</h3>
+                <!-- Bank Template -->
+                <div class="property-panel">
+                    <h4 class="font-semibold mb-3 text-gray-900 dark:text-white">📋 เทมเพลตธนาคาร</h4>
+                    <select id="bank_template" onchange="loadTemplate()" class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white">
+                        <option value="custom">กำหนดเอง</option>
+                        <option value="scb">ธนาคารไทยพาณิชย์ (SCB)</option>
+                        <option value="kbank">ธนาคารกสิกรไทย (KBANK)</option>
+                        <option value="ktb">ธนาคารกรุงไทย (KTB)</option>
+                    </select>
+                </div>
 
-                <div class="space-y-4">
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">เลขที่เช็ค (X)</label>
-                        <input type="number" id="number-x" value="500" class="w-full rounded border px-4 py-2 dark:border-gray-700" />
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">เลขที่เช็ค (Y)</label>
-                        <input type="number" id="number-y" value="20" class="w-full rounded border px-4 py-2 dark:border-gray-700" />
-                    </div>
+                <!-- Paper Size -->
+                <div class="property-panel">
+                    <h4 class="font-semibold mb-3 text-gray-900 dark:text-white">📐 ขนาดกระดาษ</h4>
+                    <select id="paper_size" onchange="changePaperSize()" class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white mb-3">
+                        <option value="800x350">มาตรฐาน (800x350px)</option>
+                        <option value="750x320">เล็ก (750x320px)</option>
+                        <option value="850x380">ใหญ่ (850x380px)</option>
+                        <option value="custom">กำหนดเอง</option>
+                    </select>
 
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">วันที่ (X)</label>
-                        <input type="number" id="date-x" value="500" class="w-full rounded border px-4 py-2 dark:border-gray-700" />
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">วันที่ (Y)</label>
-                        <input type="number" id="date-y" value="50" class="w-full rounded border px-4 py-2 dark:border-gray-700" />
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">ผู้รับเงิน (X)</label>
-                        <input type="number" id="payee-x" value="100" class="w-full rounded border px-4 py-2 dark:border-gray-700" />
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">ผู้รับเงิน (Y)</label>
-                        <input type="number" id="payee-y" value="100" class="w-full rounded border px-4 py-2 dark:border-gray-700" />
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">จำนวนเงิน (X)</label>
-                        <input type="number" id="amount-x" value="450" class="w-full rounded border px-4 py-2 dark:border-gray-700" />
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">จำนวนเงิน (Y)</label>
-                        <input type="number" id="amount-y" value="160" class="w-full rounded border px-4 py-2 dark:border-gray-700" />
+                    <div id="custom_size_panel" style="display:none;">
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label class="text-sm">กว้าง (px)</label>
+                                <input type="number" id="custom_width" value="800" class="w-full rounded border border-gray-300 px-3 py-2 dark:border-gray-700">
+                            </div>
+                            <div>
+                                <label class="text-sm">สูง (px)</label>
+                                <input type="number" id="custom_height" value="350" class="w-full rounded border border-gray-300 px-3 py-2 dark:border-gray-700">
+                            </div>
+                        </div>
+                        <button onclick="applyCustomSize()" class="w-full rounded bg-brand-500 px-4 py-2 text-sm text-white hover:bg-brand-600">
+                            ✓ ใช้ขนาดนี้
+                        </button>
                     </div>
                 </div>
 
-                <div class="mt-6 flex gap-3">
-                    <button onclick="saveTemplate()" class="flex-1 rounded bg-brand-500 px-4 py-2 text-white hover:bg-brand-600">
-                        บันทึก
-                    </button>
-                    <button onclick="resetTemplate()" class="rounded border px-4 py-2 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800">
-                        รีเซ็ต
-                    </button>
+                <!-- Element Properties -->
+                <div class="property-panel" id="element_properties" style="display:none;">
+                    <h4 class="font-semibold mb-3 text-gray-900 dark:text-white">✏️ แก้ไข: <span id="selected_element_name">-</span></h4>
+
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div>
+                            <label class="text-sm">ตำแหน่ง X</label>
+                            <input type="number" id="prop_x" onchange="updateElementProperty()" class="w-full rounded border border-gray-300 px-3 py-2 dark:border-gray-700">
+                        </div>
+                        <div>
+                            <label class="text-sm">ตำแหน่ง Y</label>
+                            <input type="number" id="prop_y" onchange="updateElementProperty()" class="w-full rounded border border-gray-300 px-3 py-2 dark:border-gray-700">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-sm">ขนาดตัวอักษร (px)</label>
+                        <input type="number" id="prop_font_size" onchange="updateElementProperty()" min="10" max="50" class="w-full rounded border border-gray-300 px-3 py-2 dark:border-gray-700">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-sm">สี</label>
+                        <input type="color" id="prop_color" onchange="updateElementProperty()" class="w-full h-10 rounded border border-gray-300 dark:border-gray-700">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="prop_bold" onchange="updateElementProperty()" class="rounded border-gray-300">
+                            <span class="text-sm">ตัวหนา</span>
+                        </label>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Font Settings -->
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">ฟอนต์และขนาด</h3>
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">ฟอนต์</label>
-                        <select class="w-full rounded border px-4 py-2 dark:border-gray-700">
-                            <option>TH Sarabun New</option>
-                            <option>Angsana New</option>
-                            <option>Cordia New</option>
-                            <option>Arial</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-sm font-medium">ขนาดฟอนต์</label>
-                        <input type="number" value="14" class="w-full rounded border px-4 py-2 dark:border-gray-700" />
-                    </div>
+                <!-- Actions -->
+                <div class="space-y-2">
+                    <button onclick="saveAsTemplate()" class="w-full rounded bg-green-500 px-4 py-2.5 text-white hover:bg-green-600">
+                        💾 บันทึก Template
+                    </button>
+                    <button onclick="resetPositions()" class="w-full rounded bg-red-500 px-4 py-2.5 text-white hover:bg-red-600">
+                        🔄 รีเซ็ตตำแหน่ง
+                    </button>
+                    <a href="{{ route('cheque.print') }}" class="block w-full rounded bg-gray-100 px-4 py-2.5 text-center text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
+                        ← กลับหน้าพิมพ์เช็ค
+                    </a>
                 </div>
             </div>
         </div>
 
-        <!-- Right: Live Preview -->
-        <div>
-            <div class="sticky top-24 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">ตัวอย่างสด</h3>
-
-                <div class="aspect-[3/1] border-2 border-dashed border-gray-300 bg-gray-50 p-8 dark:border-gray-700 dark:bg-gray-800">
-                    <div id="live-preview" class="relative h-full rounded-lg border-2 border-gray-400 bg-white p-6 shadow-lg" style="font-family: 'TH Sarabun New', sans-serif;">
-                        <!-- Dynamic positioning -->
-                        <div class="absolute" id="live-number" style="right: 20px; top: 20px;">000000</div>
-                        <div class="absolute" id="live-date" style="right: 20px; top: 50px;">01/01/2567</div>
-                        <div class="absolute" id="live-payee" style="left: 100px; top: 100px;">นายทดสอบ ระบบ</div>
-                        <div class="absolute" id="live-amount-text" style="left: 100px; top: 140px;">หนึ่งหมื่นบาทถ้วน</div>
-                        <div class="absolute" id="live-amount" style="right: 30px; bottom: 30px; font-size: 20px; font-weight: bold;">10,000.00</div>
+        <!-- Right: Preview (3 columns) -->
+        <div class="lg:col-span-3">
+            <div class="cheque-workspace">
+                <div class="mb-4 space-y-2">
+                    <div class="flex gap-2 flex-wrap">
+                        <span class="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
+                            💡 คลิกที่องค์ประกอบเพื่อแก้ไข
+                        </span>
+                        <span class="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
+                            🖱️ ลากเพื่อย้ายตำแหน่ง
+                        </span>
+                        <span class="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
+                            ⌨️ ใช้ตัวเลขเพื่อปรับละเอียด
+                        </span>
                     </div>
                 </div>
 
-                <p class="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                    * ปรับค่าทางซ้ายเพื่อดูการเปลี่ยนแปลงแบบทันที
-                </p>
+                <div class="cheque-preview" id="cheque_preview">
+                    <div class="draggable ac-payee" id="acPayee" data-name="A/C PAYEE ONLY">
+                        A/C PAYEE ONLY
+                    </div>
+                    <div class="draggable line-holder" id="lineHolder" data-name="เส้น (หรือผู้ถือ)">
+                        --------
+                    </div>
+                    <div class="draggable" id="dateDisplay" data-name="วันที่">
+                        25/10/2568
+                    </div>
+                    <div class="draggable" id="payeeDisplay" data-name="ชื่อผู้รับเงิน">
+                        บริษัท ตัวอย่าง จำกัด
+                    </div>
+                    <div class="draggable" id="amountText" data-name="จำนวนเงิน (ตัวอักษร)">
+                        หนึ่งพันสองร้อยห้าสิบบาทถ้วน
+                    </div>
+                    <div class="draggable" id="amountNumber" data-name="จำนวนเงิน (ตัวเลข)">
+                        ***1,250.00***
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -131,77 +232,333 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-function updatePreview() {
-    const numberX = document.getElementById('number-x').value;
-    const numberY = document.getElementById('number-y').value;
-    const dateX = document.getElementById('date-x').value;
-    const dateY = document.getElementById('date-y').value;
-    const payeeX = document.getElementById('payee-x').value;
-    const payeeY = document.getElementById('payee-y').value;
-    const amountX = document.getElementById('amount-x').value;
-    const amountY = document.getElementById('amount-y').value;
+const API_BASE = '/api';
 
-    document.getElementById('live-number').style.right = numberX + 'px';
-    document.getElementById('live-number').style.top = numberY + 'px';
-    document.getElementById('live-date').style.right = dateX + 'px';
-    document.getElementById('live-date').style.top = dateY + 'px';
-    document.getElementById('live-payee').style.left = payeeX + 'px';
-    document.getElementById('live-payee').style.top = payeeY + 'px';
-    document.getElementById('live-amount').style.right = amountX + 'px';
-    document.getElementById('live-amount').style.bottom = amountY + 'px';
-}
+// Element selection and dragging
+let selectedElement = null;
+let draggedElement = null;
+let offsetX = 0;
+let offsetY = 0;
 
-function saveTemplate() {
-    const config = {
-        number: { x: document.getElementById('number-x').value, y: document.getElementById('number-y').value },
-        date: { x: document.getElementById('date-x').value, y: document.getElementById('date-y').value },
-        payee: { x: document.getElementById('payee-x').value, y: document.getElementById('payee-y').value },
-        amount: { x: document.getElementById('amount-x').value, y: document.getElementById('amount-y').value },
-    };
+// Default positions
+const defaultPositions = {
+    acPayee: { top: 40, left: 200, fontSize: 18, color: '#ff0000', bold: true },
+    lineHolder: { top: 85, left: 80, fontSize: 20, color: '#000000', bold: true },
+    dateDisplay: { top: 40, right: 90, fontSize: 20, color: '#000000', bold: false },
+    payeeDisplay: { top: 110, left: 80, fontSize: 18, color: '#000000', bold: false },
+    amountText: { top: 165, left: 80, fontSize: 16, color: '#000000', bold: false },
+    amountNumber: { top: 215, right: 90, fontSize: 18, color: '#000000', bold: true }
+};
 
-    localStorage.setItem('cheque_template', JSON.stringify(config));
-    alert('บันทึกเทมเพลตเรียบร้อย');
-}
+// Bank templates
+const bankTemplates = {
+    scb: {
+        acPayee: { top: 35, left: 200, fontSize: 18, color: '#ff0000', bold: true },
+        lineHolder: { top: 80, left: 75, fontSize: 20, color: '#000000', bold: true },
+        dateDisplay: { top: 35, right: 85, fontSize: 20, color: '#000000', bold: false },
+        payeeDisplay: { top: 105, left: 75, fontSize: 18, color: '#000000', bold: false },
+        amountText: { top: 160, left: 75, fontSize: 16, color: '#000000', bold: false },
+        amountNumber: { top: 210, right: 85, fontSize: 18, color: '#000000', bold: true }
+    },
+    kbank: {
+        acPayee: { top: 45, left: 210, fontSize: 18, color: '#ff0000', bold: true },
+        lineHolder: { top: 90, left: 85, fontSize: 20, color: '#000000', bold: true },
+        dateDisplay: { top: 45, right: 95, fontSize: 20, color: '#000000', bold: false },
+        payeeDisplay: { top: 115, left: 85, fontSize: 18, color: '#000000', bold: false },
+        amountText: { top: 170, left: 85, fontSize: 16, color: '#000000', bold: false },
+        amountNumber: { top: 220, right: 95, fontSize: 18, color: '#000000', bold: true }
+    },
+    ktb: {
+        acPayee: { top: 38, left: 205, fontSize: 18, color: '#ff0000', bold: true },
+        lineHolder: { top: 83, left: 78, fontSize: 20, color: '#000000', bold: true },
+        dateDisplay: { top: 38, right: 88, fontSize: 20, color: '#000000', bold: false },
+        payeeDisplay: { top: 108, left: 78, fontSize: 18, color: '#000000', bold: false },
+        amountText: { top: 163, left: 78, fontSize: 16, color: '#000000', bold: false },
+        amountNumber: { top: 213, right: 88, fontSize: 18, color: '#000000', bold: true }
+    }
+};
 
-function resetTemplate() {
-    document.getElementById('number-x').value = 500;
-    document.getElementById('number-y').value = 20;
-    document.getElementById('date-x').value = 500;
-    document.getElementById('date-y').value = 50;
-    document.getElementById('payee-x').value = 100;
-    document.getElementById('payee-y').value = 100;
-    document.getElementById('amount-x').value = 450;
-    document.getElementById('amount-y').value = 160;
-    updatePreview();
-}
-
-// Add listeners
-['number-x', 'number-y', 'date-x', 'date-y', 'payee-x', 'payee-y', 'amount-x', 'amount-y'].forEach(id => {
-    document.getElementById(id).addEventListener('input', updatePreview);
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    loadPositions();
+    setupDragAndDrop();
 });
 
-// Load saved template
-const saved = localStorage.getItem('cheque_template');
-if (saved) {
-    const config = JSON.parse(saved);
-    if (config.number) {
-        document.getElementById('number-x').value = config.number.x;
-        document.getElementById('number-y').value = config.number.y;
+// Load positions
+function loadPositions() {
+    const saved = localStorage.getItem('chequePositions');
+    if (saved) {
+        const positions = JSON.parse(saved);
+        applyPositions(positions);
+    } else {
+        applyPositions(defaultPositions);
     }
-    if (config.date) {
-        document.getElementById('date-x').value = config.date.x;
-        document.getElementById('date-y').value = config.date.y;
+}
+
+// Apply positions to elements
+function applyPositions(positions) {
+    Object.keys(positions).forEach(id => {
+        const element = document.getElementById(id);
+        if (element && positions[id]) {
+            const props = positions[id];
+            if (props.top !== undefined) element.style.top = props.top + 'px';
+            if (props.left !== undefined) {
+                element.style.left = props.left + 'px';
+                element.style.right = 'auto';
+            }
+            if (props.right !== undefined) {
+                element.style.right = props.right + 'px';
+                element.style.left = 'auto';
+            }
+            if (props.fontSize) element.style.fontSize = props.fontSize + 'px';
+            if (props.color) element.style.color = props.color;
+            if (props.bold !== undefined) element.style.fontWeight = props.bold ? 'bold' : 'normal';
+        }
+    });
+}
+
+// Load template
+async function loadTemplate() {
+    const bank = document.getElementById('bank_template').value;
+    if (bank === 'custom') {
+        loadPositions();
+        return;
     }
-    if (config.payee) {
-        document.getElementById('payee-x').value = config.payee.x;
-        document.getElementById('payee-y').value = config.payee.y;
+
+    // Try API first
+    let template = null;
+    try {
+        const response = await fetch(`${API_BASE}/templates`);
+        const templates = await response.json();
+        const found = templates.find(t => t.bank === bank);
+        if (found) template = found.template_json;
+    } catch (error) {
+        console.error('Error loading template:', error);
     }
-    if (config.amount) {
-        document.getElementById('amount-x').value = config.amount.x;
-        document.getElementById('amount-y').value = config.amount.y;
+
+    // Fallback to built-in templates
+    if (!template) template = bankTemplates[bank];
+    if (template) applyPositions(template);
+}
+
+// Setup drag and drop
+function setupDragAndDrop() {
+    const draggables = document.querySelectorAll('.draggable');
+
+    draggables.forEach(element => {
+        element.addEventListener('mousedown', function(e) {
+            draggedElement = element;
+            const rect = element.getBoundingClientRect();
+            const parentRect = element.parentElement.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+
+            // Select element
+            document.querySelectorAll('.draggable').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            selectElement(element);
+
+            e.preventDefault();
+        });
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (draggedElement) {
+            const parent = draggedElement.parentElement;
+            const parentRect = parent.getBoundingClientRect();
+
+            let x = e.clientX - parentRect.left - offsetX;
+            let y = e.clientY - parentRect.top - offsetY;
+
+            // Boundary check
+            x = Math.max(0, Math.min(x, parentRect.width - draggedElement.offsetWidth));
+            y = Math.max(0, Math.min(y, parentRect.height - draggedElement.offsetHeight));
+
+            draggedElement.style.left = x + 'px';
+            draggedElement.style.top = y + 'px';
+            draggedElement.style.right = 'auto';
+
+            // Update property panel
+            if (selectedElement === draggedElement) {
+                document.getElementById('prop_x').value = Math.round(x);
+                document.getElementById('prop_y').value = Math.round(y);
+            }
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        if (draggedElement) {
+            savePositions();
+            draggedElement = null;
+        }
+    });
+}
+
+// Select element for editing
+function selectElement(element) {
+    selectedElement = element;
+    document.getElementById('element_properties').style.display = 'block';
+    document.getElementById('selected_element_name').textContent = element.getAttribute('data-name');
+
+    // Populate property panel
+    const computedStyle = window.getComputedStyle(element);
+    document.getElementById('prop_x').value = parseInt(element.style.left) || 0;
+    document.getElementById('prop_y').value = parseInt(element.style.top) || 0;
+    document.getElementById('prop_font_size').value = parseInt(computedStyle.fontSize);
+    document.getElementById('prop_color').value = rgbToHex(computedStyle.color);
+    document.getElementById('prop_bold').checked = computedStyle.fontWeight === 'bold' || computedStyle.fontWeight >= 700;
+}
+
+// Update element property
+function updateElementProperty() {
+    if (!selectedElement) return;
+
+    const x = parseInt(document.getElementById('prop_x').value);
+    const y = parseInt(document.getElementById('prop_y').value);
+    const fontSize = parseInt(document.getElementById('prop_font_size').value);
+    const color = document.getElementById('prop_color').value;
+    const bold = document.getElementById('prop_bold').checked;
+
+    selectedElement.style.left = x + 'px';
+    selectedElement.style.top = y + 'px';
+    selectedElement.style.right = 'auto';
+    selectedElement.style.fontSize = fontSize + 'px';
+    selectedElement.style.color = color;
+    selectedElement.style.fontWeight = bold ? 'bold' : 'normal';
+
+    savePositions();
+}
+
+// RGB to Hex
+function rgbToHex(rgb) {
+    const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+    if (!match) return '#000000';
+    return '#' + [match[1], match[2], match[3]].map(x => {
+        const hex = parseInt(x).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+    }).join('');
+}
+
+// Save positions
+function savePositions() {
+    const positions = {};
+    document.querySelectorAll('.draggable').forEach(el => {
+        positions[el.id] = {
+            top: parseInt(el.style.top) || 0,
+            left: el.style.left !== 'auto' && el.style.left ? parseInt(el.style.left) : undefined,
+            right: el.style.right !== 'auto' && el.style.right ? parseInt(el.style.right) : undefined,
+            fontSize: parseInt(el.style.fontSize) || 16,
+            color: el.style.color || '#000000',
+            bold: el.style.fontWeight === 'bold'
+        };
+    });
+    localStorage.setItem('chequePositions', JSON.stringify(positions));
+}
+
+// Save as template
+async function saveAsTemplate() {
+    const bank = document.getElementById('bank_template').value;
+    if (bank === 'custom') {
+        Swal.fire({
+            title: 'ไม่สามารถบันทึกได้!',
+            text: 'กรุณาเลือกธนาคารก่อนบันทึก Template',
+            icon: 'error',
+            confirmButtonColor: '#ef4444'
+        });
+        return;
     }
-    updatePreview();
+
+    const positions = {};
+    document.querySelectorAll('.draggable').forEach(el => {
+        positions[el.id] = {
+            top: parseInt(el.style.top) || 0,
+            left: el.style.left !== 'auto' && el.style.left ? parseInt(el.style.left) : undefined,
+            right: el.style.right !== 'auto' && el.style.right ? parseInt(el.style.right) : undefined,
+            fontSize: parseInt(el.style.fontSize) || 16,
+            color: el.style.color || '#000000',
+            bold: el.style.fontWeight === 'bold'
+        };
+    });
+
+    try {
+        const response = await fetch(`${API_BASE}/templates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bank, template_json: positions })
+        });
+
+        if (response.ok) {
+            Swal.fire({
+                title: 'บันทึกสำเร็จ!',
+                text: 'Template ถูกบันทึกสำหรับธนาคารนี้แล้ว',
+                icon: 'success',
+                confirmButtonColor: '#10b981'
+            });
+        } else {
+            throw new Error('Save failed');
+        }
+    } catch (error) {
+        Swal.fire({
+            title: 'เกิดข้อผิดพลาด!',
+            text: 'ไม่สามารถบันทึก Template ได้',
+            icon: 'error',
+            confirmButtonColor: '#ef4444'
+        });
+    }
+}
+
+// Reset positions
+function resetPositions() {
+    Swal.fire({
+        title: 'รีเซ็ตตำแหน่ง?',
+        text: 'ตำแหน่งทั้งหมดจะถูกรีเซ็ตเป็นค่าเริ่มต้น',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'ใช่, รีเซ็ต',
+        cancelButtonText: 'ยกเลิก'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            applyPositions(defaultPositions);
+            savePositions();
+            Swal.fire({
+                title: 'รีเซ็ตแล้ว!',
+                text: 'ตำแหน่งถูกรีเซ็ตเป็นค่าเริ่มต้นแล้ว',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+}
+
+// Change paper size
+function changePaperSize() {
+    const size = document.getElementById('paper_size').value;
+    const preview = document.getElementById('cheque_preview');
+
+    if (size === 'custom') {
+        document.getElementById('custom_size_panel').style.display = 'block';
+    } else {
+        document.getElementById('custom_size_panel').style.display = 'none';
+        const [width, height] = size.split('x');
+        preview.style.width = width + 'px';
+        preview.style.height = height + 'px';
+        localStorage.setItem('paperSize', size);
+    }
+}
+
+// Apply custom size
+function applyCustomSize() {
+    const width = document.getElementById('custom_width').value;
+    const height = document.getElementById('custom_height').value;
+    const preview = document.getElementById('cheque_preview');
+    preview.style.width = width + 'px';
+    preview.style.height = height + 'px';
+    localStorage.setItem('paperSize', `${width}x${height}`);
 }
 </script>
 @endpush
