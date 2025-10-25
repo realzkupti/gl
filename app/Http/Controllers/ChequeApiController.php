@@ -226,6 +226,38 @@ class ChequeApiController extends Controller
     }
 
     /**
+     * Get cheque by number
+     *
+     * @param string $number
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function chequesByNumber($number)
+    {
+        try {
+            $cheque = Cheque::where('cheque_number', $number)->first();
+
+            if (!$cheque) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cheque not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $cheque
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to fetch cheque by number: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch cheque'
+            ], 500);
+        }
+    }
+
+    /**
      * Get next cheque number
      *
      * @param Request $request

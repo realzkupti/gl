@@ -197,16 +197,29 @@ function initializeDataTable() {
             { data: 'cheque_number' },
             {
                 data: 'date',
-                render: function(data) {
+                render: function(data, type, row) {
+                    // For sorting, use raw data (ISO format)
+                    if (type === 'sort' || type === 'type') {
+                        return data || '';
+                    }
+                    // For display, format as Thai date
                     if (!data) return '-';
                     const date = new Date(data);
-                    return date.toLocaleDateString('th-TH');
+                    const day = date.getDate();
+                    const month = date.getMonth() + 1;
+                    const year = date.getFullYear() + 543; // Thai year
+                    return `${day}/${month}/${year}`;
                 }
             },
             { data: 'payee' },
             {
                 data: 'amount',
-                render: function(data) {
+                render: function(data, type, row) {
+                    // For sorting, use numeric value
+                    if (type === 'sort' || type === 'type') {
+                        return parseFloat(data) || 0;
+                    }
+                    // For display, format with currency
                     return '฿' + parseFloat(data).toLocaleString('th-TH', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -215,10 +228,20 @@ function initializeDataTable() {
             },
             {
                 data: 'printed_at',
-                render: function(data) {
+                render: function(data, type, row) {
+                    // For sorting, use raw data (ISO format)
+                    if (type === 'sort' || type === 'type') {
+                        return data || '';
+                    }
+                    // For display, format as Thai datetime
                     if (!data) return '-';
                     const date = new Date(data);
-                    return date.toLocaleString('th-TH');
+                    const day = date.getDate();
+                    const month = date.getMonth() + 1;
+                    const year = date.getFullYear() + 543; // Thai year
+                    const hours = date.getHours().toString().padStart(2, '0');
+                    const minutes = date.getMinutes().toString().padStart(2, '0');
+                    return `${day}/${month}/${year} ${hours}:${minutes}`;
                 }
             },
             {
@@ -236,6 +259,7 @@ function initializeDataTable() {
             }
         ],
         order: [[6, 'desc']], // Sort by printed_at descending
+        deferRender: true, // Optimize rendering for large datasets
         pageLength: 25,
         language: {
             search: "ค้นหา:",

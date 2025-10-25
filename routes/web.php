@@ -15,9 +15,11 @@ use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\MenuGroupsController;
 
-Route::get('/', [HomeController::class, 'index'])->middleware(['company.connection'])->name('home');
 
-// Debug route - remove in production
+Route::get('/', [HomeController::class, 'index'])->middleware(['company.connection'])->name('home');
+Route::get('teset', function () {
+    return view('debug-menus');
+});// Debug route - remove in production
 Route::get('/debug-menus', function () {
     return view('debug-menus');
 })->middleware(['auth', 'company.connection'])->name('debug.menus');
@@ -104,19 +106,20 @@ Route::middleware(['auth','menu:cheque,view'])->group(function(){
     Route::get('api/branches', [ChequeApiController::class, 'branches']);
     Route::get('api/cheques', [ChequeApiController::class, 'chequesIndex']);
     Route::get('api/cheques/next', [ChequeApiController::class, 'chequesNext']);
+    Route::get('api/cheques/number/{number}', [ChequeApiController::class, 'chequesByNumber']);
     Route::get('api/templates', [ChequeApiController::class, 'templatesIndex']);
     Route::get('api/payees', [ChequeApiController::class, 'payees']);
 });
 Route::post('api/cheques', [ChequeApiController::class, 'chequesStore'])
-    ->middleware(['auth','menu:cheque,create']);
+    ->middleware(['auth','menu:cheque,view']); // Changed from 'create' to 'view' - printing cheque should use view permission
 Route::delete('api/cheques/{id}', [ChequeApiController::class, 'chequesDestroy'])
-    ->middleware(['auth','menu:cheque,delete']);
+    ->middleware(['auth','menu:cheque,view']); // Changed from 'delete' to 'view'
 Route::post('api/templates', [ChequeApiController::class, 'templatesStore'])
-    ->middleware(['auth','menu:cheque,create']);
+    ->middleware(['auth','menu:cheque,view']); // Changed from 'create' to 'view'
 Route::post('api/branches', [ChequeApiController::class, 'branchesStore'])
-    ->middleware(['auth','menu:cheque,create']);
+    ->middleware(['auth','menu:cheque,view']); // Changed from 'create' to 'view'
 Route::delete('api/branches/{code}', [ChequeApiController::class, 'branchesDestroy'])
-    ->middleware(['auth','menu:cheque,delete']);
+    ->middleware(['auth','menu:cheque,view']); // Changed from 'delete' to 'view'
 
 // Admin: mock user/permission management UI
 Route::middleware(['auth'])->group(function(){

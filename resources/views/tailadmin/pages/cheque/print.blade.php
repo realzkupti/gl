@@ -67,57 +67,143 @@
 }
 
 @media print {
-    /* Hide all page content */
-    body > * {
-        display: none !important;
+    /* Hide everything first */
+    * {
+        visibility: hidden !important;
     }
 
-    /* Show only cheque preview */
-    body .cheque-preview {
-        display: block !important;
-        position: fixed !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 800px !important;
-        height: 350px !important;
-        border: none !important;
-        box-shadow: none !important;
+    /* Reset body */
+    body {
         margin: 0 !important;
         padding: 0 !important;
         background: white !important;
     }
 
-    /* Show all children */
-    .cheque-preview * {
-        display: block !important;
+    /* Show only print container and its contents */
+    .print-cheque-container,
+    .print-cheque-container *,
+    .print-cheque-container * * {
+        visibility: visible !important;
     }
 
-    /* Remove drag borders */
+    /* Position the print container at top-left */
+    .print-cheque-container {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        width: auto !important;
+        height: auto !important;
+    }
+
+    /* Style the cheque preview box */
+    #chequePreview {
+        position: relative !important;
+        width: 800px !important;
+        height: 350px !important;
+        border: 1px solid #000 !important;
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    /* Draggable elements - absolutely positioned */
     .draggable {
+        position: absolute !important;
         border: none !important;
-        background: none !important;
+        background: transparent !important;
+        white-space: nowrap !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
     }
 
-    /* Ensure text styling is preserved */
-    .ac-payee {
-        display: block !important;
+    /* A/C PAYEE with red color */
+    #acPayee {
         font-weight: bold !important;
         font-size: 18px !important;
         transform: rotate(-40deg) !important;
+        transform-origin: left top !important;
         color: #ff0000 !important;
         text-decoration: overline underline !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
     }
 
-    .line-holder {
-        display: block !important;
-        font-size: 20px !important;
+    /* Text elements - ensure black color */
+    #dateDisplay,
+    #payeeDisplay,
+    #amountText,
+    #amountNumber,
+    #lineHolder {
+        color: #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    /* Bold elements */
+    #amountNumber,
+    #lineHolder {
         font-weight: bold !important;
     }
 
-    /* Ensure all text elements are visible */
-    .draggable {
-        display: block !important;
-        position: absolute !important;
+    #lineHolder {
+        font-size: 20px !important;
+    }
+
+    /* Hide workspace background */
+    .cheque-workspace {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+    }
+
+    .info-badge {
+        display: none !important;
+    }
+}
+
+@page {
+    size: A4 portrait;
+    margin: 0;
+}
+
+/* Additional print fixes */
+@media print {
+    /* Prevent page breaks */
+    html, body {
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* Hide all other page content */
+    body > *:not(:has(.print-cheque-container)) {
+        display: none !important;
+    }
+
+    /* Ensure single page only */
+    .print-cheque-container {
+        page-break-before: avoid !important;
+        page-break-after: avoid !important;
+    }
+
+    /* Hide all parent wrappers */
+    .flex,
+    .grid,
+    main,
+    [x-data],
+    .relative {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
     }
 }
 </style>
@@ -170,6 +256,7 @@
                         <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">🔢 หมายเลขเช็ค</label>
                         <div class="flex gap-2">
                             <input type="text" id="cheque_number" name="cheque_number" placeholder="เลขที่เช็ค" required
+                                onblur="loadChequeByNumber()"
                                 class="flex-1 rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
                             <button type="button" onclick="useNextChequeNo()" class="rounded bg-gray-100 px-4 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700" title="เลขถัดไป">
                                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,6 +264,7 @@
                                 </svg>
                             </button>
                         </div>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">กรอกเลขที่เช็คเดิมเพื่อโหลดข้อมูล</p>
                     </div>
 
                     <!-- Date -->
@@ -242,20 +330,23 @@
                     <span class="info-badge">📐 ไปที่หน้าออกแบบเพื่อปรับแต่งขนาดและสี</span>
                 </div>
 
-                <div class="cheque-preview" id="chequePreview">
-                    <div class="draggable ac-payee" id="acPayee" data-name="A/C PAYEE ONLY">
-                        A/C PAYEE ONLY
-                    </div>
-                    <div class="draggable line-holder" id="lineHolder" data-name="เส้น (หรือผู้ถือ)">
-                        --------
-                    </div>
-                    <div class="draggable" id="dateDisplay" data-name="วันที่"></div>
-                    <div class="draggable" id="payeeDisplay" data-name="ชื่อผู้รับเงิน">
-                        &lt;สั่งจ่าย&gt;
-                    </div>
-                    <div class="draggable" id="amountText" data-name="จำนวนเงิน (ตัวอักษร)"></div>
-                    <div class="draggable" id="amountNumber" data-name="จำนวนเงิน (ตัวเลข)">
-                        ***0.00***
+                <!-- Wrapper for print -->
+                <div class="print-cheque-container">
+                    <div class="cheque-preview" id="chequePreview">
+                        <div class="draggable ac-payee" id="acPayee" data-name="A/C PAYEE ONLY">
+                            A/C PAYEE ONLY
+                        </div>
+                        <div class="draggable line-holder" id="lineHolder" data-name="เส้น (หรือผู้ถือ)">
+                            --------
+                        </div>
+                        <div class="draggable" id="dateDisplay" data-name="วันที่"></div>
+                        <div class="draggable" id="payeeDisplay" data-name="ชื่อผู้รับเงิน">
+                            &lt;สั่งจ่าย&gt;
+                        </div>
+                        <div class="draggable" id="amountText" data-name="จำนวนเงิน (ตัวอักษร)"></div>
+                        <div class="draggable" id="amountNumber" data-name="จำนวนเงิน (ตัวเลข)">
+                            ***0.00***
+                        </div>
                     </div>
                 </div>
             </div>
@@ -519,7 +610,7 @@ function updateDateDisplay(dateStr) {
             const day = parseInt(parts[0]);
             const month = parseInt(parts[1]);
             const year = parseInt(parts[2]) + 543; // Convert to Thai year
-            const displayDate = `${day}${month}${year}`;
+            const displayDate = `${day} ${month} ${year}`;
             // Add spaces between each digit
             const spacedDate = displayDate.split('').join('  ');
             document.getElementById('dateDisplay').textContent = spacedDate;
@@ -667,8 +758,114 @@ async function useNextChequeNo() {
     }
 }
 
+// Load cheque data by number
+async function loadChequeByNumber() {
+    const chequeNumber = document.getElementById('cheque_number').value.trim();
+
+    if (!chequeNumber) {
+        // Reset flags when field is empty
+        isExistingCheque = false;
+        loadedChequeId = null;
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/cheques/number/${encodeURIComponent(chequeNumber)}`);
+        const result = await response.json();
+
+        // Handle 404 - cheque not found (this is OK for new cheques)
+        if (response.status === 404 || !result.success) {
+            console.log('Cheque number not found - will create new cheque');
+            // Reset flags for new cheque
+            isExistingCheque = false;
+            loadedChequeId = null;
+            return;
+        }
+
+        // Handle other errors
+        if (!response.ok) {
+            console.error('Error loading cheque:', result);
+            return;
+        }
+
+        // Success - found existing cheque
+        if (result.success && result.data) {
+            const cheque = result.data;
+
+            // Show confirmation before loading
+            const confirm = await Swal.fire({
+                title: 'พบข้อมูลเช็คเดิม',
+                html: `
+                    <div class="text-left">
+                        <p><strong>เลขที่:</strong> ${cheque.cheque_number}</p>
+                        <p><strong>วันที่:</strong> ${cheque.date}</p>
+                        <p><strong>จ่ายให้:</strong> ${cheque.payee}</p>
+                        <p><strong>จำนวน:</strong> ${parseFloat(cheque.amount).toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท</p>
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'โหลดข้อมูล',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if (confirm.isConfirmed) {
+                // Mark as existing cheque
+                isExistingCheque = true;
+                loadedChequeId = cheque.id;
+
+                // Populate form with existing data
+                if (cheque.branch_code) {
+                    document.getElementById('branch_code').value = cheque.branch_code;
+                }
+                if (cheque.bank) {
+                    document.getElementById('bank_code').value = cheque.bank;
+                    await loadBankTemplate(); // Load bank template
+                }
+
+                // Convert date from Y-m-d to d/m/Y
+                if (cheque.date) {
+                    const dateParts = cheque.date.split('-');
+                    if (dateParts.length === 3) {
+                        const [year, month, day] = dateParts;
+                        const displayDate = `${parseInt(day)}/${parseInt(month)}/${year}`;
+                        document.getElementById('date').value = displayDate;
+                        updateDateDisplay(displayDate);
+                    }
+                }
+
+                document.getElementById('payee').value = cheque.payee || '';
+                document.getElementById('amount').value = parseFloat(cheque.amount).toFixed(2);
+
+                // Update displays
+                updatePayeeDisplay();
+                updateAmountText();
+
+                Swal.fire({
+                    title: 'โหลดข้อมูลสำเร็จ',
+                    text: 'ข้อมูลเช็คถูกโหลดแล้ว',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error loading cheque:', error);
+        // Don't show error for 404 - it means this is a new cheque
+    }
+}
+
+// Track if cheque was loaded from database
+let isExistingCheque = false;
+let loadedChequeId = null;
+
 // Print cheque
 async function printCheque() {
+    console.log('=== printCheque() called ===');
+
     const branch = document.getElementById('branch_code').value;
     const bank = document.getElementById('bank_code').value;
     const chequeNum = document.getElementById('cheque_number').value;
@@ -676,7 +873,10 @@ async function printCheque() {
     const payee = document.getElementById('payee').value;
     const amount = document.getElementById('amount').value;
 
+    console.log('Form data:', { branch, bank, chequeNum, dateInput, payee, amount });
+
     if (!chequeNum || !dateInput || !payee || !amount) {
+        console.warn('Validation failed: Missing required fields');
         Swal.fire({
             title: 'ข้อมูลไม่ครบถ้วน!',
             text: 'กรุณากรอกข้อมูลให้ครบทุกช่อง',
@@ -688,6 +888,7 @@ async function printCheque() {
 
     // Check CSRF token
     if (!CSRF_TOKEN) {
+        console.error('CSRF Token is missing!');
         Swal.fire({
             title: 'เกิดข้อผิดพลาด!',
             text: 'ไม่พบ CSRF Token กรุณารีเฟรชหน้าใหม่',
@@ -696,6 +897,8 @@ async function printCheque() {
         });
         return;
     }
+
+    console.log('CSRF Token verified:', CSRF_TOKEN.substring(0, 10) + '...');
 
     // Convert date from d/m/Y to Y-m-d for database
     let formattedDate = dateInput;
@@ -710,12 +913,44 @@ async function printCheque() {
     console.log('Date conversion:', dateInput, '=>', formattedDate);
 
     // Update displays before printing
+    console.log('Updating displays...');
     updateDateDisplay();
     updatePayeeDisplay();
     updateAmountText();
 
-    // Save to database FIRST, then print
+    // If this is an existing cheque, just print (don't save again)
+    if (isExistingCheque && loadedChequeId) {
+        console.log('Printing existing cheque, ID:', loadedChequeId);
+        Swal.fire({
+            title: 'พิมพ์เช็คซ้ำ',
+            text: 'กำลังพิมพ์เช็คที่บันทึกไว้แล้ว...',
+            icon: 'info',
+            timer: 1000,
+            showConfirmButton: false
+        });
+
+        setTimeout(() => {
+            console.log('Opening print window for existing cheque...');
+            forcePrint();
+        }, 500);
+        return;
+    }
+
+    console.log('This is a new cheque, will save before printing...');
+
+    // Save to database FIRST, then print (for new cheques only)
     try {
+        const requestData = {
+            branch_code: branch || null,
+            bank: bank,
+            cheque_number: chequeNum,
+            date: formattedDate,
+            payee: payee,
+            amount: parseFloat(amount.replace(/,/g, ''))
+        };
+
+        console.log('Sending cheque data:', requestData);
+
         const response = await fetch(`${API_BASE}/cheques`, {
             method: 'POST',
             headers: {
@@ -723,24 +958,144 @@ async function printCheque() {
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': CSRF_TOKEN
             },
-            body: JSON.stringify({
-                branch_code: branch || null,
-                bank: bank,
-                cheque_number: chequeNum,
-                date: formattedDate,
-                payee: payee,
-                amount: parseFloat(amount.replace(/,/g, ''))
-            })
+            body: JSON.stringify(requestData)
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            console.error('Server error:', data);
+            console.error('Server error response:', {
+                status: response.status,
+                statusText: response.statusText,
+                data: data
+            });
+
+            // Show detailed error for debugging
+            if (response.status === 422) {
+                console.error('Validation errors:', data.errors);
+
+                // Check if it's a duplicate error
+                if (data.message && (data.message.includes('already exists') || data.message.includes('already been taken'))) {
+                    console.log('Duplicate cheque number detected, attempting to load existing data...');
+
+                    // Try to load the existing cheque data
+                    try {
+                        const loadResponse = await fetch(`${API_BASE}/cheques/number/${encodeURIComponent(chequeNum)}`);
+                        const loadResult = await loadResponse.json();
+
+                        if (loadResult.success && loadResult.data) {
+                            const existingCheque = loadResult.data;
+                            console.log('Loaded existing cheque:', existingCheque);
+
+                            // Mark as existing cheque
+                            isExistingCheque = true;
+                            loadedChequeId = existingCheque.id;
+
+                            // Populate form with existing data FIRST
+                            if (existingCheque.branch_code) {
+                                document.getElementById('branch_code').value = existingCheque.branch_code;
+                            }
+                            if (existingCheque.bank) {
+                                document.getElementById('bank_code').value = existingCheque.bank;
+                                await loadBankTemplate(); // Load bank template
+                            }
+
+                            // Convert date from ISO to d/m/Y format
+                            if (existingCheque.date) {
+                                const dateObj = new Date(existingCheque.date);
+                                const day = dateObj.getDate();
+                                const month = dateObj.getMonth() + 1;
+                                const year = dateObj.getFullYear();
+                                const displayDate = `${day}/${month}/${year}`;
+                                document.getElementById('date').value = displayDate;
+                            }
+
+                            document.getElementById('payee').value = existingCheque.payee || '';
+                            document.getElementById('amount').value = parseFloat(existingCheque.amount).toFixed(2);
+
+                            // Update all displays
+                            updateDateDisplay();
+                            updatePayeeDisplay();
+                            updateAmountText();
+
+                            const result = await Swal.fire({
+                                title: 'พบข้อมูลเช็คเดิม',
+                                html: `
+                                    <div style="text-align: left;">
+                                        <p><strong>เลขที่:</strong> ${existingCheque.cheque_number}</p>
+                                        <p><strong>วันที่:</strong> ${existingCheque.date}</p>
+                                        <p><strong>จ่ายให้:</strong> ${existingCheque.payee}</p>
+                                        <p><strong>จำนวน:</strong> ${parseFloat(existingCheque.amount).toLocaleString('th-TH', {minimumFractionDigits: 2})} บาท</p>
+                                        <p style="margin-top: 10px; color: #666;">ข้อมูลถูกโหลดลงฟอร์มแล้ว ต้องการพิมพ์เช็คนี้หรือไม่?</p>
+                                    </div>
+                                `,
+                                icon: 'info',
+                                showCancelButton: true,
+                                confirmButtonColor: '#3085d6',
+                                cancelButtonColor: '#d33',
+                                confirmButtonText: 'พิมพ์เช็ค',
+                                cancelButtonText: 'ยกเลิก'
+                            });
+
+                            if (result.isConfirmed) {
+                                console.log('User confirmed to print existing cheque');
+
+                                // Data is already loaded and displays are updated
+                                setTimeout(() => {
+                                    console.log('Opening print window for duplicate cheque...');
+                                    forcePrint();
+                                }, 500);
+                            } else {
+                                console.log('User cancelled printing, resetting flags');
+                                // User cancelled, reset flags
+                                isExistingCheque = false;
+                                loadedChequeId = null;
+                            }
+                        } else {
+                            throw new Error('Could not load existing cheque data');
+                        }
+                    } catch (loadError) {
+                        console.error('Error loading existing cheque:', loadError);
+                        await Swal.fire({
+                            title: 'เกิดข้อผิดพลาด!',
+                            text: 'ไม่สามารถโหลดข้อมูลเช็คเดิมได้',
+                            icon: 'error',
+                            confirmButtonColor: '#ef4444'
+                        });
+                    }
+                    return;
+                }
+
+                // Other validation errors
+                const errorMessages = [];
+                if (data.errors) {
+                    Object.keys(data.errors).forEach(field => {
+                        errorMessages.push(`${field}: ${data.errors[field].join(', ')}`);
+                    });
+                }
+
+                await Swal.fire({
+                    title: 'ข้อมูลไม่ถูกต้อง!',
+                    html: `<div style="text-align: left;">
+                        <p><strong>กรุณาตรวจสอบข้อมูล:</strong></p>
+                        <ul style="margin-top: 10px;">
+                            ${errorMessages.map(msg => `<li>${msg}</li>`).join('')}
+                        </ul>
+                    </div>`,
+                    icon: 'error',
+                    confirmButtonColor: '#ef4444'
+                });
+                return;
+            }
+
             throw new Error(data.message || 'Failed to save cheque data');
         }
 
-        console.log('Cheque saved with ID:', data.id);
+        console.log('✓ Cheque saved successfully with ID:', data.id);
+
+        // Mark as existing cheque to prevent duplicate saves
+        isExistingCheque = true;
+        loadedChequeId = data.id;
 
         // Show success message
         Swal.fire({
@@ -753,16 +1108,29 @@ async function printCheque() {
 
         // Print after saving
         setTimeout(() => {
-            window.print();
+            console.log('Opening print window...');
+            forcePrint();
         }, 500);
 
     } catch (error) {
-        console.error('Error saving cheque:', error);
+        console.error('✗ Error saving cheque:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack
+        });
 
         // Ask user if they want to print anyway
         const result = await Swal.fire({
             title: 'ไม่สามารถบันทึกข้อมูลได้!',
-            text: 'ต้องการพิมพ์เช็คต่อไปหรือไม่?',
+            html: `
+                <div style="text-align: left;">
+                    <p><strong>ข้อผิดพลาด:</strong> ${error.message}</p>
+                    <p style="margin-top: 10px;">ต้องการพิมพ์เช็คต่อไปหรือไม่?</p>
+                    <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                        หมายเหตุ: ข้อมูลจะไม่ถูกบันทึกในระบบ
+                    </p>
+                </div>
+            `,
             icon: 'error',
             showCancelButton: true,
             confirmButtonColor: '#3085d6',
@@ -772,15 +1140,249 @@ async function printCheque() {
         });
 
         if (result.isConfirmed) {
-            window.print();
+            console.log('User chose to print anyway...');
+            forcePrint();
+        } else {
+            console.log('User cancelled printing');
         }
     }
 }
 
+// Debug function to test print layout
+function debugPrintLayout() {
+    console.log('=== Debug Print Layout ===');
+    const container = document.querySelector('.print-cheque-container');
+    const preview = document.getElementById('chequePreview');
+    const draggables = document.querySelectorAll('.draggable');
+
+    console.log('Container:', {
+        exists: !!container,
+        dimensions: container ? `${container.offsetWidth}x${container.offsetHeight}` : 'N/A',
+        position: container ? window.getComputedStyle(container).position : 'N/A'
+    });
+
+    console.log('Preview:', {
+        exists: !!preview,
+        dimensions: preview ? `${preview.offsetWidth}x${preview.offsetHeight}` : 'N/A',
+        position: preview ? window.getComputedStyle(preview).position : 'N/A'
+    });
+
+    console.log('Draggable elements:', draggables.length);
+    draggables.forEach(el => {
+        const style = window.getComputedStyle(el);
+        console.log(`${el.id}:`, {
+            text: el.textContent.trim(),
+            top: el.style.top,
+            left: el.style.left,
+            right: el.style.right,
+            fontSize: style.fontSize,
+            color: style.color,
+            display: style.display,
+            visibility: style.visibility,
+            position: style.position
+        });
+    });
+}
+
+// Make debug function available globally
+window.debugPrintLayout = debugPrintLayout;
+
+// Test print preview without actually printing
+function testPrintPreview() {
+    console.log('=== Testing Print Preview ===');
+
+    // Add a temporary print-mode class to body
+    document.body.classList.add('print-preview-mode');
+
+    // Apply print styles temporarily
+    const style = document.createElement('style');
+    style.id = 'test-print-preview';
+    style.textContent = `
+        body.print-preview-mode {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #f0f0f0 !important;
+        }
+
+        body.print-preview-mode > *:not(:has(.print-cheque-container)) {
+            display: none !important;
+        }
+
+        body.print-preview-mode .print-cheque-container {
+            display: block !important;
+            position: fixed !important;
+            left: 50% !important;
+            top: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            padding: 20px !important;
+            background: white !important;
+            box-shadow: 0 0 50px rgba(0,0,0,0.3) !important;
+            z-index: 999999 !important;
+        }
+
+        body.print-preview-mode #chequePreview {
+            border: 2px solid #000 !important;
+        }
+    `;
+    document.head.appendChild(style);
+
+    console.log('Print preview mode activated. Click anywhere to exit.');
+
+    // Click to exit preview
+    const exitPreview = () => {
+        document.body.classList.remove('print-preview-mode');
+        document.getElementById('test-print-preview')?.remove();
+        document.removeEventListener('click', exitPreview);
+        console.log('Print preview mode deactivated.');
+    };
+
+    setTimeout(() => {
+        document.addEventListener('click', exitPreview, { once: true });
+    }, 100);
+}
+
+window.testPrintPreview = testPrintPreview;
+
+// Force print using simplified approach
+function forcePrint() {
+    console.log('=== Force Print with Minimal CSS ===');
+
+    // Create a new window with only the cheque
+    const printWindow = window.open('', '_blank', 'width=900,height=500');
+
+    const chequePreview = document.getElementById('chequePreview');
+    if (!chequePreview) {
+        console.error('Cheque preview not found!');
+        return;
+    }
+
+    // Clone the cheque preview
+    const clonedCheque = chequePreview.cloneNode(true);
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>พิมพ์เช็ค</title>
+            <style>
+                @@page {
+                    size: A4 portrait;
+                    margin: 0;
+                }
+
+                body {
+                    margin: 0;
+                    padding: 20px;
+                    background: white;
+                }
+
+                #chequePreview {
+                    position: relative;
+                    width: 800px;
+                    height: 350px;
+                    border: none;
+                    background: white;
+                    margin: 0;
+                    padding: 0;
+                }
+
+                .draggable {
+                    position: absolute;
+                    white-space: nowrap;
+                    border: none;
+                    background: transparent;
+                }
+
+                #acPayee {
+                    font-weight: bold;
+                    font-size: 18px;
+                    transform: rotate(-40deg);
+                    transform-origin: left top;
+                    color: #ff0000;
+                    text-decoration: overline underline;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                #dateDisplay,
+                #payeeDisplay,
+                #amountText,
+                #amountNumber,
+                #lineHolder {
+                    color: #000000;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                #amountNumber,
+                #lineHolder {
+                    font-weight: bold;
+                }
+
+                #lineHolder {
+                    font-size: 20px;
+                }
+
+                .ac-payee {
+                    font-weight: bold;
+                    font-size: 18px;
+                    transform: rotate(-40deg);
+                    color: #ff0000;
+                    text-decoration: overline underline;
+                }
+
+                .line-holder {
+                    font-size: 20px;
+                    font-weight: bold;
+                }
+            </style>
+        </head>
+        <body>
+            ` + clonedCheque.outerHTML + `
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                        // Uncomment to auto-close after print dialog
+                        // setTimeout(function() { window.close(); }, 100);
+                    }, 500);
+                };
+            <\/script>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(html);
+
+    printWindow.document.close();
+    console.log('Print window opened');
+}
+
+window.forcePrint = forcePrint;
+
 
 // Clear form
-function clearForm() {
-    if (confirm('ต้องการล้างข้อมูลทั้งหมดหรือไม่?')) {
+async function clearForm() {
+    const result = await Swal.fire({
+        title: 'ยืนยันการล้างข้อมูล',
+        text: 'ต้องการล้างข้อมูลทั้งหมดและเริ่มใหม่หรือไม่?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'ใช่, ล้างข้อมูล',
+        cancelButtonText: 'ยกเลิก',
+        reverseButtons: true
+    });
+
+    if (result.isConfirmed) {
+        console.log('Clearing form data...');
+
+        // Reset flags
+        isExistingCheque = false;
+        loadedChequeId = null;
+
         document.getElementById('cheque-form').reset();
         initializeDatePicker(); // Re-initialize with today's date
         document.getElementById('payeeDisplay').textContent = '<สั่งจ่าย>';
@@ -788,6 +1390,15 @@ function clearForm() {
         document.getElementById('amountNumber').textContent = '***0.00***';
         document.getElementById('amount-text').textContent = '';
         localStorage.removeItem('chequeFormData');
+
+        // Show success message
+        Swal.fire({
+            title: 'ล้างข้อมูลสำเร็จ!',
+            text: 'พร้อมสำหรับการกรอกข้อมูลใหม่',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+        });
     }
 }
 
@@ -832,6 +1443,14 @@ function loadFormData() {
     if (element) {
         element.addEventListener('change', saveFormData);
         element.addEventListener('input', saveFormData);
+
+        // Reset flags when cheque number changes
+        if (id === 'cheque_number') {
+            element.addEventListener('input', function() {
+                isExistingCheque = false;
+                loadedChequeId = null;
+            });
+        }
     }
 });
 
