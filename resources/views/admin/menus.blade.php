@@ -2,6 +2,71 @@
 
 @section('title', 'จัดการเมนู - ' . config('app.name'))
 
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<style>
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.icon-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.icon-item {
+    padding: 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.icon-item:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.icon-item.selected {
+    border-color: #3b82f6;
+    background: #dbeafe;
+}
+
+.icon-item svg {
+    width: 24px;
+    height: 24px;
+    margin: 0 auto;
+}
+</style>
+@endpush
+
 @section('content')
 <div class="p-4 md:p-6 2xl:p-10">
     <!-- Breadcrumb -->
@@ -65,9 +130,9 @@
                 </div>
             </div>
 
-            <form method="post" action="{{ route('admin.menus.store') }}" id="menu-form" class="space-y-4">
-                @csrf
-                <input type="hidden" name="_method" value="POST" id="form-method">
+            <form id="menu-form" onsubmit="return false;" class="space-y-4">
+                <input type="hidden" id="menu-id" value="">
+                <input type="hidden" id="form-action" value="create">
 
                 <!-- Key -->
                 <div>
@@ -280,7 +345,7 @@
 </div>
 
 <!-- Icon Picker Modal -->
-<div id="icon-picker-modal" class="hidden fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4" onclick="if(event.target === this) closeIconPicker()">
+<div id="icon-picker-modal" class="hidden fixed inset-0 bg-black/50 z-[9999] items-center justify-center p-4" onclick="if(event.target === this) closeIconPicker()">
     <div class="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onclick="event.stopPropagation()">
         <div class="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 flex justify-between items-center">
             <h3 class="text-lg font-semibold text-white">เลือก Icon</h3>
@@ -298,7 +363,7 @@
         </div>
 
         <div class="px-6 pb-6 overflow-y-auto" style="max-height: 60vh;">
-            <div id="icon-grid" class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-3">
+            <div id="icon-grid" class="icon-grid">
                 <!-- Icons populated by JS -->
             </div>
         </div>
@@ -307,6 +372,9 @@
 
 @push('scripts')
 <script>
+const CSRF_TOKEN = '{{ csrf_token() }}';
+let menusData = []; // Store menus for sort_order calculation
+
 // Icons data
 const icons = [
     { name: 'home', svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>' },
@@ -374,12 +442,16 @@ function populateIcons() {
 }
 
 function openIconPicker() {
-    document.getElementById('icon-picker-modal').classList.remove('hidden');
+    const modal = document.getElementById('icon-picker-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
     populateIcons();
 }
 
 function closeIconPicker() {
-    document.getElementById('icon-picker-modal').classList.add('hidden');
+    const modal = document.getElementById('icon-picker-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
     document.getElementById('icon-search').value = '';
 }
 
@@ -410,10 +482,12 @@ function editMenu(menu) {
     // Update form title
     document.getElementById('form-title').textContent = 'แก้ไขเมนู';
 
-    // Change form action and method
-    const form = document.getElementById('menu-form');
-    form.action = `/admin/menus/${menu.id}`;
-    document.getElementById('form-method').value = 'PUT';
+    // Update form title
+    document.getElementById('form-title').textContent = 'แก้ไขเมนู';
+
+    // Set form data
+    document.getElementById('menu-id').value = menu.id;
+    document.getElementById('form-action').value = 'edit';
 
     // Fill form fields
     document.getElementById('input-key').value = menu.key || '';
@@ -447,19 +521,18 @@ function resetForm() {
     // Reset form title
     document.getElementById('form-title').textContent = 'เพิ่มเมนูใหม่';
 
-    // Reset form action and method
-    const form = document.getElementById('menu-form');
-    form.action = '{{ route("admin.menus.store") }}';
-    document.getElementById('form-method').value = 'POST';
-
     // Clear form fields
+    document.getElementById('menu-id').value = '';
+    document.getElementById('form-action').value = 'create';
     document.getElementById('input-key').value = '';
     document.getElementById('input-label').value = '';
     document.getElementById('input-route').value = '';
     document.getElementById('input-icon').value = '';
     document.getElementById('input-parent-id').value = '';
-    document.getElementById('input-sort-order').value = '0';
     document.getElementById('input-menu-group').value = 'default';
+
+    // Auto-increment sort_order
+    calculateNextSortOrder();
 
     // Hide icon preview
     document.getElementById('icon-preview').classList.add('hidden');
@@ -468,6 +541,119 @@ function resetForm() {
     document.getElementById('submit-text').textContent = 'บันทึกเมนู';
     document.getElementById('cancel-btn').style.display = 'none';
 }
+
+// Calculate next sort_order (max + 1)
+function calculateNextSortOrder() {
+    const maxOrder = menusData.reduce((max, menu) => Math.max(max, menu.sort_order || 0), 0);
+    document.getElementById('input-sort-order').value = maxOrder + 1;
+}
+
+// Load menus data via AJAX
+function loadMenusData() {
+    fetch('/admin/menus/list', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': CSRF_TOKEN,
+            'Accept': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            menusData = data.data || [];
+            calculateNextSortOrder();
+        }
+    })
+    .catch(error => {
+        console.error('Error loading menus:', error);
+    });
+}
+
+// Toast notification
+function showToast(message, type = 'success') {
+    const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-[10000] animate-fade-in`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Show loading overlay
+function showLoading() {
+    const overlay = document.createElement('div');
+    overlay.id = 'loading-overlay';
+    overlay.className = 'loading-overlay';
+    overlay.innerHTML = '<div class="spinner"></div>';
+    document.body.appendChild(overlay);
+}
+
+function hideLoading() {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.remove();
+}
+
+// Submit form via AJAX
+document.getElementById('menu-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const menuId = document.getElementById('menu-id').value;
+    const formAction = document.getElementById('form-action').value;
+
+    const formData = {
+        key: document.getElementById('input-key').value,
+        label: document.getElementById('input-label').value,
+        route: document.getElementById('input-route').value || null,
+        icon: document.getElementById('input-icon').value || null,
+        parent_id: document.getElementById('input-parent-id').value || null,
+        sort_order: parseInt(document.getElementById('input-sort-order').value) || 0,
+        menu_group: document.getElementById('input-menu-group').value || 'default',
+    };
+
+    const url = formAction === 'edit' ? `/admin/menus/${menuId}` : '/admin/menus';
+    const method = formAction === 'edit' ? 'PUT' : 'POST';
+
+    showLoading();
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': CSRF_TOKEN,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify(formData),
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+
+        if (data.success) {
+            showToast(data.message || 'บันทึกสำเร็จ', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast(data.message || 'เกิดข้อผิดพลาด', 'error');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+    });
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadMenusData();
+    calculateNextSortOrder();
+});
 </script>
 @endpush
 

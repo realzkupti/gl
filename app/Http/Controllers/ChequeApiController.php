@@ -9,268 +9,385 @@ use App\Models\Branch;
 use App\Models\Cheque;
 use App\Models\ChequeTemplate;
 
-
+/**
+ * ChequeApiController
+ *
+ * Handles API endpoints for cheque management.
+ * Uses dynamic database connection from CompanyManager.
+ * Follows MVC pattern with proper model usage and response formatting.
+ */
 class ChequeApiController extends Controller
 {
-    // Serve the static Cheque UI (reads HTML from resources)
-    public function ui()
-    {
-        $path = resource_path('views/cheque/Cheque2.html');
-        if (!file_exists($path)) {
-            abort(404);
-        }
-        $html = file_get_contents($path);
-        return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
-    }
-
-    public function css()
-    {
-        $path = resource_path('views/cheque/styles.css');
-        if (!file_exists($path)) {
-            abort(404);
-        }
-        $css = file_get_contents($path);
-        return response($css, 200)->header('Content-Type', 'text/css; charset=UTF-8');
-    }
-
-    // GET /api/branches
+    /**
+     * Get all branches
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function branches()
     {
         try {
-            $schema = DB::connection('pgsql')->getSchemaBuilder();
-            if (!$schema->hasTable('branches')) {
-                return response()->json([]);
-            }
-            return response()->json(Branch::query()->orderBy('code')->get());
+            $branches = Branch::orderBy('code')->get();
+            return response()->json($branches);
         } catch (\Throwable $e) {
-            return response()->json([]);
+            Log::error('Failed to fetch branches: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch branches'], 500);
         }
     }
 
-    // POST /api/branches
+    /**
+     * Create new branch
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function branchesStore(Request $request)
     {
         $data = $request->validate([
-            'code' => 'required|string|max:50',
+            'code' => 'required|string|max:50|unique:branches,code',
             'name' => 'required|string|max:255',
         ]);
 
         try {
-            $schema = DB::connection('pgsql')->getSchemaBuilder();
-            if (!$schema->hasTable('branches')) {
-                return response()->json(['error' => 'missing table'], 400);
-            }
-
-            // Check if branch exists
-            $exists = Branch::where('code', $data['code'])->exists();
-            if ($exists) {
-                return response()->json(['error' => 'Branch code already exists'], 409);
-            }
-
             $branch = Branch::create($data);
-            return response()->json(['status' => 'ok', 'branch' => $branch], 201);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Branch created successfully',
+                'data' => $branch
+            ], 201);
         } catch (\Throwable $e) {
-            Log::error('Branch create error: ' . $e->getMessage());
-            return response()->json(['error' => 'create failed'], 500);
+            Log::error('Failed to create branch: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create branch',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
-    // DELETE /api/branches/{code}
+    /**
+     * Delete branch by code
+     *
+     * @param string $code
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function branchesDestroy($code)
     {
         try {
-            $schema = DB::connection('pgsql')->getSchemaBuilder();
-            if (!$schema->hasTable('branches')) {
-                return response()->json(['ok' => true]);
-            }
+            $deleted = Branch::where('code', $code)->delete();
 
-            Branch::where('code', $code)->delete();
-            return response()->json(['ok' => true]);
+            return response()->json([
+                'success' => true,
+                'message' => $deleted ? 'Branch deleted successfully' : 'Branch not found'
+            ]);
         } catch (\Throwable $e) {
-            Log::error('Branch delete error: ' . $e->getMessage());
-            return response()->json(['ok' => false], 500);
+            Log::error('Failed to delete branch: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete branch'
+            ], 500);
         }
     }
 
-    // GET /api/cheques
+    /**
+     * Get all cheques with optional search
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function chequesIndex(Request $request)
     {
         try {
-            $schema = DB::connection('pgsql')->getSchemaBuilder();
-            if (!$schema->hasTable('cheques')) {
-                return response()->json([]);
-            }
-            $q = trim((string) $request->query('q', ''));
-            $query = Cheque::query()->orderByDesc('id');
-            if ($q !== '') {
-                $query->where(function ($w) use ($q) {
-                    $w->where('payee', 'ilike', "%$q%")
-                      ->orWhere('bank', 'ilike', "%$q%")
-                      ->orWhere('branch_code', 'ilike', "%$q%")
-                      ->orWhere('cheque_number', 'ilike', "%$q%")
-                      ->orWhere('date', 'ilike', "%$q%");
+            $search = trim($request->query('q', ''));
+
+            $query = Cheque::query()
+                ->with('branch') // Eager load relationship if exists
+                ->orderByDesc('id');
+
+            if ($search !== '') {
+                $query->where(function ($q) use ($search) {
+                    $q->where('payee', 'ilike', "%{$search}%")
+                      ->orWhere('bank', 'ilike', "%{$search}%")
+                      ->orWhere('branch_code', 'ilike', "%{$search}%")
+                      ->orWhere('cheque_number', 'ilike', "%{$search}%")
+                      ->orWhere('date', 'ilike', "%{$search}%");
                 });
             }
-            return response()->json($query->get());
+
+            $cheques = $query->get();
+
+            return response()->json($cheques);
         } catch (\Throwable $e) {
-            return response()->json([]);
+            Log::error('Failed to fetch cheques: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch cheques',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
-    // POST /api/cheques
+    /**
+     * Create new cheque record
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function chequesStore(Request $request)
     {
-        $data = $request->validate([
+        $validated = $request->validate([
             'branch_code' => 'nullable|string|max:50',
             'bank' => 'required|string|max:50',
-            'cheque_number' => 'required|string|max:50',
+            'cheque_number' => 'required|string|max:50|unique:cheques,cheque_number',
             'date' => 'required|date',
             'payee' => 'required|string|max:255',
-            'amount' => 'required|numeric',
+            'amount' => 'required|numeric|min:0',
         ]);
+
         try {
-            $schema = DB::connection('pgsql')->getSchemaBuilder();
-            if (!$schema->hasTable('cheques')) {
-                return response()->json(['error' => 'missing table'], 400);
-            }
             $cheque = Cheque::create([
-                'branch_code' => $data['branch_code'] ?? null,
-                'bank' => $data['bank'],
-                'cheque_number' => $data['cheque_number'],
-                'date' => $data['date'],
-                'payee' => $data['payee'],
-                'amount' => $data['amount'],
+                'branch_code' => $validated['branch_code'] ?? null,
+                'bank' => $validated['bank'],
+                'cheque_number' => $validated['cheque_number'],
+                'date' => $validated['date'],
+                'payee' => $validated['payee'],
+                'amount' => $validated['amount'],
                 'printed_at' => now(),
             ]);
-            $id = $cheque->id;
-            return response()->json(['id' => $id], 201);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cheque saved successfully',
+                'id' => $cheque->id,
+                'data' => $cheque
+            ], 201);
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Database error saving cheque: ' . $e->getMessage());
+
+            // Check if it's a unique constraint violation
+            if (str_contains($e->getMessage(), 'unique') || str_contains($e->getMessage(), 'duplicate')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cheque number already exists'
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Database error occurred',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'db error'], 500);
+            Log::error('Failed to save cheque: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save cheque',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
         }
     }
 
-    // DELETE /api/cheques/{id}
+    /**
+     * Delete cheque by ID
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function chequesDestroy($id)
     {
         try {
-            $schema = DB::connection('pgsql')->getSchemaBuilder();
-            if (!$schema->hasTable('cheques')) {
-                return response()->json(['ok' => true]);
+            $cheque = Cheque::find($id);
+
+            if (!$cheque) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cheque not found'
+                ], 404);
             }
-            Cheque::where('id', $id)->delete();
-            return response()->json(['ok' => true]);
+
+            $cheque->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cheque deleted successfully'
+            ]);
         } catch (\Throwable $e) {
-            return response()->json(['ok' => false], 500);
+            Log::error('Failed to delete cheque: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete cheque'
+            ], 500);
         }
     }
 
-    // GET /api/cheques/next
-    public function chequesNext()
+    /**
+     * Get next cheque number
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function chequesNext(Request $request)
     {
         try {
-            $schema = DB::connection('pgsql')->getSchemaBuilder();
-            if (!$schema->hasTable('cheques')) {
-                return response()->json(['cheque_number' => '']);
+            $branch = $request->query('branch');
+
+            $query = Cheque::query()->orderByDesc('id');
+
+            // Filter by branch if provided
+            if ($branch) {
+                $query->where('branch_code', $branch);
             }
-            $row = Cheque::query()->orderByDesc('id')->first();
-            $last = $row->cheque_number ?? '';
-            $next = $this->incrementCheque($last);
-            return response()->json(['cheque_number' => $next]);
+
+            $lastCheque = $query->first();
+            $lastNumber = $lastCheque->cheque_number ?? '';
+            $nextNumber = $this->incrementChequeNumber($lastNumber);
+
+            return response()->json([
+                'success' => true,
+                'cheque_number' => $nextNumber
+            ]);
         } catch (\Throwable $e) {
-            return response()->json(['cheque_number' => '']);
+            Log::error('Failed to get next cheque number: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'cheque_number' => '',
+                'message' => 'Failed to get next cheque number'
+            ], 500);
         }
     }
 
-    private function incrementCheque(string $last): string
+    /**
+     * Increment cheque number (e.g., "CH0001" => "CH0002")
+     *
+     * @param string $last
+     * @return string
+     */
+    private function incrementChequeNumber(string $last): string
     {
-        $t = trim($last);
-        if ($t === '') return '';
-        // extract trailing digits
-        if (!preg_match('/^(.*?)(\d+)$/', $t, $m)) return $t;
-        $prefix = $m[1]; $num = $m[2];
-        $nlen = strlen($num);
-        $next = (string)((int)$num + 1);
-        $next = str_pad($next, $nlen, '0', STR_PAD_LEFT);
-        return $prefix . $next;
+        $trimmed = trim($last);
+
+        if (empty($trimmed)) {
+            return '0000001'; // Default first cheque number
+        }
+
+        // Extract prefix and trailing digits (e.g., "CH0001" => prefix="CH", num="0001")
+        if (!preg_match('/^(.*?)(\d+)$/', $trimmed, $matches)) {
+            return $trimmed; // No digits found, return as-is
+        }
+
+        $prefix = $matches[1];
+        $number = $matches[2];
+        $numberLength = strlen($number);
+
+        // Increment and pad with zeros
+        $nextNumber = (string)((int)$number + 1);
+        $nextNumber = str_pad($nextNumber, $numberLength, '0', STR_PAD_LEFT);
+
+        return $prefix . $nextNumber;
     }
 
-    // GET /api/templates
+    /**
+     * Get all cheque templates
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function templatesIndex()
     {
         try {
-            $schema = DB::connection('pgsql')->getSchemaBuilder();
-            if (!$schema->hasTable('cheque_templates')) {
-                return response()->json([]);
-            }
-            return response()->json(ChequeTemplate::query()->orderByDesc('id')->get());
+            $templates = ChequeTemplate::orderByDesc('id')->get();
+
+            return response()->json($templates);
         } catch (\Throwable $e) {
-            return response()->json([]);
+            Log::error('Failed to fetch templates: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch templates'
+            ], 500);
         }
     }
 
-    // POST /api/templates
+    /**
+     * Create or update cheque template
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function templatesStore(Request $request)
     {
-        $data = $request->validate([
+        $validated = $request->validate([
             'bank' => 'required|string|max:50',
             'template_json' => 'required|array',
         ]);
 
         try {
-            $schema = DB::connection('pgsql')->getSchemaBuilder();
-            if (!$schema->hasTable('cheque_templates')) {
-                return response()->json(['error' => 'missing table'], 400);
-            }
-
-            // UPSERT: If bank exists, update; otherwise insert
+            // Upsert: Update if exists, create if not
             $template = ChequeTemplate::updateOrCreate(
-                ['bank' => $data['bank']],
-                ['template_json' => $data['template_json']]
+                ['bank' => $validated['bank']],
+                ['template_json' => $validated['template_json']]
             );
 
-            return response()->json(['status' => 'ok', 'id' => $template->id]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Template saved successfully',
+                'id' => $template->id,
+                'data' => $template
+            ]);
         } catch (\Throwable $e) {
-            Log::error('Template save error: ' . $e->getMessage());
-            return response()->json(['error' => 'save failed'], 500);
+            Log::error('Failed to save template: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save template'
+            ], 500);
         }
     }
 
-    // GET /api/payees - Autocomplete for payee names
+    /**
+     * Get autocomplete suggestions for payee names
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function payees(Request $request)
     {
         try {
-            $schema = DB::connection('pgsql')->getSchemaBuilder();
-            if (!$schema->hasTable('cheques')) {
-                return response()->json([]);
-            }
-
-            $q = trim($request->query('q', ''));
+            $search = trim($request->query('q', ''));
             $limit = (int) $request->query('limit', 10);
             $branch = trim($request->query('branch', ''));
 
-            $query = DB::connection('pgsql')
-                ->table('cheques')
-                ->select('payee', DB::raw('COUNT(*) as cnt'))
+            $query = Cheque::select('payee', DB::raw('COUNT(*) as count'))
                 ->whereNotNull('payee')
-                ->where('payee', '<>', '');
+                ->where('payee', '<>', '')
+                ->groupBy('payee')
+                ->orderByDesc('count')
+                ->limit($limit);
 
-            if ($q !== '') {
-                $query->where('payee', 'ilike', "%$q%");
+            if ($search !== '') {
+                $query->where('payee', 'ilike', "%{$search}%");
             }
 
             if ($branch !== '') {
                 $query->where('branch_code', $branch);
             }
 
-            $results = $query->groupBy('payee')
-                ->orderByDesc('cnt')
-                ->orderBy('payee')
-                ->limit($limit)
-                ->get();
+            $results = $query->get();
+            $payees = $results->pluck('payee');
 
-            return response()->json($results->pluck('payee'));
+            return response()->json($payees);
         } catch (\Throwable $e) {
-            return response()->json([]);
+            Log::error('Failed to fetch payees: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch payees'
+            ], 500);
         }
     }
 }

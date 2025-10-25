@@ -4,6 +4,7 @@
 
 @push('styles')
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 .cheque-workspace {
     background: #f5f5f5;
@@ -42,9 +43,11 @@
 }
 
 .ac-payee {
-    color: #ff0000;
-    font-weight: bold;
-    font-size: 18px;
+    font-weight: bold !important;
+    font-size: 18px !important;
+    transform: rotate(-40deg);
+    color: #ff0000 !important;
+    text-decoration: overline underline !important;
 }
 
 .line-holder {
@@ -64,24 +67,57 @@
 }
 
 @media print {
-    body * {
-        visibility: hidden;
+    /* Hide all page content */
+    body > * {
+        display: none !important;
     }
-    .cheque-preview, .cheque-preview * {
-        visibility: visible;
+
+    /* Show only cheque preview */
+    body .cheque-preview {
+        display: block !important;
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 800px !important;
+        height: 350px !important;
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
     }
-    .cheque-preview {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 800px;
-        height: 350px;
-        border: none;
-        box-shadow: none;
+
+    /* Show all children */
+    .cheque-preview * {
+        display: block !important;
     }
+
+    /* Remove drag borders */
     .draggable {
         border: none !important;
         background: none !important;
+    }
+
+    /* Ensure text styling is preserved */
+    .ac-payee {
+        display: block !important;
+        font-weight: bold !important;
+        font-size: 18px !important;
+        transform: rotate(-40deg) !important;
+        color: #ff0000 !important;
+        text-decoration: overline underline !important;
+    }
+
+    .line-holder {
+        display: block !important;
+        font-size: 20px !important;
+        font-weight: bold !important;
+    }
+
+    /* Ensure all text elements are visible */
+    .draggable {
+        display: block !important;
+        position: absolute !important;
     }
 }
 </style>
@@ -103,13 +139,13 @@
         </nav>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
-        <!-- Left: Form (1 column) -->
-        <div class="lg:col-span-1">
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
+    <div class="grid grid-cols-1 gap-6">
+        <!-- Top: Form (แนวนอน) -->
+        <div class="w-full">
+            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">📝 ข้อมูลเช็ค</h3>
 
-                <form id="cheque-form" class="space-y-4">
+                <form id="cheque-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <!-- Branch -->
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">🏢 สาขา</label>
@@ -146,8 +182,9 @@
                     <!-- Date -->
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">📅 วันที่</label>
-                        <input type="date" id="date" name="date" required
-                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
+                        <input type="text" id="date" name="date" required readonly
+                            placeholder="เลือกวันที่"
+                            class="w-full rounded border border-gray-300 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 cursor-pointer" />
                     </div>
 
                     <!-- Payee -->
@@ -184,36 +221,20 @@
                     </div>
 
                     <!-- Buttons -->
-                    <div class="flex flex-col gap-2 pt-4">
-                        <button type="button" onclick="printCheque()" class="w-full rounded bg-brand-500 px-6 py-2.5 text-white hover:bg-brand-600">
+                    <div class="flex gap-2 md:col-span-2 lg:col-span-4">
+                        <button type="button" onclick="printCheque()" class="flex-1 rounded bg-brand-500 px-6 py-2.5 text-white hover:bg-brand-600">
                             🖨️ พิมพ์เช็ค
                         </button>
-                        <button type="button" onclick="clearForm()" class="w-full rounded border border-gray-300 px-6 py-2.5 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+                        <button type="button" onclick="clearForm()" class="flex-1 rounded border border-gray-300 px-6 py-2.5 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
                             🔄 เริ่มใหม่
                         </button>
                     </div>
                 </form>
-
-                <!-- Quick Links -->
-                <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white mb-2">🔗 ลิงก์ด่วน</p>
-                    <div class="space-y-2">
-                        <a href="{{ route('cheque.designer') }}" class="block text-sm text-brand-500 hover:text-brand-600">
-                            🎨 ออกแบบ & ปรับแต่งตำแหน่ง
-                        </a>
-                        <a href="{{ route('cheque.reports') }}" class="block text-sm text-brand-500 hover:text-brand-600">
-                            📊 รายงานการพิมพ์เช็ค
-                        </a>
-                        <a href="{{ route('cheque.branches') }}" class="block text-sm text-brand-500 hover:text-brand-600">
-                            🏢 จัดการสาขา
-                        </a>
-                    </div>
-                </div>
             </div>
         </div>
 
-        <!-- Right: Preview (3 columns) -->
-        <div class="lg:col-span-3">
+        <!-- Bottom: Preview -->
+        <div class="w-full">
             <div class="cheque-workspace">
                 <div class="mb-4">
                     <span class="info-badge">💡 คลิกที่องค์ประกอบเพื่อแก้ไข</span>
@@ -244,10 +265,18 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 // API Base URL
 const API_BASE = '/api';
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+// Debug CSRF Token
+console.log('CSRF Token loaded:', CSRF_TOKEN ? 'Found' : 'NOT FOUND');
+if (!CSRF_TOKEN) {
+    console.error('⚠️ WARNING: CSRF Token is missing! Check if meta tag exists in layout.');
+}
 
 // Element selection
 let selectedElement = null;
@@ -298,7 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadBranches();
     loadPositions();
     setupDragAndDrop();
-    setTodayDate();
+    initializeDatePicker();
     loadFormData();
 });
 
@@ -441,26 +470,60 @@ function savePositions() {
     localStorage.setItem('chequePositions', JSON.stringify(positions));
 }
 
-// Set today's date
-function setTodayDate() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('date').value = today;
-    updateDateDisplay();
+// Initialize Flatpickr Date Picker
+function initializeDatePicker() {
+    flatpickr("#date", {
+        dateFormat: "d/m/Y", // Display format
+        altInput: true,
+        altFormat: "d/m/Y", // Alt display format
+        defaultDate: new Date(),
+        locale: {
+            firstDayOfWeek: 1,
+            weekdays: {
+                shorthand: ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'],
+                longhand: ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'],
+            },
+            months: {
+                shorthand: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'],
+                longhand: ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'],
+            },
+        },
+        onChange: function(selectedDates, dateStr, instance) {
+            updateDateDisplay(dateStr);
+        }
+    });
+
+    // Set initial display
+    const today = new Date();
+    const day = today.getDate();
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear();
+    const dateStr = `${day}/${month}/${year}`;
+    document.getElementById('date').value = dateStr;
+    updateDateDisplay(dateStr);
 }
 
 // Update displays when inputs change
-document.getElementById('date')?.addEventListener('change', updateDateDisplay);
 document.getElementById('payee')?.addEventListener('input', updatePayeeDisplay);
 document.getElementById('amount')?.addEventListener('input', updateAmountText);
 
-function updateDateDisplay() {
-    const dateInput = document.getElementById('date').value;
-    if (dateInput) {
-        const date = new Date(dateInput);
-        const day = date.getDate();
-        const month = date.getMonth() + 1;
-        const year = date.getFullYear() + 543; // Thai year
-        document.getElementById('dateDisplay').textContent = `${day}/${month}/${year}`;
+function updateDateDisplay(dateStr) {
+    if (!dateStr) {
+        dateStr = document.getElementById('date').value;
+    }
+
+    if (dateStr) {
+        // Parse d/m/Y format
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+            const day = parseInt(parts[0]);
+            const month = parseInt(parts[1]);
+            const year = parseInt(parts[2]) + 543; // Convert to Thai year
+            const displayDate = `${day}${month}${year}`;
+            // Add spaces between each digit
+            const spacedDate = displayDate.split('').join('  ');
+            document.getElementById('dateDisplay').textContent = spacedDate;
+        }
     }
 }
 
@@ -477,7 +540,9 @@ function updateAmountText() {
         const text = thaiNumberToText(parsed);
         document.getElementById('amount-text').textContent = text;
         document.getElementById('amountText').textContent = text;
-        document.getElementById('amountNumber').textContent = `***${parsed.toFixed(2)}***`;
+        // Format number with commas
+        const formatted = parsed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        document.getElementById('amountNumber').textContent = `***${formatted}***`;
     } else {
         document.getElementById('amount-text').textContent = '';
         document.getElementById('amountText').textContent = '';
@@ -500,33 +565,65 @@ function thaiNumberToText(num) {
 
     // Convert baht
     if (baht > 0) {
-        const bahtStr = baht.toString();
-        const len = bahtStr.length;
-
-        for (let i = 0; i < len; i++) {
-            const digit = parseInt(bahtStr[i]);
-            const place = len - i - 1;
-
-            if (digit !== 0) {
-                if (digit === 1 && place === 1) {
-                    result += 'สิบ';
-                } else if (digit === 2 && place === 1) {
-                    result += 'ยี่สิบ';
-                } else if (digit === 1 && place === 0 && len > 1) {
-                    result += 'เอ็ด';
-                } else {
-                    result += ones[digit] + places[place % 6];
-                }
-            }
-        }
-        result += 'บาท';
+        result = convertIntegerToThai(baht, ones, places) + 'บาท';
     }
 
     // Convert satang
     if (satang > 0) {
-        result += thaiNumberToText(satang).replace('บาทถ้วน', '') + 'สตางค์';
+        result += convertIntegerToThai(satang, ones, places) + 'สตางค์';
     } else {
         result += 'ถ้วน';
+    }
+
+    return result;
+}
+
+function convertIntegerToThai(number, ones, places) {
+    if (number === 0) return '';
+
+    const numStr = number.toString();
+    const len = numStr.length;
+    let result = '';
+
+    // Handle millions
+    if (len > 6) {
+        const millions = parseInt(numStr.substring(0, len - 6));
+        result += convertIntegerToThai(millions, ones, places) + 'ล้าน';
+        number = number % 1000000;
+    }
+
+    const numArray = number.toString().split('').map(d => parseInt(d));
+    const positions = numArray.length;
+
+    for (let i = 0; i < positions; i++) {
+        const digit = numArray[i];
+        const position = positions - i - 1;
+
+        if (digit === 0) continue;
+
+        if (position === 5) { // แสน
+            result += ones[digit] + 'แสน';
+        } else if (position === 4) { // หมื่น
+            result += ones[digit] + 'หมื่น';
+        } else if (position === 3) { // พัน
+            result += ones[digit] + 'พัน';
+        } else if (position === 2) { // ร้อย
+            result += ones[digit] + 'ร้อย';
+        } else if (position === 1) { // สิบ
+            if (digit === 1) {
+                result += 'สิบ';
+            } else if (digit === 2) {
+                result += 'ยี่สิบ';
+            } else {
+                result += ones[digit] + 'สิบ';
+            }
+        } else { // หน่วย
+            if (digit === 1 && positions > 1) {
+                result += 'เอ็ด';
+            } else {
+                result += ones[digit];
+            }
+        }
     }
 
     return result;
@@ -575,21 +672,11 @@ async function printCheque() {
     const branch = document.getElementById('branch_code').value;
     const bank = document.getElementById('bank_code').value;
     const chequeNum = document.getElementById('cheque_number').value;
-    const date = document.getElementById('date').value;
+    const dateInput = document.getElementById('date').value;
     const payee = document.getElementById('payee').value;
     const amount = document.getElementById('amount').value;
 
-    if (!branch) {
-        Swal.fire({
-            title: 'กรุณาเลือกสาขา!',
-            text: 'กรุณาเลือกสาขาก่อนพิมพ์เช็ค',
-            icon: 'warning',
-            confirmButtonColor: '#ff9800'
-        });
-        return;
-    }
-
-    if (!chequeNum || !date || !payee || !amount) {
+    if (!chequeNum || !dateInput || !payee || !amount) {
         Swal.fire({
             title: 'ข้อมูลไม่ครบถ้วน!',
             text: 'กรุณากรอกข้อมูลให้ครบทุกช่อง',
@@ -599,59 +686,103 @@ async function printCheque() {
         return;
     }
 
-    // Save to database
+    // Check CSRF token
+    if (!CSRF_TOKEN) {
+        Swal.fire({
+            title: 'เกิดข้อผิดพลาด!',
+            text: 'ไม่พบ CSRF Token กรุณารีเฟรชหน้าใหม่',
+            icon: 'error',
+            confirmButtonColor: '#f44336'
+        });
+        return;
+    }
+
+    // Convert date from d/m/Y to Y-m-d for database
+    let formattedDate = dateInput;
+    if (dateInput.includes('/')) {
+        const parts = dateInput.split('/');
+        if (parts.length === 3) {
+            const [day, month, year] = parts;
+            formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+    }
+
+    console.log('Date conversion:', dateInput, '=>', formattedDate);
+
+    // Update displays before printing
+    updateDateDisplay();
+    updatePayeeDisplay();
+    updateAmountText();
+
+    // Save to database FIRST, then print
     try {
         const response = await fetch(`${API_BASE}/cheques`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': CSRF_TOKEN
+            },
             body: JSON.stringify({
-                branch_code: branch,
+                branch_code: branch || null,
                 bank: bank,
                 cheque_number: chequeNum,
-                date: date,
+                date: formattedDate,
                 payee: payee,
                 amount: parseFloat(amount.replace(/,/g, ''))
             })
         });
 
-        if (response.ok) {
-            // Update displays before printing
-            updateDateDisplay();
-            updatePayeeDisplay();
-            updateAmountText();
+        const data = await response.json();
 
-            // Print
-            window.print();
-
-            Swal.fire({
-                title: 'บันทึกข้อมูลแล้ว!',
-                text: 'ข้อมูลการพิมพ์ถูกบันทึกในรายงาน',
-                icon: 'success',
-                timer: 2000,
-                showConfirmButton: false
-            });
-
-            // Clear form after print
-            setTimeout(() => {
-                clearForm();
-            }, 500);
+        if (!response.ok) {
+            console.error('Server error:', data);
+            throw new Error(data.message || 'Failed to save cheque data');
         }
+
+        console.log('Cheque saved with ID:', data.id);
+
+        // Show success message
+        Swal.fire({
+            title: 'บันทึกสำเร็จ!',
+            text: 'ข้อมูลเช็คถูกบันทึกแล้ว กำลังเปิดหน้าพิมพ์...',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+        // Print after saving
+        setTimeout(() => {
+            window.print();
+        }, 500);
+
     } catch (error) {
         console.error('Error saving cheque:', error);
-        Swal.fire({
-            title: 'เกิดข้อผิดพลาด!',
-            text: 'ไม่สามารถบันทึกข้อมูลได้',
+
+        // Ask user if they want to print anyway
+        const result = await Swal.fire({
+            title: 'ไม่สามารถบันทึกข้อมูลได้!',
+            text: 'ต้องการพิมพ์เช็คต่อไปหรือไม่?',
             icon: 'error',
-            confirmButtonColor: '#f44336'
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'พิมพ์ต่อ',
+            cancelButtonText: 'ยกเลิก'
         });
+
+        if (result.isConfirmed) {
+            window.print();
+        }
     }
 }
+
 
 // Clear form
 function clearForm() {
     if (confirm('ต้องการล้างข้อมูลทั้งหมดหรือไม่?')) {
         document.getElementById('cheque-form').reset();
-        setTodayDate();
+        initializeDatePicker(); // Re-initialize with today's date
         document.getElementById('payeeDisplay').textContent = '<สั่งจ่าย>';
         document.getElementById('amountText').textContent = '';
         document.getElementById('amountNumber').textContent = '***0.00***';

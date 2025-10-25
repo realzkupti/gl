@@ -39,7 +39,7 @@ class MenuController extends Controller
             'icon' => 'nullable|string|max:255',
             'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
             'sort_order' => 'nullable|integer',
-            'menu_group' => 'nullable|string|in:default,bplus',
+            'menu_group_id' => 'nullable|integer|exists:pgsql.menu_groups,id',
         ]);
 
         // Use Model to create menu
@@ -50,7 +50,7 @@ class MenuController extends Controller
             'icon' => $data['icon'] ?? null,
             'parent_id' => $data['parent_id'] ?? null,
             'sort_order' => $data['sort_order'] ?? 0,
-            'menu_group' => $data['menu_group'] ?? 'default',
+            'menu_group_id' => $data['menu_group_id'] ?? null,
             'is_active' => true,
         ]);
 
@@ -70,7 +70,7 @@ class MenuController extends Controller
             'icon' => 'nullable|string|max:255',
             'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
             'sort_order' => 'nullable|integer',
-            'menu_group' => 'nullable|string|in:default,bplus',
+            'menu_group_id' => 'nullable|integer|exists:pgsql.menu_groups,id',
             'is_active' => 'boolean',
         ]);
 
@@ -106,6 +106,117 @@ class MenuController extends Controller
 
         $status = $menu->is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
         return redirect()->route('admin.menus')->with('status', "เปลี่ยนสถานะเมนู '{$menu->label}' เป็น {$status} แล้ว");
+    }
+
+    // ==================== API Methods (JSON Response) ====================
+
+    public function list(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $menus = Menu::orderBy('sort_order')->orderBy('id')->get();
+
+        return response()->json([
+            'success' => true,
+            'menus' => $menus
+        ]);
+    }
+
+    public function storeApi(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $data = $request->validate([
+            'key' => 'required|string|max:100|unique:pgsql.menus,key',
+            'label' => 'required|string|max:255',
+            'route' => 'nullable|string|max:255',
+            'icon' => 'nullable|string|max:255',
+            'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
+            'sort_order' => 'nullable|integer',
+            'menu_group_id' => 'nullable|integer|exists:pgsql.menu_groups,id',
+            'is_active' => 'boolean',
+        ]);
+
+        $menu = Menu::create([
+            'key' => $data['key'],
+            'label' => $data['label'],
+            'route' => $data['route'] ?? null,
+            'icon' => $data['icon'] ?? null,
+            'parent_id' => $data['parent_id'] ?? null,
+            'sort_order' => $data['sort_order'] ?? 0,
+            'menu_group_id' => $data['menu_group_id'] ?? null,
+            'is_active' => $data['is_active'] ?? true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'บันทึกเมนูสำเร็จ',
+            'menu' => $menu
+        ], 201);
+    }
+
+    public function updateApi(Request $request, $id)
+    {
+        $this->ensureAdmin();
+
+        $menu = Menu::findOrFail($id);
+
+        $data = $request->validate([
+            'key' => 'required|string|max:100|unique:pgsql.menus,key,' . $id,
+            'label' => 'required|string|max:255',
+            'route' => 'nullable|string|max:255',
+            'icon' => 'nullable|string|max:255',
+            'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
+            'sort_order' => 'nullable|integer',
+            'menu_group_id' => 'nullable|integer|exists:pgsql.menu_groups,id',
+            'is_active' => 'boolean',
+        ]);
+
+        $menu->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'อัปเดตเมนูสำเร็จ',
+            'menu' => $menu
+        ]);
+    }
+
+    public function destroyApi($id)
+    {
+        $this->ensureAdmin();
+
+        $menu = Menu::findOrFail($id);
+
+        if ($menu->is_system) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ไม่สามารถลบเมนูระบบได้'
+            ], 403);
+        }
+
+        $menu->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'ลบเมนูสำเร็จ'
+        ]);
+    }
+
+    public function toggleApi($id)
+    {
+        $this->ensureAdmin();
+
+        $menu = Menu::findOrFail($id);
+        $menu->is_active = !$menu->is_active;
+        $menu->save();
+
+        $status = $menu->is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
+
+        return response()->json([
+            'success' => true,
+            'message' => "เปลี่ยนสถานะเป็น {$status} แล้ว",
+            'menu' => $menu
+        ]);
     }
 }
 

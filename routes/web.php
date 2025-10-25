@@ -13,8 +13,18 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TailAdminController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\MenuGroupsController;
 
 Route::get('/', [HomeController::class, 'index'])->middleware(['company.connection'])->name('home');
+
+// Debug route - remove in production
+Route::get('/debug-menus', function () {
+    return view('debug-menus');
+})->middleware(['auth', 'company.connection'])->name('debug.menus');
+
+Route::get('/check-schema', function () {
+    return view('check-schema');
+})->middleware(['auth', 'company.connection'])->name('check.schema');
 
 // Admin demo dashboard (redirects to new TailAdmin)
 Route::get('admin/dashboard-demo', [HomeController::class, 'dashboardDemo'])->middleware(['company.connection'])->name('admin.dashboard.demo');
@@ -34,7 +44,8 @@ Route::prefix('tailadmin')->name('tailadmin.')->middleware(['company.connection'
 });
 
 // Cheque System Pages (protected by login + permission)
-Route::prefix('cheque')->name('cheque.')->middleware(['auth','company.connection','menu:cheque,view'])->group(function () {
+// NOTE: Cheque system uses PostgreSQL only, NOT company database
+Route::prefix('cheque')->name('cheque.')->middleware(['auth','menu:cheque,view'])->group(function () {
     Route::get('print', [TailAdminController::class, 'chequePrint'])->name('print');
     Route::get('designer', [TailAdminController::class, 'chequeDesigner'])->name('designer');
     Route::get('reports', [TailAdminController::class, 'chequeReports'])->name('reports');
@@ -84,11 +95,12 @@ Route::get('companies.json', function () {
 })->name('companies.json');
 
 // Cheque UI + minimal API migrated to Laravel (protected by login + permission)
+// NOTE: Cheque system uses PostgreSQL only, NOT company database
 Route::get('cheque', [ChequeApiController::class, 'ui'])
-    ->middleware(['auth','company.connection','menu:cheque,view'])
+    ->middleware(['auth','menu:cheque,view'])
     ->name('cheque.ui');
 Route::get('cheque/styles.css', [ChequeApiController::class, 'css'])->name('cheque.css');
-Route::middleware(['auth','company.connection','menu:cheque,view'])->group(function(){
+Route::middleware(['auth','menu:cheque,view'])->group(function(){
     Route::get('api/branches', [ChequeApiController::class, 'branches']);
     Route::get('api/cheques', [ChequeApiController::class, 'chequesIndex']);
     Route::get('api/cheques/next', [ChequeApiController::class, 'chequesNext']);
@@ -96,26 +108,45 @@ Route::middleware(['auth','company.connection','menu:cheque,view'])->group(funct
     Route::get('api/payees', [ChequeApiController::class, 'payees']);
 });
 Route::post('api/cheques', [ChequeApiController::class, 'chequesStore'])
-    ->middleware(['auth','company.connection','menu:cheque,create']);
+    ->middleware(['auth','menu:cheque,create']);
 Route::delete('api/cheques/{id}', [ChequeApiController::class, 'chequesDestroy'])
-    ->middleware(['auth','company.connection','menu:cheque,delete']);
+    ->middleware(['auth','menu:cheque,delete']);
 Route::post('api/templates', [ChequeApiController::class, 'templatesStore'])
-    ->middleware(['auth','company.connection','menu:cheque,create']);
+    ->middleware(['auth','menu:cheque,create']);
 Route::post('api/branches', [ChequeApiController::class, 'branchesStore'])
-    ->middleware(['auth','company.connection','menu:cheque,create']);
+    ->middleware(['auth','menu:cheque,create']);
 Route::delete('api/branches/{code}', [ChequeApiController::class, 'branchesDestroy'])
-    ->middleware(['auth','company.connection','menu:cheque,delete']);
+    ->middleware(['auth','menu:cheque,delete']);
 
 // Admin: mock user/permission management UI
 Route::middleware(['auth'])->group(function(){
     Route::get('admin/users', [UserPermissionController::class, 'index'])->name('admin.users');
 
-    // Admin: Menus CRUD (basic)
+    // Admin: Menus API (JSON responses for AJAX) - MUST come BEFORE traditional routes!
+    Route::get('admin/menus/list', [MenuController::class, 'list'])->name('admin.menus.list');
+    Route::post('admin/menus/api', [MenuController::class, 'storeApi'])->name('admin.menus.store.api');
+    Route::put('admin/menus/api/{id}', [MenuController::class, 'updateApi'])->name('admin.menus.update.api');
+    Route::delete('admin/menus/api/{id}', [MenuController::class, 'destroyApi'])->name('admin.menus.destroy.api');
+    Route::patch('admin/menus/api/{id}/toggle', [MenuController::class, 'toggleApi'])->name('admin.menus.toggle.api');
+
+    // Admin: Menus CRUD (traditional form-based) - MUST come AFTER API routes!
     Route::get('admin/menus', [MenuController::class, 'index'])->name('admin.menus');
     Route::post('admin/menus', [MenuController::class, 'store'])->name('admin.menus.store');
     Route::put('admin/menus/{id}', [MenuController::class, 'update'])->name('admin.menus.update');
     Route::patch('admin/menus/{id}/toggle', [MenuController::class, 'toggle'])->name('admin.menus.toggle');
     Route::delete('admin/menus/{id}', [MenuController::class, 'destroy'])->name('admin.menus.destroy');
+
+    // Admin: Menu Groups CRUD
+    Route::get('admin/menu-groups', [MenuGroupsController::class, 'index'])->name('admin.menu-groups.index');
+    Route::get('admin/menu-groups/create', [MenuGroupsController::class, 'create'])->name('admin.menu-groups.create');
+    Route::post('admin/menu-groups', [MenuGroupsController::class, 'store'])->name('admin.menu-groups.store');
+    Route::get('admin/menu-groups/{id}', [MenuGroupsController::class, 'show'])->name('admin.menu-groups.show');
+    Route::get('admin/menu-groups/{id}/edit', [MenuGroupsController::class, 'edit'])->name('admin.menu-groups.edit');
+    Route::put('admin/menu-groups/{id}', [MenuGroupsController::class, 'update'])->name('admin.menu-groups.update');
+    Route::delete('admin/menu-groups/{id}', [MenuGroupsController::class, 'destroy'])->name('admin.menu-groups.destroy');
+
+    // Admin: Menu Groups API (for AJAX)
+    Route::get('admin/menu-groups/list', [MenuGroupsController::class, 'list'])->name('admin.menu-groups.list');
 
     // Admin: Companies CRUD
     Route::get('admin/companies', [CompanyController::class, 'index'])->name('admin.companies');

@@ -15,7 +15,7 @@ class Menu extends Model
     protected $table = 'menus';
 
     protected $fillable = [
-        'key', 'label', 'route', 'url', 'icon', 'parent_id', 'sort_order', 'is_active', 'is_system', 'roles', 'menu_group'
+        'key', 'label', 'route', 'url', 'icon', 'parent_id', 'sort_order', 'is_active', 'is_system', 'roles', 'menu_group', 'menu_group_id'
     ];
 
     protected $casts = [
@@ -82,6 +82,11 @@ class Menu extends Model
     public static function findByKey(string $key)
     {
         return static::where('key', $key)->first();
+    }
+
+    public function menuGroup()
+    {
+        return $this->belongsTo(MenuGroup::class, 'menu_group_id');
     }
 }
 
