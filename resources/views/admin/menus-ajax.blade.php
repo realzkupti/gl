@@ -3,7 +3,7 @@
 @section('title', 'จัดการเมนู - ' . config('app.name'))
 
 @push('styles')
-<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<link href="{{ asset('vendor/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet">
 <style>
 .loading-overlay {
     position: fixed;
@@ -189,7 +189,7 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
 <script>
 // ==================== CONFIGURATION ====================
 const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');

@@ -32,6 +32,9 @@
           </label>
           <a href="{{ url('/') }}" class="text-sm text-gray-600 hover:text-brand-500 dark:text-gray-400">กลับหน้าหลัก</a>
         </div>
+        <div class="text-right -mt-2 mb-1">
+          <a href="{{ route('password.request') }}" class="text-sm text-gray-600 hover:text-brand-500 dark:text-gray-400">ลืมรหัสผ่าน?</a>
+        </div>
         <div class="pt-2">
           <button type="submit" class="w-full rounded bg-brand-500 px-4 py-2.5 text-white hover:bg-brand-600">เข้าสู่ระบบ</button>
         </div>

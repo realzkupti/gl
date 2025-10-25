@@ -47,6 +47,23 @@ class AuthController extends Controller
         return view('auth.register');
     }
 
+    public function showForgot()
+    {
+        if (Auth::check()) return redirect()->intended('/');
+        return view('auth.forgot');
+    }
+
+    public function forgot(Request $request)
+    {
+        $data = $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        // ที่โปรเจกต์นี้ยังไม่ตั้งค่าระบบส่งอีเมล รีเทิร์นสถานะแจ้งเตือนแทน
+        // สามารถเปลี่ยนมาใช้ Password::sendResetLink() ของ Laravel ได้ภายหลัง
+        return back()->with('status', 'เราได้รับคำขอรีเซ็ตรหัสผ่านแล้ว โปรดติดต่อผู้ดูแลเพื่อดำเนินการ');
+    }
+
     public function register(Request $request)
     {
         $data = $request->validate([

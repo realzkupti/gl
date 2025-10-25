@@ -3,7 +3,7 @@
 @section('title', 'จัดการเมนู - ' . config('app.name'))
 
 @push('styles')
-<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<link href="{{ asset('vendor/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet">
 <style>
 .loading-overlay {
     position: fixed;
@@ -345,7 +345,7 @@
 </div>
 
 <!-- Icon Picker Modal -->
-<div id="icon-picker-modal" class="hidden fixed inset-0 bg-black/50 z-[9999] items-center justify-center p-4" onclick="if(event.target === this) closeIconPicker()">
+<div id="icon-picker-modal" class="hidden fixed inset-0 bg-black/50 z-[100000] items-center justify-center p-4" onclick="if(event.target === this) closeIconPicker()">
     <div class="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onclick="event.stopPropagation()">
         <div class="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 flex justify-between items-center">
             <h3 class="text-lg font-semibold text-white">เลือก Icon</h3>

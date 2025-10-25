@@ -3,7 +3,6 @@
 @section('title', 'ออกแบบ & ปรับแต่งเช็ค - ' . config('app.name'))
 
 @push('styles')
-<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 <style>
 .cheque-workspace {
     background: #f5f5f5;
@@ -232,7 +231,6 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 const API_BASE = '/api';
 

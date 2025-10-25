@@ -66,7 +66,7 @@
                                 <!-- Single Menu Item -->
                                 <li>
                                     <a
-                                        href="{{ $menu['route'] ? route($menu['route']) : ($menu['url'] ?? '#') }}"
+                                        href="{{ ($menu['route'] && \Illuminate\Support\Facades\Route::has($menu['route'])) ? route($menu['route']) : ($menu['url'] ?? '#') }}"
                                         class="menu-item group"
                                         :class="page === '{{ $menu['key'] }}' ? 'menu-item-active' : 'menu-item-inactive'"
                                     >
@@ -228,7 +228,7 @@
                                         @foreach($menu['children'] as $child)
                                             <li>
                                                 <a
-                                                    href="{{ $child['route'] ? route($child['route']) : ($child['url'] ?? '#') }}"
+                                                    href="{{ ($child['route'] && \Illuminate\Support\Facades\Route::has($child['route'])) ? route($child['route']) : ($child['url'] ?? '#') }}"
                                                     class="block rounded py-2 px-4 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                                                     :class="page === '{{ $child['key'] }}' ? 'text-brand-500 font-medium' : 'text-gray-600 dark:text-gray-400'"
                                                 >

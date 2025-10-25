@@ -12,6 +12,7 @@ use App\Services\CompanyManager;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TailAdminController;
 use App\Http\Controllers\Admin\MenuController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\MenuGroupsController;
 
@@ -133,6 +134,7 @@ Route::middleware(['auth'])->group(function(){
     Route::patch('admin/menus/api/{id}/toggle', [MenuController::class, 'toggleApi'])->name('admin.menus.toggle.api');
 
     // Admin: Menus CRUD (traditional form-based) - MUST come AFTER API routes!
+    Route::get('admin/menus2', [MenuController::class, 'menus2'])->name('admin.menus2');
     Route::get('admin/menus', [MenuController::class, 'index'])->name('admin.menus');
     Route::post('admin/menus', [MenuController::class, 'store'])->name('admin.menus.store');
     Route::put('admin/menus/{id}', [MenuController::class, 'update'])->name('admin.menus.update');
@@ -150,6 +152,9 @@ Route::middleware(['auth'])->group(function(){
 
     // Admin: Menu Groups API (for AJAX)
     Route::get('admin/menu-groups/list', [MenuGroupsController::class, 'list'])->name('admin.menu-groups.list');
+
+    // Admin: Roles (User groups)
+    Route::get('admin/roles', [RoleController::class, 'index'])->name('admin.roles');
 
     // Admin: Companies CRUD
     Route::get('admin/companies', [CompanyController::class, 'index'])->name('admin.companies');
@@ -184,6 +189,10 @@ Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 // Registration
 Route::get('register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('register', [AuthController::class, 'register']);
+
+// Password reset (placeholder UI)
+Route::get('forgot', [AuthController::class, 'showForgot'])->name('password.request');
+Route::post('forgot', [AuthController::class, 'forgot'])->name('password.email');
 
 // Basic settings/profile routes to satisfy links in UI (keep on pgsql)
 Route::middleware(['auth'])->group(function () {

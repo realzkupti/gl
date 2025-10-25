@@ -85,8 +85,8 @@
     </div>
     <!-- ===== Page Wrapper End ===== -->
 
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- TailAdmin Bundle (includes Alpine.js) -->
+    <script src="{{ asset('tailadmin/bundle.js') }}"></script>
 
     @stack('scripts')
 </body>

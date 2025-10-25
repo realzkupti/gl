@@ -11,6 +11,7 @@
     <link rel="icon" href="{{ asset('tailadmin-assets/images/favicon.ico') }}">
     <link href="{{ asset('tailadmin/style.css') }}" rel="stylesheet">
 
+    <link rel="stylesheet" href="{{ asset('vendor/sweetalert2/sweetalert2.min.css') }}">
     @stack('styles')
 </head>
 <body
@@ -61,6 +62,21 @@
 
     <!-- TailAdmin Bundle JS (includes Alpine.js and all functionality) -->
     <script src="{{ asset('tailadmin/bundle.js') }}"></script>
+
+    <script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
+
+    @if (session('forbidden'))
+        <script>
+            window.addEventListener('DOMContentLoaded', function(){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ไม่มีสิทธิ์เข้าถึง',
+                    text: @json(session('forbidden')),
+                    confirmButtonColor: '#ef4444'
+                });
+            });
+        </script>
+    @endif
 
     @stack('scripts')
 </body>

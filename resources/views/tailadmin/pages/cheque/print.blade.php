@@ -3,8 +3,8 @@
 @section('title', 'พิมพ์เช็ค - ' . config('app.name'))
 
 @push('styles')
-<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link href="{{ asset('vendor/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('vendor/flatpickr/flatpickr.min.css') }}">
 <style>
 .cheque-workspace {
     background: #f5f5f5;
@@ -31,6 +31,9 @@
     border: 1px dashed transparent;
     white-space: nowrap;
 }
+
+/* Date should respect multiple spaces for box-fit */
+#dateDisplay { white-space: pre; }
 
 .draggable:hover {
     border-color: #2196F3;
@@ -92,7 +95,7 @@
         left: 0 !important;
         top: 0 !important;
         margin: 0 !important;
-        padding: 20px !important;
+        padding: 0 !important;
         width: auto !important;
         height: auto !important;
     }
@@ -123,6 +126,9 @@
         print-color-adjust: exact !important;
         color-adjust: exact !important;
     }
+
+    /* Preserve spaces in date during print */
+    #dateDisplay { white-space: pre !important; }
 
     /* A/C PAYEE with red color */
     #acPayee {
@@ -330,6 +336,49 @@
                     <span class="info-badge">📐 ไปที่หน้าออกแบบเพื่อปรับแต่งขนาดและสี</span>
                 </div>
 
+                <!-- Quick Controls: Date spacing + Selected font size + Print offset -->
+                <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <label for="date_spacing" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Spaces between date characters</label>
+                        <input id="date_spacing" type="range" min="0" max="8" step="1" value="3" class="w-full"
+                               oninput="updateDateSpacingLabel(this.value)" onchange="saveDateSpacing(this.value); updateDateDisplay();" />
+                        <div class="text-[11px] text-gray-500 dark:text-gray-400">Spaces per character: <span id="date_spacing_value">3</span></div>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">Font size (selected element)</span>
+                            <span id="font_size_value" class="text-[11px] text-gray-500 dark:text-gray-400">-</span>
+                        </div>
+                        <input id="font_size_slider" type="range" min="10" max="40" step="1" value="18" class="w-full" disabled
+                               oninput="onFontSizeSlide(this.value)" onchange="onFontSizeCommit(this.value)" />
+                        <div class="mt-2">
+                            <label class="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+                                <input id="bold_toggle" type="checkbox" class="rounded border-gray-300"
+                                       onchange="onBoldToggle(this.checked)" disabled>
+                                <span>Bold</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <div class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Print offset (px)</div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label for="print_offset_x" class="block text-[11px] text-gray-500 dark:text-gray-400">Offset X</label>
+                                <input id="print_offset_x" type="number" step="1" value="0"
+                                       class="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-700"
+                                       oninput="savePrintOffsets()" />
+                            </div>
+                            <div>
+                                <label for="print_offset_y" class="block text-[11px] text-gray-500 dark:text-gray-400">Offset Y</label>
+                                <input id="print_offset_y" type="number" step="1" value="0"
+                                       class="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-700"
+                                       oninput="savePrintOffsets()" />
+                            </div>
+                        </div>
+                        <p class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">ใช้สำหรับชดเชยความคลาดเคลื่อนของเครื่องพิมพ์</p>
+                    </div>
+                </div>
+
                 <!-- Wrapper for print -->
                 <div class="print-cheque-container">
                     <div class="cheque-preview" id="chequePreview">
@@ -356,8 +405,8 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('vendor/flatpickr/flatpickr.min.js') }}"></script>
+<script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
 <script>
 // API Base URL
 const API_BASE = '/api';
@@ -470,6 +519,9 @@ function applyPositions(positions) {
             if (props.fontSize) element.style.fontSize = props.fontSize + 'px';
             if (props.color) element.style.color = props.color;
             if (props.bold !== undefined) element.style.fontWeight = props.bold ? 'bold' : 'normal';
+            if (id === 'dateDisplay' && props.letterSpacing !== undefined) {
+                element.style.letterSpacing = (props.letterSpacing || 0) + 'px';
+            }
         }
     });
 }
@@ -495,7 +547,11 @@ async function loadBankTemplate() {
 
     // Fallback to predefined templates
     if (!template) template = bankTemplates[bank];
-    if (template) applyPositions(template);
+    if (template) {
+        applyPositions(template);
+        // Persist applied template locally for immediate reuse
+        localStorage.setItem('chequePositions', JSON.stringify(template));
+    }
 }
 
 // Setup drag and drop
@@ -514,6 +570,25 @@ function setupDragAndDrop() {
             document.querySelectorAll('.draggable').forEach(el => el.classList.remove('selected'));
             element.classList.add('selected');
             selectedElement = element;
+
+            // Sync font size slider with selected element
+            try {
+                const slider = document.getElementById('font_size_slider');
+                const label = document.getElementById('font_size_value');
+                const boldToggle = document.getElementById('bold_toggle');
+                if (slider && label) {
+                    const computed = window.getComputedStyle(element);
+                    const size = parseInt(computed.fontSize) || 16;
+                    slider.disabled = false;
+                    slider.value = size;
+                    label.textContent = size + 'px';
+                }
+                if (boldToggle) {
+                    const computed = window.getComputedStyle(element);
+                    boldToggle.disabled = false;
+                    boldToggle.checked = (computed.fontWeight === 'bold' || parseInt(computed.fontWeight) >= 700);
+                }
+            } catch (err) { console.warn('Failed to sync font size slider', err); }
 
             e.preventDefault();
         });
@@ -545,8 +620,9 @@ function setupDragAndDrop() {
     });
 }
 
-// Save positions to localStorage
-function savePositions() {
+// Save positions (local + auto-save to server when bank selected)
+let saveTemplateTimeout = null;
+function collectPositions() {
     const positions = {};
     document.querySelectorAll('.draggable').forEach(el => {
         positions[el.id] = {
@@ -558,8 +634,100 @@ function savePositions() {
             bold: el.style.fontWeight === 'bold'
         };
     });
-    localStorage.setItem('chequePositions', JSON.stringify(positions));
+    return positions;
 }
+
+function savePositions() {
+    const positions = collectPositions();
+    localStorage.setItem('chequePositions', JSON.stringify(positions));
+
+    const bank = document.getElementById('bank_code').value;
+    if (bank && bank !== 'custom') {
+        clearTimeout(saveTemplateTimeout);
+        saveTemplateTimeout = setTimeout(() => savePositionsToServer(bank, positions), 400);
+    }
+}
+
+async function savePositionsToServer(bank, positions) {
+    try {
+        const res = await fetch(`${API_BASE}/templates`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': CSRF_TOKEN
+            },
+            body: JSON.stringify({ bank, template_json: positions })
+        });
+        if (!res.ok) {
+            console.warn('Template auto-save failed:', res.status, res.statusText);
+        } else {
+            console.log('Template auto-saved for bank:', bank);
+        }
+    } catch (e) {
+        console.error('Error auto-saving template:', e);
+    }
+}
+
+// Font-size quick control
+function onFontSizeSlide(val) {
+    const v = parseInt(val);
+    const label = document.getElementById('font_size_value');
+    if (label) label.textContent = (isNaN(v) ? '-' : (v + 'px'));
+    if (!selectedElement || isNaN(v)) return;
+    selectedElement.style.fontSize = v + 'px';
+}
+
+function onFontSizeCommit(val) {
+    onFontSizeSlide(val);
+    savePositions();
+}
+
+function onBoldToggle(checked) {
+    if (!selectedElement) return;
+    selectedElement.style.fontWeight = checked ? 'bold' : 'normal';
+    savePositions();
+}
+
+// Keyboard nudging for selected element
+document.addEventListener('keydown', function(e) {
+    if (!selectedElement) return;
+    // Ignore when typing in inputs
+    const tag = (e.target && e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+
+    const step = e.shiftKey ? 5 : 1;
+    let dx = 0, dy = 0;
+    if (e.key === 'ArrowLeft') { dx = -step; }
+    else if (e.key === 'ArrowRight') { dx = step; }
+    else if (e.key === 'ArrowUp') { dy = -step; }
+    else if (e.key === 'ArrowDown') { dy = step; }
+    else { return; }
+
+    e.preventDefault();
+
+    // Ensure base position from computed rect if left/top not set
+    const parent = selectedElement.parentElement;
+    const parentRect = parent.getBoundingClientRect();
+    const rect = selectedElement.getBoundingClientRect();
+    let left = parseInt(selectedElement.style.left);
+    let top = parseInt(selectedElement.style.top);
+    if (isNaN(left) || isNaN(top)) {
+        left = rect.left - parentRect.left;
+        top = rect.top - parentRect.top;
+    }
+    left += dx; top += dy;
+
+    // Constrain within parent
+    left = Math.max(0, Math.min(left, parentRect.width - selectedElement.offsetWidth));
+    top = Math.max(0, Math.min(top, parentRect.height - selectedElement.offsetHeight));
+
+    selectedElement.style.left = Math.round(left) + 'px';
+    selectedElement.style.top = Math.round(top) + 'px';
+    selectedElement.style.right = 'auto';
+
+    savePositions();
+});
 
 // Initialize Flatpickr Date Picker
 function initializeDatePicker() {
@@ -610,12 +778,60 @@ function updateDateDisplay(dateStr) {
             const day = parseInt(parts[0]);
             const month = parseInt(parts[1]);
             const year = parseInt(parts[2]) + 543; // Convert to Thai year
-            const displayDate = `${day} ${month} ${year}`;
-            // Add spaces between each digit
-            const spacedDate = displayDate.split('').join('  ');
-            document.getElementById('dateDisplay').textContent = spacedDate;
+            const displayDate = `${day}${month}${year}`;
+            // Add dynamic spaces between each character
+            const spacesCount = parseInt(localStorage.getItem('chequeDateSpacing') || '3');
+            const spacer = ' '.repeat(isNaN(spacesCount) ? 3 : spacesCount);
+            const spacedDate = displayDate.split('').join(spacer);
+            const dd = document.getElementById('dateDisplay');
+            dd.textContent = spacedDate;
+            // Ensure spaces are respected
+            dd.style.whiteSpace = 'pre';
         }
     }
+}
+
+// Date spacing helpers
+function saveDateSpacing(val) {
+    const n = parseInt(val);
+    localStorage.setItem('chequeDateSpacing', isNaN(n) ? '3' : String(n));
+}
+
+function updateDateSpacingLabel(val) {
+    const el = document.getElementById('date_spacing_value');
+    if (el) el.textContent = String(val);
+}
+
+// Initialize quick controls after DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const spacingInput = document.getElementById('date_spacing');
+        const saved = parseInt(localStorage.getItem('chequeDateSpacing') || '3');
+        if (spacingInput) {
+            spacingInput.value = isNaN(saved) ? 3 : saved;
+            updateDateSpacingLabel(spacingInput.value);
+        }
+        // Load print offsets
+        const off = getPrintOffsets();
+        const ox = document.getElementById('print_offset_x');
+        const oy = document.getElementById('print_offset_y');
+        if (ox) ox.value = off.x;
+        if (oy) oy.value = off.y;
+    } catch {}
+});
+
+// Print offset helpers
+function getPrintOffsets() {
+    const x = parseInt(localStorage.getItem('chequePrintOffsetX') || '0');
+    const y = parseInt(localStorage.getItem('chequePrintOffsetY') || '0');
+    return { x: isNaN(x) ? 0 : x, y: isNaN(y) ? 0 : y };
+}
+
+function savePrintOffsets() {
+    const ox = parseInt(document.getElementById('print_offset_x')?.value || '0');
+    const oy = parseInt(document.getElementById('print_offset_y')?.value || '0');
+    localStorage.setItem('chequePrintOffsetX', isNaN(ox) ? '0' : String(ox));
+    localStorage.setItem('chequePrintOffsetY', isNaN(oy) ? '0' : String(oy));
 }
 
 function updatePayeeDisplay() {
@@ -1258,6 +1474,13 @@ function forcePrint() {
 
     // Clone the cheque preview
     const clonedCheque = chequePreview.cloneNode(true);
+    // Apply user-defined printer offsets (px)
+    try {
+        const off = (function(){ const x=parseInt(localStorage.getItem('chequePrintOffsetX')||'0'); const y=parseInt(localStorage.getItem('chequePrintOffsetY')||'0'); return {x:isNaN(x)?0:x, y:isNaN(y)?0:y}; })();
+        if (off.x || off.y) {
+            clonedCheque.style.transform = `translate(${off.x}px, ${off.y}px)`;
+        }
+    } catch {}
 
     const html = `
         <!DOCTYPE html>
@@ -1266,15 +1489,18 @@ function forcePrint() {
             <meta charset="UTF-8">
             <title>พิมพ์เช็ค</title>
             <style>
-                @@page {
+                @page {
                     size: A4 portrait;
                     margin: 0;
                 }
 
                 body {
                     margin: 0;
-                    padding: 20px;
+                    padding: 0;
                     background: white;
+                    font-family: Arial, Tahoma, sans-serif;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
                 }
 
                 #chequePreview {
@@ -1292,6 +1518,7 @@ function forcePrint() {
                     white-space: nowrap;
                     border: none;
                     background: transparent;
+                    line-height: 1.2;
                 }
 
                 #acPayee {
@@ -1299,7 +1526,7 @@ function forcePrint() {
                     font-size: 18px;
                     transform: rotate(-40deg);
                     transform-origin: left top;
-                    color: #ff0000;
+                    color: #ff0000 !important;
                     text-decoration: overline underline;
                     -webkit-print-color-adjust: exact;
                     print-color-adjust: exact;
@@ -1314,6 +1541,8 @@ function forcePrint() {
                     -webkit-print-color-adjust: exact;
                     print-color-adjust: exact;
                 }
+                /* Preserve spaces in date */
+                #dateDisplay { white-space: pre; }
 
                 #amountNumber,
                 #lineHolder {

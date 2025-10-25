@@ -15,9 +15,9 @@
         @vite(['resources/css/app.css','resources/js/app.js'])
     @else
         <!-- Temporary fallback so the app doesn't crash before Vite build is available -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+        <link rel="stylesheet" href="{{ asset('tailadmin/style.css') }}">
     @endif
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
     @stack('styles')
     <style>
         /* Simple Dark Mode Overrides */

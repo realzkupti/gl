@@ -218,5 +218,17 @@ class MenuController extends Controller
             'menu' => $menu
         ]);
     }
+
+    public function menus2()
+    {
+        $this->ensureAdmin();
+
+        // Use Model instead of Query Builder
+        $menus = Menu::orderBy('sort_order')->orderBy('id')->get();
+
+        return view('admin.menus-ajax', [
+            'menus' => $menus,
+        ]);
+    }
 }
 
