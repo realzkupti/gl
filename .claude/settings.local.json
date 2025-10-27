@@ -11,7 +11,17 @@
       "Bash(php -l:*)",
       "Bash(composer show:*)",
       "Bash(npm run build:*)",
-      "Read(//d/**)"
+      "Read(//d/**)",
+      "Bash(findstr:*)",
+      "Bash(dir:*)",
+      "Bash(php check_users.php:*)",
+      "Bash(npm install)",
+      "Bash(php check_database_structure.php:*)",
+      "Bash(php reset_users.php:*)",
+      "Bash(php check_departments.php:*)",
+      "Bash(php fix_departments.php:*)",
+      "Bash(php:*)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "ask": []

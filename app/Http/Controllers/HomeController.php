@@ -80,6 +80,89 @@ class HomeController extends Controller
         // Pass page identifier for active menu state
         $page = 'dashboard';
 
-        return view('tailadmin.pages.dashboard', compact('stats', 'activities', 'page', 'companies', 'selectedCompany', 'companiesJson'));
+        // Get user's accessible menus grouped by system_type
+        $userMenus = $this->getUserMenus();
+
+        return view('tailadmin.pages.dashboard', compact('stats', 'activities', 'page', 'companies', 'selectedCompany', 'companiesJson', 'userMenus'));
+    }
+
+    /**
+     * Get user's accessible menus grouped by system_type with parent-child support
+     */
+    protected function getUserMenus()
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return [];
+        }
+
+        $accessibleMenus = $user->getAccessibleMenus();
+
+        // Group by system_type
+        $grouped = [];
+
+        // Process System menus (system_type = 1)
+        $systemMenus = $accessibleMenus->where('system_type', 1);
+        if ($systemMenus->count() > 0) {
+            $grouped['ระบบ'] = $this->buildMenuTree($systemMenus);
+        }
+
+        // Process Bplus menus (system_type = 2)
+        $bplusMenus = $accessibleMenus->where('system_type', 2);
+        if ($bplusMenus->count() > 0) {
+            $grouped['Bplus'] = $this->buildMenuTree($bplusMenus);
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * Build menu tree structure from flat menu collection
+     */
+    protected function buildMenuTree($menus)
+    {
+        $tree = [];
+        $lookup = [];
+
+        // First pass: create lookup array
+        foreach ($menus as $menu) {
+            $lookup[$menu->id] = [
+                'key' => $menu->key,
+                'label' => $menu->label,
+                'route' => $menu->route,
+                'url' => $menu->url,
+                'icon' => $menu->icon,
+                'parent_id' => $menu->parent_id,
+                'sort_order' => $menu->sort_order,
+                'children' => [],
+            ];
+        }
+
+        // Second pass: build tree
+        foreach ($lookup as $id => $item) {
+            if ($item['parent_id'] && isset($lookup[$item['parent_id']])) {
+                // This is a child menu
+                $lookup[$item['parent_id']]['children'][] = $item;
+            } else {
+                // This is a parent menu
+                $tree[] = $lookup[$id];
+            }
+        }
+
+        // Sort children by sort_order
+        foreach ($tree as &$item) {
+            if (!empty($item['children'])) {
+                usort($item['children'], function($a, $b) {
+                    return $a['sort_order'] <=> $b['sort_order'];
+                });
+            }
+        }
+
+        // Sort top-level items by sort_order
+        usort($tree, function($a, $b) {
+            return $a['sort_order'] <=> $b['sort_order'];
+        });
+
+        return $tree;
     }
 }

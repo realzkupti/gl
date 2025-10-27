@@ -154,10 +154,10 @@
                                 <div>
                                     <div class="font-semibold">{{ $menu->label }}</div>
                                     <div class="text-xs text-gray-500 dark:text-gray-400">{{ $menu->key }}</div>
-                                    @if($menu->department)
+                                    @if($menu->system_type)
                                     <div class="mt-1">
                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
-                                            {{ $menu->department->label }}
+                                            {{ $menu->system_type == 1 ? 'ระบบ' : 'Bplus' }}
                                         </span>
                                     </div>
                                     @endif

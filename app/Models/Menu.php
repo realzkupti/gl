@@ -16,11 +16,12 @@ class Menu extends Model
     protected $table = 'sys_menus';
 
     protected $fillable = [
-        'key', 'label', 'route', 'url', 'icon', 'parent_id', 'sort_order', 'is_active', 'is_system', 'system_type', 'connection_type'
+        'key', 'label', 'route', 'url', 'icon', 'parent_id', 'sort_order', 'is_active', 'has_sticky_note', 'is_system', 'system_type', 'connection_type'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'has_sticky_note' => 'boolean',
         'is_system' => 'boolean',
         'sort_order' => 'integer',
     ];

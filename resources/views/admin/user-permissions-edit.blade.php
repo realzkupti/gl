@@ -47,7 +47,7 @@
     @endif
 
     <!-- Permission Form -->
-    <form method="POST" action="{{ route('admin.user-permissions.update', $user->id) }}">
+    <form id="permissionForm" method="POST" action="{{ route('admin.user-permissions.update', $user->id) }}">
         @csrf
         @method('PUT')
 
@@ -85,10 +85,16 @@
                         เลือกสิทธิ์สำหรับแต่ละเมนู (ถ้าไม่เลือก = ไม่มีสิทธิ์)
                     </div>
                     <div class="flex gap-2">
-                        <button type="button" id="selectAll" class="rounded-lg px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 shadow-sm transition">
+                        <button type="button" id="selectAll" class="rounded-lg px-5 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 shadow-md hover:shadow-lg transition-all border-2 border-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-700">
+                            <svg class="w-4 h-4 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
                             เลือกทั้งหมด
                         </button>
-                        <button type="button" id="deselectAll" class="rounded-lg px-4 py-2 text-sm font-medium text-brand-700 bg-brand-50 ring-1 ring-inset ring-brand-300 hover:bg-brand-100 transition dark:text-brand-300 dark:bg-brand-900/20 dark:ring-brand-800 dark:hover:bg-brand-900/30">
+                        <button type="button" id="deselectAll" class="rounded-lg px-5 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 shadow-md hover:shadow-lg transition-all border-2 border-gray-300 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-500">
+                            <svg class="w-4 h-4 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
                             ยกเลิกทั้งหมด
                         </button>
                     </div>
@@ -291,16 +297,22 @@
         </div>
 
         <!-- Action Buttons (Bottom) -->
-        <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 sticky bottom-0 bg-white dark:bg-gray-950 py-4 border-t-2 border-gray-200 dark:border-gray-700 -mx-4 px-4 md:-mx-6 md:px-6 2xl:-mx-10 2xl:px-10 z-20 shadow-lg">
             <button type="button" onclick="if(confirm('ยืนยันการล้างสิทธิ์ทั้งหมด?')) { document.getElementById('resetForm').submit(); }"
-                class="w-full sm:w-auto rounded-lg bg-red-100 hover:bg-red-200 px-6 py-3 text-red-700 font-medium transition dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40">
+                class="w-full sm:w-auto rounded-lg bg-red-100 hover:bg-red-200 px-6 py-3 text-red-700 font-semibold transition shadow-md hover:shadow-lg border-2 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50 dark:border-red-700">
+                <svg class="w-5 h-5 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
                 ล้างสิทธิ์ทั้งหมด
             </button>
             <div class="flex gap-3 w-full sm:w-auto">
-                <a href="{{ route('admin.user-permissions') }}" class="flex-1 sm:flex-none text-center rounded-lg bg-gray-200 hover:bg-gray-300 px-6 py-3 text-gray-700 font-medium transition dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                <a href="{{ route('admin.user-permissions') }}" class="flex-1 sm:flex-none text-center rounded-lg bg-gray-200 hover:bg-gray-300 px-6 py-3 text-gray-700 font-semibold transition shadow-md hover:shadow-lg border-2 border-gray-400 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:border-gray-500">
+                    <svg class="w-5 h-5 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
                     ยกเลิก
                 </a>
-                <button type="submit" class="flex-1 sm:flex-none rounded-lg bg-brand-600 hover:bg-brand-700 px-6 py-3 text-white font-medium shadow-sm transition flex items-center justify-center">
+                <button type="submit" id="savePermissionsBtn" class="flex-1 sm:flex-none rounded-lg bg-brand-600 hover:bg-brand-700 px-8 py-3 text-white font-bold shadow-lg hover:shadow-xl transition-all border-2 border-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-700 flex items-center justify-center">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
@@ -319,14 +331,115 @@
 
 @push('scripts')
 <script>
+// Select/Deselect All functionality
 document.getElementById('selectAll').addEventListener('click', function() {
     // Only select checkboxes in the default permissions table
     document.querySelectorAll('table input[type="checkbox"]').forEach(cb => cb.checked = true);
 });
+
 document.getElementById('deselectAll').addEventListener('click', function() {
     // Only deselect checkboxes in the default permissions table
     document.querySelectorAll('table input[type="checkbox"]').forEach(cb => cb.checked = false);
 });
+
+// Toast notification function
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+
+    toast.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-4 rounded-lg shadow-xl z-50 flex items-center gap-3 animate-slide-in`;
+    toast.innerHTML = `
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            ${type === 'success'
+                ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+                : type === 'error'
+                ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+                : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+            }
+        </svg>
+        <span class="font-medium">${message}</span>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Handle form submission with Fetch API
+document.getElementById('permissionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const form = this;
+    const submitBtn = document.getElementById('savePermissionsBtn');
+    const originalBtnHtml = submitBtn.innerHTML;
+
+    // Disable button and show loading
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `
+        <svg class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        กำลังบันทึก...
+    `;
+
+    // Prepare form data
+    const formData = new FormData(form);
+
+    // Send request
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || 'บันทึกสิทธิ์สำเร็จ', 'success');
+
+            // Reload page after short delay to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast(data.message || 'เกิดข้อผิดพลาด', 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+    });
+});
+
+// Add animation styles
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slide-in {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    .animate-slide-in {
+        animation: slide-in 0.3s ease-out;
+    }
+`;
+document.head.appendChild(style);
 </script>
 @endpush
 @endsection

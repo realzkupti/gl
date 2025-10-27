@@ -36,7 +36,6 @@ class UserPermissionController extends Controller
 
         // Show only active menus in permission editor
         $menus = Menu::where('is_active', true)
-            ->with('department')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
@@ -158,10 +157,26 @@ class UserPermissionController extends Controller
 
             DB::commit();
 
+            // Return JSON for AJAX requests
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'บันทึกสิทธิ์เรียบร้อยแล้ว'
+                ]);
+            }
+
             return redirect()->route('admin.user-permissions.edit', $userId)
                 ->with('status', 'บันทึกสิทธิ์เรียบร้อยแล้ว');
         } catch (\Exception $e) {
             DB::rollBack();
+
+            // Return JSON error for AJAX requests
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()
+                ], 500);
+            }
 
             return redirect()->back()
                 ->with('error', 'เกิดข้อผิดพลาด: ' . $e->getMessage())

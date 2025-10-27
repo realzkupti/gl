@@ -32,8 +32,9 @@ class CompanyController extends Controller
         $this->ensureAdmin();
 
         $data = $request->validate([
-            'key' => 'required|string|max:50|unique:pgsql.companies,key',
+            'key' => 'required|string|max:50|unique:pgsql.sys_companies,key',
             'label' => 'required|string|max:255',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'driver' => 'required|in:sqlsrv,mysql,pgsql',
             'host' => 'required|string|max:255',
             'port' => 'required|integer',
@@ -45,9 +46,16 @@ class CompanyController extends Controller
             'sort_order' => 'nullable|integer',
         ]);
 
-        Company::create([
+        // Handle logo upload
+        $logoPath = null;
+        if ($request->hasFile('logo')) {
+            $logoPath = $request->file('logo')->store('company-logos', 'public');
+        }
+
+        $company = Company::create([
             'key' => $data['key'],
             'label' => $data['label'],
+            'logo' => $logoPath,
             'driver' => $data['driver'],
             'host' => $data['host'],
             'port' => $data['port'],
@@ -60,6 +68,14 @@ class CompanyController extends Controller
             'is_active' => true,
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'เพิ่มบริษัทเรียบร้อยแล้ว',
+                'company' => $company
+            ]);
+        }
+
         return redirect()->route('admin.companies')->with('status', 'เพิ่มบริษัทเรียบร้อยแล้ว');
     }
 
@@ -70,8 +86,10 @@ class CompanyController extends Controller
         $company = Company::findOrFail($id);
 
         $data = $request->validate([
-            'key' => 'required|string|max:50|unique:pgsql.companies,key,' . $id,
+            'key' => 'required|string|max:50|unique:pgsql.sys_companies,key,' . $id,
             'label' => 'required|string|max:255',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'remove_logo' => 'nullable|in:0,1',
             'driver' => 'required|in:sqlsrv,mysql,pgsql',
             'host' => 'required|string|max:255',
             'port' => 'required|integer',
@@ -96,6 +114,22 @@ class CompanyController extends Controller
             'sort_order' => $data['sort_order'] ?? 0,
         ];
 
+        // Handle logo upload/removal
+        if ($request->input('remove_logo') == '1') {
+            // Remove old logo file if exists
+            if ($company->logo && \Storage::disk('public')->exists($company->logo)) {
+                \Storage::disk('public')->delete($company->logo);
+            }
+            $updateData['logo'] = null;
+        } elseif ($request->hasFile('logo')) {
+            // Delete old logo if exists
+            if ($company->logo && \Storage::disk('public')->exists($company->logo)) {
+                \Storage::disk('public')->delete($company->logo);
+            }
+            // Upload new logo
+            $updateData['logo'] = $request->file('logo')->store('company-logos', 'public');
+        }
+
         // Only update password if provided
         if (!empty($data['password'])) {
             $updateData['password'] = Crypt::encryptString($data['password']);
@@ -103,20 +137,35 @@ class CompanyController extends Controller
 
         $company->update($updateData);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'อัปเดตบริษัทเรียบร้อยแล้ว',
+                'company' => $company->fresh()
+            ]);
+        }
+
         return redirect()->route('admin.companies')->with('status', 'อัปเดตบริษัทเรียบร้อยแล้ว');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $this->ensureAdmin();
 
         $company = Company::findOrFail($id);
         $company->delete();
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'ลบบริษัทเรียบร้อยแล้ว'
+            ]);
+        }
+
         return redirect()->route('admin.companies')->with('status', 'ลบบริษัทเรียบร้อยแล้ว');
     }
 
-    public function toggle($id)
+    public function toggle(Request $request, $id)
     {
         $this->ensureAdmin();
 
@@ -125,33 +174,73 @@ class CompanyController extends Controller
         $company->save();
 
         $status = $company->is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $status . 'บริษัทเรียบร้อยแล้ว',
+                'company' => $company
+            ]);
+        }
+
         return redirect()->route('admin.companies')->with('status', $status . 'บริษัทเรียบร้อยแล้ว');
     }
 
-    public function testConnection($id)
+    public function testConnection(Request $request, $id)
     {
         $this->ensureAdmin();
 
         $company = Company::findOrFail($id);
 
         try {
+            // Try to decrypt password, if fails, use as plain text (for old data)
+            $password = '';
+            if (!empty($company->password)) {
+                try {
+                    $password = Crypt::decryptString($company->password);
+                } catch (\Exception $e) {
+                    // Password is not encrypted or corrupted, use as is
+                    \Log::warning("Could not decrypt password for company {$company->id}, using as plain text");
+                    $password = $company->password;
+                }
+            }
+
             $config = [
                 'driver' => $company->driver,
                 'host' => $company->host,
                 'port' => $company->port,
                 'database' => $company->database,
                 'username' => $company->username,
-                'password' => Crypt::decryptString($company->password),
+                'password' => $password,
                 'charset' => $company->charset ?? 'utf8',
                 'collation' => $company->collation,
             ];
 
             config(['database.connections.test_connection' => $config]);
             DB::connection('test_connection')->getPdo();
+            DB::purge('test_connection'); // Clean up
 
-            return redirect()->route('admin.companies')->with('status', '✓ เชื่อมต่อสำเร็จ: ' . $company->label);
+            $message = '✓ เชื่อมต่อสำเร็จ: ' . $company->label;
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message
+                ]);
+            }
+
+            return redirect()->route('admin.companies')->with('status', $message);
         } catch (\Exception $e) {
-            return redirect()->route('admin.companies')->with('error', '✗ เชื่อมต่อไม่สำเร็จ: ' . $e->getMessage());
+            $message = '✗ เชื่อมต่อไม่สำเร็จ: ' . $e->getMessage();
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message
+                ]);
+            }
+
+            return redirect()->route('admin.companies')->with('error', $message);
         }
     }
 

@@ -14,7 +14,7 @@ class Company extends Model
     protected $table = 'sys_companies';
 
     protected $fillable = [
-        'key', 'label', 'driver', 'host', 'port',
+        'key', 'label', 'logo', 'driver', 'host', 'port',
         'database', 'username', 'password', 'charset', 'collation', 'is_active', 'sort_order'
     ];
 

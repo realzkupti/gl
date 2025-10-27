@@ -36,6 +36,30 @@ class MenuController extends Controller
         ]);
     }
 
+    /**
+     * Display menus by system type with tabs
+     */
+    public function indexSystem(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $systemType = $request->get('system_type', 1); // Default to System
+
+        $menus = Menu::where('system_type', $systemType)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        // Get current menu for sticky note component
+        $currentMenu = Menu::where('route', 'admin.menus')->first();
+
+        return view('admin.menus-system', [
+            'menus' => $menus,
+            'systemType' => (int)$systemType,
+            'currentMenu' => $currentMenu,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $this->ensureAdmin();
@@ -54,6 +78,7 @@ class MenuController extends Controller
             'sort_order' => 'nullable|integer',
             'system_type' => 'nullable|integer|in:1,2',
             'connection_type' => 'nullable|string|in:pgsql,company',
+            'has_sticky_note' => 'nullable|boolean',
         ]);
 
         // Use Model to create menu
@@ -66,6 +91,7 @@ class MenuController extends Controller
             'sort_order' => $data['sort_order'] ?? 0,
             'system_type' => $data['system_type'] ?? 1,
             'connection_type' => $data['connection_type'] ?? 'pgsql',
+            'has_sticky_note' => $data['has_sticky_note'] ?? false,
             'is_active' => true,
         ]);
 
@@ -93,6 +119,7 @@ class MenuController extends Controller
             'system_type' => 'nullable|integer|in:1,2',
             'connection_type' => 'nullable|string|in:pgsql,company',
             'is_active' => 'boolean',
+            'has_sticky_note' => 'nullable|boolean',
         ]);
 
         $menu->update($data);
@@ -167,6 +194,7 @@ class MenuController extends Controller
             'system_type' => 'nullable|integer|in:1,2',
             'connection_type' => 'nullable|string|in:pgsql,company',
             'is_active' => 'boolean',
+            'has_sticky_note' => 'nullable|boolean',
         ]);
 
         $menu = Menu::create([
@@ -179,6 +207,7 @@ class MenuController extends Controller
             'system_type' => $data['system_type'] ?? 1,
             'connection_type' => $data['connection_type'] ?? 'pgsql',
             'is_active' => $data['is_active'] ?? true,
+            'has_sticky_note' => $data['has_sticky_note'] ?? false,
         ]);
 
         return response()->json([
@@ -204,6 +233,7 @@ class MenuController extends Controller
             'system_type' => 'nullable|integer|in:1,2',
             'connection_type' => 'nullable|string|in:pgsql,company',
             'is_active' => 'boolean',
+            'has_sticky_note' => 'nullable|boolean',
         ]);
 
         $menu->update($data);
@@ -211,7 +241,7 @@ class MenuController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'อัปเดตเมนูสำเร็จ',
-            'menu' => $menu
+            'menu' => $menu->fresh()
         ]);
     }
 

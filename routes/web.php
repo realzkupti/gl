@@ -13,7 +13,7 @@ use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\CompanyController;
 
 
-Route::get('/', [HomeController::class, 'index'])->middleware(['company.connection'])->name('home');
+Route::get('/', [HomeController::class, 'index'])->middleware(['auth', 'company.connection'])->name('home');
 Route::get('teset', function () {
     return view('debug-menus');
 });// Debug route - remove in production
@@ -29,7 +29,7 @@ Route::get('/check-schema', function () {
 Route::get('admin/dashboard-demo', [HomeController::class, 'dashboardDemo'])->middleware(['company.connection'])->name('admin.dashboard.demo');
 
 // TailAdmin Pages
-Route::prefix('tailadmin')->name('tailadmin.')->middleware(['company.connection'])->group(function () {
+Route::prefix('tailadmin')->name('tailadmin.')->middleware(['auth', 'company.connection'])->group(function () {
     Route::get('dashboard', [HomeController::class, 'tailadminDashboard'])->name('dashboard');
     Route::get('analytics', [TailAdminController::class, 'analytics'])->name('analytics');
     Route::get('alerts', [TailAdminController::class, 'alerts'])->name('alerts');
@@ -118,9 +118,17 @@ Route::post('api/branches', [ChequeApiController::class, 'branchesStore'])
 Route::delete('api/branches/{code}', [ChequeApiController::class, 'branchesDestroy'])
     ->middleware(['auth','menu:cheque,view']); // Changed from 'delete' to 'view'
 
-// Admin: mock user/permission management UI
+// Admin: User management
 Route::middleware(['auth'])->group(function(){
-    Route::get('admin/users', [UserPermissionController::class, 'index'])->name('admin.users');
+    // User management (with tabs: active/pending)
+    Route::get('admin/users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('admin.users');
+    Route::get('admin/users/counts', [\App\Http\Controllers\Admin\UserController::class, 'getCounts'])->name('admin.users.counts');
+    Route::post('admin/users', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('admin.users.store');
+    Route::put('admin/users/{id}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('admin.users.update');
+    Route::delete('admin/users/{id}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('admin.users.destroy');
+    Route::post('admin/users/{id}/approve', [\App\Http\Controllers\Admin\UserController::class, 'approve'])->name('admin.users.approve');
+    Route::delete('admin/users/{id}/reject', [\App\Http\Controllers\Admin\UserController::class, 'reject'])->name('admin.users.reject');
+    Route::patch('admin/users/{id}/toggle', [\App\Http\Controllers\Admin\UserController::class, 'toggle'])->name('admin.users.toggle');
 
     // Admin: Menus API (JSON responses for AJAX) - MUST come BEFORE traditional routes!
     Route::get('admin/menus/list', [MenuController::class, 'list'])->name('admin.menus.list');
@@ -133,11 +141,11 @@ Route::middleware(['auth'])->group(function(){
     // Admin: Menus CRUD (traditional form-based) - MUST come AFTER API routes!
     Route::get('admin/menus-card', [MenuController::class, 'index'])->name('admin.menus.card');
     Route::get('admin/menus2', [MenuController::class, 'menus2'])->name('admin.menus2');
-    Route::get('admin/menus', function() {
-        $menus = \App\Models\Menu::with('department')->orderBy('sort_order')->orderBy('id')->get();
-        $departments = \App\Models\Department::orderBy('sort_order')->get();
-        return view('admin.menus-simple', compact('menus', 'departments'));
-    })->name('admin.menus');
+
+    // New system-based menu management (Phase 6)
+    Route::get('admin/menus', [MenuController::class, 'indexSystem'])->name('admin.menus');
+    Route::get('admin/menus/system', [MenuController::class, 'indexSystem'])->name('admin.menus.system');
+
     Route::post('admin/menus', [MenuController::class, 'store'])->name('admin.menus.store');
     Route::put('admin/menus/{id}', [MenuController::class, 'update'])->name('admin.menus.update');
     Route::patch('admin/menus/{id}/toggle', [MenuController::class, 'toggle'])->name('admin.menus.toggle');
@@ -168,6 +176,16 @@ Route::middleware(['auth'])->group(function(){
     Route::patch('admin/companies/{id}/toggle', [CompanyController::class, 'toggle'])->name('admin.companies.toggle');
     Route::post('admin/companies/{id}/test', [CompanyController::class, 'testConnection'])->name('admin.companies.test');
     Route::delete('admin/companies/{id}', [CompanyController::class, 'destroy'])->name('admin.companies.destroy');
+
+    // Sticky Notes API
+    Route::get('api/sticky-notes', [\App\Http\Controllers\StickyNoteController::class, 'index'])->name('api.sticky-notes.index');
+    Route::get('api/sticky-notes/trash', [\App\Http\Controllers\StickyNoteController::class, 'trash'])->name('api.sticky-notes.trash');
+    Route::post('api/sticky-notes', [\App\Http\Controllers\StickyNoteController::class, 'store'])->name('api.sticky-notes.store');
+    Route::put('api/sticky-notes/{id}', [\App\Http\Controllers\StickyNoteController::class, 'update'])->name('api.sticky-notes.update');
+    Route::delete('api/sticky-notes/{id}', [\App\Http\Controllers\StickyNoteController::class, 'destroy'])->name('api.sticky-notes.destroy');
+    Route::post('api/sticky-notes/{id}/restore', [\App\Http\Controllers\StickyNoteController::class, 'restore'])->name('api.sticky-notes.restore');
+    Route::delete('api/sticky-notes/{id}/force', [\App\Http\Controllers\StickyNoteController::class, 'forceDelete'])->name('api.sticky-notes.force-delete');
+    Route::post('api/sticky-notes/bulk-update', [\App\Http\Controllers\StickyNoteController::class, 'bulkUpdate'])->name('api.sticky-notes.bulk-update');
 
     // Company Switching API
     Route::post('admin/companies/switch', [CompanyController::class, 'switchCompany'])->name('admin.companies.switch');

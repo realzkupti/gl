@@ -161,7 +161,12 @@ class User extends Authenticatable
      */
     public function getCurrentCompany()
     {
-        return session('current_company');
+        $companyId = session('current_company_id');
+        if (!$companyId) {
+            return null;
+        }
+
+        return Company::find($companyId);
     }
 
     /**
@@ -173,8 +178,7 @@ class User extends Authenticatable
             return false;
         }
 
-        $company = Company::find($companyId);
-        session(['current_company' => $company]);
+        session(['current_company_id' => $companyId]);
         return true;
     }
 }

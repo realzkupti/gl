@@ -49,14 +49,19 @@ class TrialBalanceController extends Controller
 
             $rows = TrialBalance::processTrialBalanceData($movementRows, $openingRows);
 
+            $currentMenu = \App\Models\Menu::where('route', 'trial-balance.plain')->first();
+
             return view('trial_balance_plain', [
                 'rows' => $rows,
                 'periods' => TrialBalance::getGLPeriods(),
                 'selectedPeriod' => $period,
                 'companies' => \App\Services\CompanyManager::listCompanies(),
                 'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
+                'currentMenu' => $currentMenu,
             ]);
         } catch (\Throwable $e) {
+            $currentMenu = \App\Models\Menu::where('route', 'trial-balance.plain')->first();
+
             return view('trial_balance_plain', [
                 'rows' => [],
                 'periods' => [],
@@ -64,6 +69,7 @@ class TrialBalanceController extends Controller
                 'error' => 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้',
                 'companies' => \App\Services\CompanyManager::listCompanies(),
                 'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
+                'currentMenu' => $currentMenu,
             ]);
         }
     }
@@ -296,12 +302,14 @@ class TrialBalanceController extends Controller
         }
 
         $page = 'trial-balance'; // For active menu state
+        $currentMenu = \App\Models\Menu::where('route', 'trial-balance.branch')->first();
 
         return view('tailadmin.pages.trial-balance', [
             'periods' => $periods,
             'selectedPeriodKey' => $selected,
             'branches' => $branches,
             'page' => $page,
+            'currentMenu' => $currentMenu,
         ]);
     }
 

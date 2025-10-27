@@ -113,25 +113,16 @@ class Perm
 
             if ($isAdmin) {
                 // Admin sees all active menus
-                $query = $conn->table('sys_menus as m')
-                    ->leftJoin('sys_departments as d', 'd.id', '=', 'm.department_id')
+                $menus = $conn->table('sys_menus as m')
                     ->where('m.is_active', true)
-                    ->where(function($q) {
-                        $q->where('d.is_active', true)
-                          ->orWhereNull('d.id');
-                    });
-
-                if ($departmentKey !== null) {
-                    $query->where('d.key', $departmentKey);
-                }
-
-                $menus = $query->select(
-                    'm.id', 'm.key', 'm.label', 'm.route', 'm.url', 'm.icon',
-                    'm.parent_id', 'm.sort_order', 'm.connection_type',
-                    'd.key as department_key', 'd.label as department_label',
-                    'd.sort_order as dept_sort_order'
-                )
-                    ->orderBy('dept_sort_order')
+                    ->select(
+                        'm.id', 'm.key', 'm.label', 'm.route', 'm.url', 'm.icon',
+                        'm.parent_id', 'm.sort_order', 'm.connection_type', 'm.system_type',
+                        DB::raw("CASE WHEN m.system_type = 1 THEN 'ระบบ' WHEN m.system_type = 2 THEN 'Bplus' ELSE 'เมนู' END as department_label"),
+                        DB::raw("CASE WHEN m.system_type = 1 THEN 'system' WHEN m.system_type = 2 THEN 'bplus' ELSE 'default' END as department_key"),
+                        DB::raw("m.system_type as dept_sort_order")
+                    )
+                    ->orderBy('m.system_type')
                     ->orderBy('m.sort_order')
                     ->orderBy('m.id')
                     ->get();
@@ -174,27 +165,18 @@ class Perm
                 }
 
                 // ดึงเมนูที่ผู้ใช้มีสิทธิ์ดู
-                $query = $conn->table('sys_menus as m')
-                    ->leftJoin('sys_departments as d', 'd.id', '=', 'm.department_id')
+                $menus = $conn->table('sys_menus as m')
                     ->whereIn('m.id', $menuIds->unique()->all())
                     ->where('m.is_active', true)
-                    ->where(function($q) {
-                        $q->where('d.is_active', true)
-                          ->orWhereNull('d.id');
-                    });
-
-                if ($departmentKey !== null) {
-                    $query->where('d.key', $departmentKey);
-                }
-
-                $menus = $query->select(
-                    'm.id', 'm.key', 'm.label', 'm.route', 'm.url', 'm.icon',
-                    'm.parent_id', 'm.sort_order', 'm.connection_type',
-                    'd.key as department_key', 'd.label as department_label',
-                    'd.sort_order as dept_sort_order'
-                )
+                    ->select(
+                        'm.id', 'm.key', 'm.label', 'm.route', 'm.url', 'm.icon',
+                        'm.parent_id', 'm.sort_order', 'm.connection_type', 'm.system_type',
+                        DB::raw("CASE WHEN m.system_type = 1 THEN 'ระบบ' WHEN m.system_type = 2 THEN 'Bplus' ELSE 'เมนู' END as department_label"),
+                        DB::raw("CASE WHEN m.system_type = 1 THEN 'system' WHEN m.system_type = 2 THEN 'bplus' ELSE 'default' END as department_key"),
+                        DB::raw("m.system_type as dept_sort_order")
+                    )
                     ->distinct()
-                    ->orderBy('dept_sort_order')
+                    ->orderBy('m.system_type')
                     ->orderBy('m.sort_order')
                     ->orderBy('m.id')
                     ->get();
