@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasUserTracking;
 
 class Company extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUserTracking;
 
     protected $connection = 'pgsql';
     protected $table = 'sys_companies';

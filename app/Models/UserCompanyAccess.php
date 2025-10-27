@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Traits\HasUserTracking;
 
 class UserCompanyAccess extends Model
 {
+    use HasUserTracking;
+
     protected $connection = 'pgsql';
     protected $table = 'sys_user_company_access';
 

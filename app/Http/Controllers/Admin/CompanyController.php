@@ -154,4 +154,57 @@ class CompanyController extends Controller
             return redirect()->route('admin.companies')->with('error', '✗ เชื่อมต่อไม่สำเร็จ: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Switch current company in session
+     */
+    public function switchCompany(Request $request)
+    {
+        if (!Auth::check()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'company_id' => 'required|integer|exists:pgsql.sys_companies,id',
+        ]);
+
+        $company = Company::findOrFail($request->company_id);
+
+        // Check if user has access to this company
+        if (!Auth::user()->hasAccessToCompany($company->id)) {
+            return response()->json(['success' => false, 'message' => 'No access to this company'], 403);
+        }
+
+        // Store company ID in session
+        session(['current_company_id' => $company->id]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'สลับบริษัทเป็น: ' . $company->label,
+            'company' => [
+                'id' => $company->id,
+                'key' => $company->key,
+                'label' => $company->label,
+            ]
+        ]);
+    }
+
+    /**
+     * Get list of companies user has access to
+     */
+    public function getAccessibleCompanies()
+    {
+        if (!Auth::check()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $companies = Auth::user()->getAccessibleCompanies();
+        $currentCompanyId = session('current_company_id');
+
+        return response()->json([
+            'success' => true,
+            'companies' => $companies,
+            'current_company_id' => $currentCompanyId,
+        ]);
+    }
 }

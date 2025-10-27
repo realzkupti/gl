@@ -124,14 +124,20 @@ Route::middleware(['auth'])->group(function(){
 
     // Admin: Menus API (JSON responses for AJAX) - MUST come BEFORE traditional routes!
     Route::get('admin/menus/list', [MenuController::class, 'list'])->name('admin.menus.list');
+    Route::post('admin/menus/reorder', [MenuController::class, 'reorder'])->name('admin.menus.reorder');
     Route::post('admin/menus/api', [MenuController::class, 'storeApi'])->name('admin.menus.store.api');
     Route::put('admin/menus/api/{id}', [MenuController::class, 'updateApi'])->name('admin.menus.update.api');
     Route::delete('admin/menus/api/{id}', [MenuController::class, 'destroyApi'])->name('admin.menus.destroy.api');
     Route::patch('admin/menus/api/{id}/toggle', [MenuController::class, 'toggleApi'])->name('admin.menus.toggle.api');
 
     // Admin: Menus CRUD (traditional form-based) - MUST come AFTER API routes!
+    Route::get('admin/menus-card', [MenuController::class, 'index'])->name('admin.menus.card');
     Route::get('admin/menus2', [MenuController::class, 'menus2'])->name('admin.menus2');
-    Route::get('admin/menus', [MenuController::class, 'index'])->name('admin.menus');
+    Route::get('admin/menus', function() {
+        $menus = \App\Models\Menu::with('department')->orderBy('sort_order')->orderBy('id')->get();
+        $departments = \App\Models\Department::orderBy('sort_order')->get();
+        return view('admin.menus-simple', compact('menus', 'departments'));
+    })->name('admin.menus');
     Route::post('admin/menus', [MenuController::class, 'store'])->name('admin.menus.store');
     Route::put('admin/menus/{id}', [MenuController::class, 'update'])->name('admin.menus.update');
     Route::patch('admin/menus/{id}/toggle', [MenuController::class, 'toggle'])->name('admin.menus.toggle');
@@ -162,6 +168,10 @@ Route::middleware(['auth'])->group(function(){
     Route::patch('admin/companies/{id}/toggle', [CompanyController::class, 'toggle'])->name('admin.companies.toggle');
     Route::post('admin/companies/{id}/test', [CompanyController::class, 'testConnection'])->name('admin.companies.test');
     Route::delete('admin/companies/{id}', [CompanyController::class, 'destroy'])->name('admin.companies.destroy');
+
+    // Company Switching API
+    Route::post('admin/companies/switch', [CompanyController::class, 'switchCompany'])->name('admin.companies.switch');
+    Route::get('admin/companies/accessible', [CompanyController::class, 'getAccessibleCompanies'])->name('admin.companies.accessible');
 
     // Admin: User Menu Permissions (รายคน)
     Route::get('admin/user-permissions', [UserPermissionController::class, 'index'])->name('admin.user-permissions');

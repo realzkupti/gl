@@ -11,7 +11,7 @@ class MenuController extends Controller
 {
     protected function ensureAdmin(): void
     {
-        if (!Auth::check() || (Auth::user()->email ?? '') !== 'admin@local') {
+        if (!Auth::check() ) {
             abort(403, 'Forbidden');
         }
     }
@@ -21,17 +21,29 @@ class MenuController extends Controller
         $this->ensureAdmin();
 
         // Use Model instead of Query Builder
-        $menus = Menu::orderBy('sort_order')->orderBy('id')->get();
+        $menus = Menu::with('systemType')->orderBy('sort_order')->orderBy('id')->get();
+
+        // Create system types for tabs (not using departments table)
+        $systemTypes = [
+            ['id' => 1, 'key' => 'system', 'label' => 'System'],
+            ['id' => 2, 'key' => 'bplus', 'label' => 'Bplus'],
+        ];
 
         // Render the fully JS-driven view
         return view('admin.menus', [
             'menus' => $menus,
+            'systemTypes' => $systemTypes,
         ]);
     }
 
     public function store(Request $request)
     {
         $this->ensureAdmin();
+
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return $this->storeApi($request);
+        }
 
         $data = $request->validate([
             'key' => 'required|string|max:100|unique:pgsql.sys_menus,key',
@@ -40,7 +52,7 @@ class MenuController extends Controller
             'icon' => 'nullable|string|max:255',
             'parent_id' => 'nullable|integer|exists:pgsql.sys_menus,id',
             'sort_order' => 'nullable|integer',
-            'department_id' => 'nullable|integer|exists:pgsql.sys_departments,id',
+            'system_type' => 'nullable|integer|in:1,2',
             'connection_type' => 'nullable|string|in:pgsql,company',
         ]);
 
@@ -52,7 +64,7 @@ class MenuController extends Controller
             'icon' => $data['icon'] ?? null,
             'parent_id' => $data['parent_id'] ?? null,
             'sort_order' => $data['sort_order'] ?? 0,
-            'department_id' => $data['department_id'] ?? null,
+            'system_type' => $data['system_type'] ?? 1,
             'connection_type' => $data['connection_type'] ?? 'pgsql',
             'is_active' => true,
         ]);
@@ -64,6 +76,11 @@ class MenuController extends Controller
     {
         $this->ensureAdmin();
 
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return $this->updateApi($request, $id);
+        }
+
         $menu = Menu::findOrFail($id);
 
         $data = $request->validate([
@@ -71,9 +88,10 @@ class MenuController extends Controller
             'label' => 'required|string|max:255',
             'route' => 'nullable|string|max:255',
             'icon' => 'nullable|string|max:255',
-            'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
+            'parent_id' => 'nullable|integer|exists:pgsql.sys_menus,id',
             'sort_order' => 'nullable|integer',
-            'menu_group_id' => 'nullable|integer|exists:pgsql.menu_groups,id',
+            'system_type' => 'nullable|integer|in:1,2',
+            'connection_type' => 'nullable|string|in:pgsql,company',
             'is_active' => 'boolean',
         ]);
 
@@ -82,9 +100,14 @@ class MenuController extends Controller
         return redirect()->route('admin.menus')->with('status', 'อัปเดตเมนูแล้ว');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $this->ensureAdmin();
+
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return $this->destroyApi($id);
+        }
 
         $menu = Menu::findOrFail($id);
 
@@ -99,9 +122,14 @@ class MenuController extends Controller
         return redirect()->route('admin.menus')->with('status', 'ลบเมนูแล้ว');
     }
 
-    public function toggle($id)
+    public function toggle(Request $request, $id)
     {
         $this->ensureAdmin();
+
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return $this->toggleApi($id);
+        }
 
         $menu = Menu::findOrFail($id);
         $menu->is_active = !$menu->is_active;
@@ -117,11 +145,11 @@ class MenuController extends Controller
     {
         $this->ensureAdmin();
 
-        $menus = Menu::orderBy('sort_order')->orderBy('id')->get();
+        $menus = Menu::with('systemType')->orderBy('sort_order')->orderBy('id')->get();
 
         return response()->json([
             'success' => true,
-            'menus' => $menus
+            'data' => $menus
         ]);
     }
 
@@ -136,7 +164,7 @@ class MenuController extends Controller
             'icon' => 'nullable|string|max:255',
             'parent_id' => 'nullable|integer|exists:pgsql.sys_menus,id',
             'sort_order' => 'nullable|integer',
-            'department_id' => 'nullable|integer|exists:pgsql.sys_departments,id',
+            'system_type' => 'nullable|integer|in:1,2',
             'connection_type' => 'nullable|string|in:pgsql,company',
             'is_active' => 'boolean',
         ]);
@@ -148,7 +176,7 @@ class MenuController extends Controller
             'icon' => $data['icon'] ?? null,
             'parent_id' => $data['parent_id'] ?? null,
             'sort_order' => $data['sort_order'] ?? 0,
-            'department_id' => $data['department_id'] ?? null,
+            'system_type' => $data['system_type'] ?? 1,
             'connection_type' => $data['connection_type'] ?? 'pgsql',
             'is_active' => $data['is_active'] ?? true,
         ]);
@@ -171,9 +199,10 @@ class MenuController extends Controller
             'label' => 'required|string|max:255',
             'route' => 'nullable|string|max:255',
             'icon' => 'nullable|string|max:255',
-            'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
+            'parent_id' => 'nullable|integer|exists:pgsql.sys_menus,id',
             'sort_order' => 'nullable|integer',
-            'menu_group_id' => 'nullable|integer|exists:pgsql.menu_groups,id',
+            'system_type' => 'nullable|integer|in:1,2',
+            'connection_type' => 'nullable|string|in:pgsql,company',
             'is_active' => 'boolean',
         ]);
 
@@ -183,6 +212,26 @@ class MenuController extends Controller
             'success' => true,
             'message' => 'อัปเดตเมนูสำเร็จ',
             'menu' => $menu
+        ]);
+    }
+
+    public function reorder(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $request->validate([
+            'order' => 'required|array',
+            'order.*.id' => 'required|integer|exists:pgsql.sys_menus,id',
+            'order.*.sort_order' => 'required|integer',
+        ]);
+
+        foreach ($request->order as $item) {
+            Menu::where('id', $item['id'])->update(['sort_order' => $item['sort_order']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'อัพเดตลำดับสำเร็จ'
         ]);
     }
 

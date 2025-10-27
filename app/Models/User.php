@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use App\Traits\HasUserTracking;
 
 class User extends Authenticatable
 {
@@ -15,7 +16,7 @@ class User extends Authenticatable
     protected $table = 'sys_users';
 
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasUserTracking;
 
     /**
      * The attributes that are mass assignable.
@@ -98,5 +99,82 @@ class User extends Authenticatable
     public function hasCompanyAccess(int $companyId): bool
     {
         return $this->companies()->where('company_id', $companyId)->exists();
+    }
+
+    /**
+     * Get all accessible menus for this user
+     * Combines department permissions + user-specific permissions
+     */
+    public function getAccessibleMenus()
+    {
+        // ถ้าไม่มีแผนก → ไม่มีสิทธิ์
+        if (!$this->department_id) {
+            return collect([]);
+        }
+
+        // สิทธิ์จากแผนก
+        $departmentMenuIds = \App\Models\DepartmentMenuPermission::where('department_id', $this->department_id)
+            ->pluck('menu_id');
+
+        // สิทธิ์เพิ่มเติมของ user
+        $userMenuIds = $this->menuPermissions()->pluck('menu_id');
+
+        // รวมกัน
+        $allMenuIds = $departmentMenuIds->merge($userMenuIds)->unique();
+
+        return Menu::whereIn('id', $allMenuIds)
+            ->active()
+            ->orderBy('sort_order')
+            ->get();
+    }
+
+    /**
+     * Check if user has access to specific menu by route name
+     */
+    public function hasMenuAccess($routeName): bool
+    {
+        $menu = Menu::where('route', $routeName)->first();
+        if (!$menu) return true; // ถ้าไม่มีเมนูนี้ → อนุญาต
+
+        $accessibleMenuIds = $this->getAccessibleMenus()->pluck('id');
+        return $accessibleMenuIds->contains($menu->id);
+    }
+
+    /**
+     * Get all accessible companies for this user
+     */
+    public function getAccessibleCompanies()
+    {
+        return $this->companies;
+    }
+
+    /**
+     * Check if user has access to specific company
+     */
+    public function hasAccessToCompany($companyId): bool
+    {
+        return $this->companies()->where('companies.id', $companyId)->exists();
+    }
+
+    /**
+     * Get current company from session
+     */
+    public function getCurrentCompany()
+    {
+        return session('current_company');
+    }
+
+    /**
+     * Set current company in session
+     */
+    public function setCurrentCompany($companyId): bool
+    {
+        if (!$this->hasAccessToCompany($companyId)) {
+            return false;
+        }
+
+        $company = Company::find($companyId);
+        session(['current_company' => $company]);
+        return true;
     }
 }

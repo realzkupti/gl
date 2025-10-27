@@ -4,11 +4,9 @@
     @click.outside="sidebarToggle = false"
 >
     <!-- SIDEBAR HEADER -->
-    <div
-        :class="sidebarToggle ? 'justify-center' : 'justify-between'"
-        class="sidebar-header flex items-center gap-2 pt-8 pb-7"
-    >
-        <a href="{{ route('tailadmin.dashboard') }}">
+    <div class="sidebar-header flex flex-col gap-3 pt-8 pb-7">
+        <!-- Logo -->
+        <a href="{{ route('tailadmin.dashboard') }}" class="flex items-center justify-center">
             <span class="logo" :class="sidebarToggle ? 'hidden' : ''">
                 <img class="dark:hidden" src="{{ asset('tailadmin/src/images/logo/logo.svg') }}" alt="Logo" />
                 <img
@@ -25,6 +23,29 @@
                 alt="Logo"
             />
         </a>
+
+        <!-- Current Company Display (Only for Bplus system users) -->
+        @php
+            $currentCompany = auth()->user()?->getCurrentCompany();
+        @endphp
+        @if($currentCompany)
+            <button
+                onclick="companySwitcher.openModal()"
+                class="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                :class="sidebarToggle ? 'hidden xl:flex xl:justify-center' : ''"
+            >
+                <svg class="w-5 h-5 text-brand-600 dark:text-brand-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+                <div class="flex-1 text-left" :class="sidebarToggle ? 'xl:hidden' : ''">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">บริษัทปัจจุบัน</div>
+                    <div class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ $currentCompany->label }}</div>
+                </div>
+                <svg class="w-4 h-4 text-gray-400" :class="sidebarToggle ? 'xl:hidden' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+                </svg>
+            </button>
+        @endif
     </div>
     <!-- SIDEBAR HEADER -->
 

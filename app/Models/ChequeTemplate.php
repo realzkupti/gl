@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasUserTracking;
 
 /**
  * ChequeTemplate Model
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ChequeTemplate extends Model
 {
+    use HasUserTracking;
+
     protected $connection = 'pgsql';
     protected $table = 'sys_cheque_templates';
 

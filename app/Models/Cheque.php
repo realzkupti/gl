@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasUserTracking;
 
 /**
  * Cheque Model
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Cheque extends Model
 {
+    use HasUserTracking;
+
     /**
      * The connection name for the model.
      *

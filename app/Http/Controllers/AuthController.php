@@ -69,8 +69,8 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            // Pin to pgsql connection explicitly to avoid company_default
-            'email' => 'required|email|max:255|unique:pgsql.users,email',
+            // Use sys_users on pgsql (tables were renamed with sys_ prefix)
+            'email' => 'required|email|max:255|unique:pgsql.sys_users,email',
             'password' => 'required|string|min:6|confirmed',
         ]);
 

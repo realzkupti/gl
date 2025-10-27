@@ -6,16 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Traits\HasUserTracking;
 
 class Menu extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUserTracking;
 
     protected $connection = 'pgsql';
     protected $table = 'sys_menus';
 
     protected $fillable = [
-        'key', 'label', 'route', 'url', 'icon', 'parent_id', 'sort_order', 'is_active', 'is_system', 'department_id', 'connection_type'
+        'key', 'label', 'route', 'url', 'icon', 'parent_id', 'sort_order', 'is_active', 'is_system', 'system_type', 'connection_type'
     ];
 
     protected $casts = [
@@ -85,11 +86,51 @@ class Menu extends Model
     }
 
     /**
-     * Department relationship
+     * System Type relationship (renamed from department)
      */
-    public function department()
+    public function systemType(): BelongsTo
     {
-        return $this->belongsTo(Department::class, 'department_id');
+        return $this->belongsTo(Department::class, 'system_type');
+    }
+
+    /**
+     * Scope for System menus
+     */
+    public function scopeSystem($query)
+    {
+        return $query->where('system_type', 1);
+    }
+
+    /**
+     * Scope for Bplus menus
+     */
+    public function scopeBplus($query)
+    {
+        return $query->where('system_type', 2);
+    }
+
+    /**
+     * Scope for active menus
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope for parent menus only
+     */
+    public function scopeParents($query)
+    {
+        return $query->whereNull('parent_id');
+    }
+
+    /**
+     * Get system type name
+     */
+    public function getSystemTypeNameAttribute(): string
+    {
+        return $this->system_type == 1 ? 'ระบบ' : 'Bplus';
     }
 }
 

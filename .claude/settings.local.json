@@ -9,7 +9,9 @@
       "Bash(php -r:*)",
       "Bash(php create_companies_view.php:*)",
       "Bash(php -l:*)",
-      "Bash(composer show:*)"
+      "Bash(composer show:*)",
+      "Bash(npm run build:*)",
+      "Read(//d/**)"
     ],
     "deny": [],
     "ask": []
