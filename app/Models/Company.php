@@ -10,7 +10,7 @@ class Company extends Model
     use HasFactory;
 
     protected $connection = 'pgsql';
-    protected $table = 'companies';
+    protected $table = 'sys_companies';
 
     protected $fillable = [
         'key', 'label', 'driver', 'host', 'port',

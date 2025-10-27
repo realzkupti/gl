@@ -14,7 +14,7 @@ class UserPermissionController extends Controller
 {
     protected function ensureAdmin()
     {
-        if (!Auth::check() || Auth::user()->email !== 'admin@local') {
+        if (!Auth::check()) {
             abort(403, 'Unauthorized');
         }
     }
@@ -23,7 +23,7 @@ class UserPermissionController extends Controller
     {
         $this->ensureAdmin();
 
-        $users = User::orderBy('name')->get();
+        $users = User::with('department')->orderBy('name')->get();
 
         return view('admin.user-permissions', compact('users'));
     }
@@ -32,10 +32,11 @@ class UserPermissionController extends Controller
     {
         $this->ensureAdmin();
 
-        $user = User::findOrFail($userId);
+        $user = User::with('department')->findOrFail($userId);
 
-        // Get all active menus from database
+        // Show only active menus in permission editor
         $menus = Menu::where('is_active', true)
+            ->with('department')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
@@ -46,28 +47,25 @@ class UserPermissionController extends Controller
             ->orderBy('id')
             ->get();
 
-        // Get user's current permissions
+        // Get user's current permissions (user-specific)
         $conn = DB::connection('pgsql');
 
-        // First get user's roles
-        $userRoles = $conn->table('user_roles')
+        $userPermissions = $conn->table('sys_user_menu_permissions')
             ->where('user_id', $userId)
-            ->pluck('role_id');
+            ->get()
+            ->keyBy('menu_id');
 
-        // Get all permissions for these roles
-        $permissions = collect();
-        if ($userRoles->isNotEmpty()) {
-            $rolePermissions = $conn->table('role_menu_permissions')
-                ->whereIn('role_id', $userRoles)
-                ->get();
-
-            foreach ($rolePermissions as $perm) {
-                $permissions->put($perm->menu_id, $perm);
-            }
+        // Get department's permissions (as reference)
+        $departmentPermissions = collect();
+        if ($user->department_id) {
+            $departmentPermissions = $conn->table('sys_department_menu_permissions')
+                ->where('department_id', $user->department_id)
+                ->get()
+                ->keyBy('menu_id');
         }
 
-        // Get user's BPLUS company access
-        $userCompanyAccess = $conn->table('user_menu_company_access')
+        // Get user's company access
+        $userCompanyAccess = $conn->table('sys_user_menu_company_access')
             ->where('user_id', $userId)
             ->get()
             ->groupBy('menu_id')
@@ -75,83 +73,100 @@ class UserPermissionController extends Controller
                 return $items->pluck('company_id')->toArray();
             });
 
-        return view('admin.user-permissions-edit', compact('user', 'menus', 'permissions', 'companies', 'userCompanyAccess'));
+        return view('admin.user-permissions-edit', compact(
+            'user',
+            'menus',
+            'userPermissions',
+            'departmentPermissions',
+            'companies',
+            'userCompanyAccess'
+        ));
     }
 
     public function update(Request $request, $userId)
     {
         $this->ensureAdmin();
 
-        $user = User::findOrFail($userId);
+        User::findOrFail($userId); // Validate user exists
         $conn = DB::connection('pgsql');
 
-        // Get user's role (we'll use first role for simplicity, or create one if doesn't exist)
-        $userRole = $conn->table('user_roles')->where('user_id', $userId)->first();
+        DB::beginTransaction();
+        try {
+            // Clear existing user-specific permissions
+            $conn->table('sys_user_menu_permissions')->where('user_id', $userId)->delete();
 
-        if (!$userRole) {
-            // Create a personal role for this user
-            $roleId = $conn->table('roles')->insertGetId([
-                'name' => 'user_' . $userId,
-                'description' => 'Personal role for ' . $user->name,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Insert new permissions
+            $permissionsData = $request->input('permissions', []);
 
-            $conn->table('user_roles')->insert([
-                'user_id' => $userId,
-                'role_id' => $roleId,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            foreach ($permissionsData as $perm) {
+                if (empty($perm['menu_id'])) continue;
 
-            $userRole = (object)['role_id' => $roleId];
-        }
+                // ถ้าไม่มีสิทธิ์อะไรเลย ข้าม (ใช้สิทธิ์แผนกแทน)
+                $hasAnyPermission = !empty($perm['can_view']) ||
+                                   !empty($perm['can_create']) ||
+                                   !empty($perm['can_update']) ||
+                                   !empty($perm['can_delete']) ||
+                                   !empty($perm['can_export']) ||
+                                   !empty($perm['can_approve']);
 
-        $roleId = $userRole->role_id;
+                if (!$hasAnyPermission) continue;
 
-        // Clear existing permissions for this role
-        $conn->table('role_menu_permissions')->where('role_id', $roleId)->delete();
-
-        // Insert new permissions
-        $permissionsData = $request->input('permissions', []);
-
-        foreach ($permissionsData as $perm) {
-            if (empty($perm['menu_id'])) continue;
-
-            $conn->table('role_menu_permissions')->insert([
-                'role_id' => $roleId,
-                'menu_id' => $perm['menu_id'],
-                'can_view' => !empty($perm['can_view']),
-                'can_create' => !empty($perm['can_create']),
-                'can_update' => !empty($perm['can_update']),
-                'can_delete' => !empty($perm['can_delete']),
-                'can_export' => !empty($perm['can_export']),
-                'can_approve' => !empty($perm['can_approve']),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
-
-        // Handle BPLUS company access
-        $conn->table('user_menu_company_access')->where('user_id', $userId)->delete();
-        $bplusCompanyAccess = $request->input('bplus_company_access', []);
-
-        foreach ($bplusCompanyAccess as $menuId => $companyIds) {
-            if (empty($companyIds)) continue;
-
-            foreach ($companyIds as $companyId) {
-                $conn->table('user_menu_company_access')->insert([
+                $conn->table('sys_user_menu_permissions')->insert([
                     'user_id' => $userId,
-                    'menu_id' => $menuId,
+                    'menu_id' => $perm['menu_id'],
+                    'can_view' => !empty($perm['can_view']),
+                    'can_create' => !empty($perm['can_create']),
+                    'can_update' => !empty($perm['can_update']),
+                    'can_delete' => !empty($perm['can_delete']),
+                    'can_export' => !empty($perm['can_export']),
+                    'can_approve' => !empty($perm['can_approve']),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            // Handle company access (menu-specific)
+            $conn->table('sys_user_menu_company_access')->where('user_id', $userId)->delete();
+            $menuCompanyAccess = $request->input('menu_company_access', []);
+
+            foreach ($menuCompanyAccess as $menuId => $companyIds) {
+                if (empty($companyIds)) continue;
+
+                foreach ($companyIds as $companyId) {
+                    $conn->table('sys_user_menu_company_access')->insert([
+                        'user_id' => $userId,
+                        'menu_id' => $menuId,
+                        'company_id' => $companyId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            // Handle general company access (user can access which companies)
+            $conn->table('sys_user_company_access')->where('user_id', $userId)->delete();
+            $companyAccess = $request->input('company_access', []);
+
+            foreach ($companyAccess as $companyId) {
+                $conn->table('sys_user_company_access')->insert([
+                    'user_id' => $userId,
                     'company_id' => $companyId,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
             }
-        }
 
-        return redirect()->route('admin.user-permissions.edit', $userId)
-            ->with('status', 'บันทึกสิทธิ์เรียบร้อยแล้ว');
+            DB::commit();
+
+            return redirect()->route('admin.user-permissions.edit', $userId)
+                ->with('status', 'บันทึกสิทธิ์เรียบร้อยแล้ว');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()
+                ->with('error', 'เกิดข้อผิดพลาด: ' . $e->getMessage())
+                ->withInput();
+        }
     }
 
     public function reset($userId)
@@ -160,20 +175,24 @@ class UserPermissionController extends Controller
 
         $conn = DB::connection('pgsql');
 
-        // Get user's roles
-        $userRoles = $conn->table('user_roles')
-            ->where('user_id', $userId)
-            ->pluck('role_id');
+        DB::beginTransaction();
+        try {
+            // Delete all user-specific permissions
+            $conn->table('sys_user_menu_permissions')->where('user_id', $userId)->delete();
 
-        if ($userRoles->isNotEmpty()) {
-            // Delete all permissions for these roles
-            $conn->table('role_menu_permissions')
-                ->whereIn('role_id', $userRoles)
-                ->delete();
+            // Delete all company access
+            $conn->table('sys_user_menu_company_access')->where('user_id', $userId)->delete();
+            $conn->table('sys_user_company_access')->where('user_id', $userId)->delete();
+
+            DB::commit();
+
+            return redirect()->route('admin.user-permissions.edit', $userId)
+                ->with('status', 'ล้างสิทธิ์ทั้งหมดแล้ว (ผู้ใช้จะใช้สิทธิ์ตามแผนก)');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()
+                ->with('error', 'เกิดข้อผิดพลาด: ' . $e->getMessage());
         }
-
-        return redirect()->route('admin.user-permissions.edit', $userId)
-            ->with('status', 'ล้างสิทธิ์ทั้งหมดแล้ว');
     }
 }
-

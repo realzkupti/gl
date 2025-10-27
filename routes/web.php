@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Laravel\Fortify\Features;
-use Livewire\Volt\Volt;
 use App\Http\Controllers\TrialBalanceController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ChequeApiController;
@@ -12,9 +10,7 @@ use App\Services\CompanyManager;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TailAdminController;
 use App\Http\Controllers\Admin\MenuController;
-use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\CompanyController;
-use App\Http\Controllers\MenuGroupsController;
 
 
 Route::get('/', [HomeController::class, 'index'])->middleware(['company.connection'])->name('home');
@@ -141,20 +137,23 @@ Route::middleware(['auth'])->group(function(){
     Route::patch('admin/menus/{id}/toggle', [MenuController::class, 'toggle'])->name('admin.menus.toggle');
     Route::delete('admin/menus/{id}', [MenuController::class, 'destroy'])->name('admin.menus.destroy');
 
-    // Admin: Menu Groups CRUD
-    Route::get('admin/menu-groups', [MenuGroupsController::class, 'index'])->name('admin.menu-groups.index');
-    Route::get('admin/menu-groups/create', [MenuGroupsController::class, 'create'])->name('admin.menu-groups.create');
-    Route::post('admin/menu-groups', [MenuGroupsController::class, 'store'])->name('admin.menu-groups.store');
-    Route::get('admin/menu-groups/{id}', [MenuGroupsController::class, 'show'])->name('admin.menu-groups.show');
-    Route::get('admin/menu-groups/{id}/edit', [MenuGroupsController::class, 'edit'])->name('admin.menu-groups.edit');
-    Route::put('admin/menu-groups/{id}', [MenuGroupsController::class, 'update'])->name('admin.menu-groups.update');
-    Route::delete('admin/menu-groups/{id}', [MenuGroupsController::class, 'destroy'])->name('admin.menu-groups.destroy');
+    // Admin: Departments CRUD (เดิมคือ Menu Groups)
+    Route::get('admin/departments', [\App\Http\Controllers\Admin\DepartmentController::class, 'index'])->name('admin.departments.index');
+    Route::get('admin/departments/create', [\App\Http\Controllers\Admin\DepartmentController::class, 'create'])->name('admin.departments.create');
+    Route::post('admin/departments', [\App\Http\Controllers\Admin\DepartmentController::class, 'store'])->name('admin.departments.store');
+    Route::get('admin/departments/{id}', [\App\Http\Controllers\Admin\DepartmentController::class, 'show'])->name('admin.departments.show');
+    Route::get('admin/departments/{id}/edit', [\App\Http\Controllers\Admin\DepartmentController::class, 'edit'])->name('admin.departments.edit');
+    Route::put('admin/departments/{id}', [\App\Http\Controllers\Admin\DepartmentController::class, 'update'])->name('admin.departments.update');
+    Route::delete('admin/departments/{id}', [\App\Http\Controllers\Admin\DepartmentController::class, 'destroy'])->name('admin.departments.destroy');
 
-    // Admin: Menu Groups API (for AJAX)
-    Route::get('admin/menu-groups/list', [MenuGroupsController::class, 'list'])->name('admin.menu-groups.list');
+    // Admin: Departments API (for AJAX)
+    Route::get('admin/departments/list', [\App\Http\Controllers\Admin\DepartmentController::class, 'list'])->name('admin.departments.list');
 
-    // Admin: Roles (User groups)
-    Route::get('admin/roles', [RoleController::class, 'index'])->name('admin.roles');
+    // Admin: Department Permissions (กำหนดสิทธิ์แผนก)
+    Route::get('admin/department-permissions', [\App\Http\Controllers\Admin\DepartmentPermissionController::class, 'index'])->name('admin.department-permissions.index');
+    Route::get('admin/department-permissions/{departmentId}', [\App\Http\Controllers\Admin\DepartmentPermissionController::class, 'edit'])->name('admin.department-permissions.edit');
+    Route::put('admin/department-permissions/{departmentId}', [\App\Http\Controllers\Admin\DepartmentPermissionController::class, 'update'])->name('admin.department-permissions.update');
+    Route::delete('admin/department-permissions/{departmentId}', [\App\Http\Controllers\Admin\DepartmentPermissionController::class, 'reset'])->name('admin.department-permissions.reset');
 
     // Admin: Companies CRUD
     Route::get('admin/companies', [CompanyController::class, 'index'])->name('admin.companies');
@@ -203,10 +202,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('user/password', function () {
         return view('profile.password');
     })->name('user-password.edit');
+    Route::post('user/password', [AuthController::class, 'changePassword'])->name('user-password.update');
 
-    Route::get('two-factor', function () {
-        return view('profile.two-factor');
-    })->name('two-factor.show');
+    // 2FA is disabled for now
 
     Route::get('appearance', function () {
         return view('profile.appearance');

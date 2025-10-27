@@ -232,6 +232,7 @@
                                                     class="block rounded py-2 px-4 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                                                     :class="page === '{{ $child['key'] }}' ? 'text-brand-500 font-medium' : 'text-gray-600 dark:text-gray-400'"
                                                 >
+                                                    <span class="inline-block w-5 shrink-0"></span>
                                                     {{ $child['label'] }}
                                                 </a>
                                             </li>

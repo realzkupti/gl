@@ -6,15 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class UserMenuPermission extends Model
+class DepartmentMenuPermission extends Model
 {
     use HasFactory;
 
     protected $connection = 'pgsql';
-    protected $table = 'sys_user_menu_permissions';
+    protected $table = 'sys_department_menu_permissions';
 
     protected $fillable = [
-        'user_id', 'menu_id', 'can_view', 'can_create',
+        'department_id', 'menu_id', 'can_view', 'can_create',
         'can_update', 'can_delete', 'can_export', 'can_approve'
     ];
 
@@ -28,11 +28,11 @@ class UserMenuPermission extends Model
     ];
 
     /**
-     * User relationship
+     * Department relationship
      */
-    public function user(): BelongsTo
+    public function department(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(Department::class, 'department_id');
     }
 
     /**
@@ -44,42 +44,42 @@ class UserMenuPermission extends Model
     }
 
     /**
-     * Get permissions for a user and menu
+     * Get permissions for a department and menu
      */
-    public static function getUserMenuPermission(int $userId, int $menuId)
+    public static function getDepartmentMenuPermission(int $departmentId, int $menuId)
     {
-        return static::where('user_id', $userId)
+        return static::where('department_id', $departmentId)
             ->where('menu_id', $menuId)
             ->first();
     }
 
     /**
-     * Update or create user permission
+     * Update or create department permission
      */
-    public static function setPermission(int $userId, int $menuId, array $permissions)
+    public static function setPermission(int $departmentId, int $menuId, array $permissions)
     {
         return static::updateOrCreate(
-            ['user_id' => $userId, 'menu_id' => $menuId],
+            ['department_id' => $departmentId, 'menu_id' => $menuId],
             $permissions
         );
     }
 
     /**
-     * Get all permissions for a user
+     * Get all permissions for a department
      */
-    public static function getPermissionsForUser(int $userId)
+    public static function getPermissionsForDepartment(int $departmentId)
     {
-        return static::where('user_id', $userId)
+        return static::where('department_id', $departmentId)
             ->with('menu')
             ->get();
     }
 
     /**
-     * Remove user permission
+     * Remove department permission
      */
-    public static function removePermission(int $userId, int $menuId)
+    public static function removePermission(int $departmentId, int $menuId)
     {
-        return static::where('user_id', $userId)
+        return static::where('department_id', $departmentId)
             ->where('menu_id', $menuId)
             ->delete();
     }

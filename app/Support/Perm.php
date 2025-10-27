@@ -8,18 +8,33 @@ use Illuminate\Support\Facades\Log;
 
 class Perm
 {
+    /**
+     * Check if user has permission for menu action
+     *
+     * Priority:
+     * 1. Admin override (admin@local)
+     * 2. User-specific permissions
+     * 3. Department permissions
+     * 4. Deny
+     *
+     * @param string $menuKey Menu key to check
+     * @param string $action Action to check (view, create, update, delete, export, approve)
+     * @return bool
+     */
     public static function can(string $menuKey, string $action = 'view'): bool
     {
         if (!Auth::check()) return false;
+
+        // 1. Admin override
         if ((Auth::user()->email ?? '') === 'admin@local') return true;
 
         try {
             $userId = Auth::id();
             $conn = DB::connection('pgsql');
 
-            // 1. ตรวจสอบสิทธิ์รายบุคคลก่อน (user_menu_permissions) - สิทธิ์เฉพาะตัว
-            $userPerm = $conn->table('user_menu_permissions as up')
-                ->join('menus as m', 'm.id', '=', 'up.menu_id')
+            // 2. Check user-specific permissions first (highest priority)
+            $userPerm = $conn->table('sys_user_menu_permissions as up')
+                ->join('sys_menus as m', 'm.id', '=', 'up.menu_id')
                 ->where('up.user_id', $userId)
                 ->where('m.key', $menuKey)
                 ->select('up.can_view','up.can_create','up.can_update','up.can_delete','up.can_export','up.can_approve')
@@ -38,30 +53,35 @@ class Perm
                 if ($ok) return true;
             }
 
-            // 2. ตรวจสอบสิทธิ์จาก role (role_menu_permissions) - สิทธิ์ตามกลุ่ม
-            $roles = $conn->table('user_roles')->where('user_id', $userId)->pluck('role_id');
-            if ($roles->isNotEmpty()) {
-                $rows = $conn->table('role_menu_permissions as p')
-                    ->join('menus as m', 'm.id', '=', 'p.menu_id')
-                    ->whereIn('p.role_id', $roles->all())
+            // 3. Check department permissions (fallback)
+            $user = Auth::user();
+            if ($user->department_id) {
+                $deptPerm = $conn->table('sys_department_menu_permissions as dp')
+                    ->join('sys_menus as m', 'm.id', '=', 'dp.menu_id')
+                    ->where('dp.department_id', $user->department_id)
                     ->where('m.key', $menuKey)
-                    ->select('p.can_view','p.can_create','p.can_update','p.can_delete','p.can_export','p.can_approve')
-                    ->get();
+                    ->select('dp.can_view','dp.can_create','dp.can_update','dp.can_delete','dp.can_export','dp.can_approve')
+                    ->first();
 
-                foreach ($rows as $row) {
+                if ($deptPerm) {
                     $ok = match ($action) {
-                        'view' => (bool)($row->can_view ?? false),
-                        'create' => (bool)($row->can_create ?? false),
-                        'update' => (bool)($row->can_update ?? false),
-                        'delete' => (bool)($row->can_delete ?? false),
-                        'export' => (bool)($row->can_export ?? false),
-                        'approve' => (bool)($row->can_approve ?? false),
-                        default => false,
+                        'view' => (bool)($deptPerm->can_view ?? false),
+                        'create' => (bool)($deptPerm->can_create ?? false),
+                        'update' => (bool)($deptPerm->can_update ?? false),
+                        'delete' => (bool)($deptPerm->can_delete ?? false),
+                        'export' => (bool)($deptPerm->can_export ?? false),
+                        'approve' => (bool)($deptPerm->can_approve ?? false),
+                        'default' => false,
                     };
                     if ($ok) return true;
                 }
             }
         } catch (\Throwable $e) {
+            Log::error('Perm::can exception', [
+                'menu_key' => $menuKey,
+                'action' => $action,
+                'error' => $e->getMessage()
+            ]);
             return false;
         }
 
@@ -69,62 +89,67 @@ class Perm
     }
 
     /**
-     * Get user accessible menus with permissions, grouped by menu_group from DB
-     * @param string|null $menuGroup Filter by menu group key or null for all
+     * Get user accessible menus with permissions, grouped by department
+     *
+     * @param string|null $departmentKey Filter by department key or null for all
+     * @return array Grouped menus by department
      */
-    public static function getUserMenus(?string $menuGroup = null): array
+    public static function getUserMenus(?string $departmentKey = null): array
     {
         if (!Auth::check()) return [];
 
         try {
             $userId = Auth::id();
-            $isAdmin = (Auth::user()->email ?? '') === 'admin@local';
+            $user = Auth::user();
+            $isAdmin = ($user->email ?? '') === 'admin@local';
             $conn = DB::connection('pgsql');
 
-            // ดึงกลุ่มเมนูจากฐานข้อมูล
-            $groupQuery = $conn->table('menu_groups')->where('is_active', true)->orderBy('sort_order');
-            if ($menuGroup !== null) {
-                $groupQuery->where('key', $menuGroup);
+            // ดึงแผนกจากฐานข้อมูล
+            $deptQuery = $conn->table('sys_departments')->where('is_active', true)->orderBy('sort_order');
+            if ($departmentKey !== null) {
+                $deptQuery->where('key', $departmentKey);
             }
-            $groups = $groupQuery->get()->keyBy('id'); // key by id สำหรับ join
+            $departments = $deptQuery->get()->keyBy('id');
 
             if ($isAdmin) {
                 // Admin sees all active menus
-                $query = $conn->table('menus as m')
-                    ->leftJoin('menu_groups as g', 'g.id', '=', 'm.menu_group_id')
+                $query = $conn->table('sys_menus as m')
+                    ->leftJoin('sys_departments as d', 'd.id', '=', 'm.department_id')
                     ->where('m.is_active', true)
                     ->where(function($q) {
-                        $q->where('g.is_active', true)
-                          ->orWhereNull('g.id');
+                        $q->where('d.is_active', true)
+                          ->orWhereNull('d.id');
                     });
 
-                if ($menuGroup !== null) {
-                    $query->where('g.key', $menuGroup);
+                if ($departmentKey !== null) {
+                    $query->where('d.key', $departmentKey);
                 }
 
-                $menus = $query->select('m.id', 'm.key', 'm.label', 'm.route', 'm.url', 'm.icon', 'm.parent_id', 'm.sort_order', 'g.key as menu_group_key', 'g.label as menu_group_label', 'g.sort_order as group_sort_order')
-                    ->orderBy('group_sort_order')
+                $menus = $query->select(
+                    'm.id', 'm.key', 'm.label', 'm.route', 'm.url', 'm.icon',
+                    'm.parent_id', 'm.sort_order', 'm.connection_type',
+                    'd.key as department_key', 'd.label as department_label',
+                    'd.sort_order as dept_sort_order'
+                )
+                    ->orderBy('dept_sort_order')
                     ->orderBy('m.sort_order')
                     ->orderBy('m.id')
                     ->get();
             } else {
-                // Get user's roles
-                $roles = $conn->table('user_roles')->where('user_id', $userId)->pluck('role_id');
-
-                // รวมเมนูจาก 2 แหล่ง: role permissions และ user permissions
+                // รวมเมนูจาก 2 แหล่ง: department permissions และ user permissions
                 $menuIds = collect();
 
-                // 1. เมนูจาก role permissions
-                if ($roles->isNotEmpty()) {
-                    $roleMenuIds = $conn->table('role_menu_permissions as p')
-                        ->whereIn('p.role_id', $roles->all())
-                        ->where('p.can_view', true)
-                        ->pluck('p.menu_id');
-                    $menuIds = $menuIds->merge($roleMenuIds);
+                // 1. เมนูจาก department permissions
+                if ($user->department_id) {
+                    $deptMenuIds = $conn->table('sys_department_menu_permissions as dp')
+                        ->where('dp.department_id', $user->department_id)
+                        ->where('dp.can_view', true)
+                        ->pluck('dp.menu_id');
+                    $menuIds = $menuIds->merge($deptMenuIds);
                 }
 
-                // 2. เมนูจาก user permissions (สิทธิ์รายบุคคล)
-                $userMenuIds = $conn->table('user_menu_permissions as up')
+                // 2. เมนูจาก user permissions (สิทธิ์รายบุคคล - override)
+                $userMenuIds = $conn->table('sys_user_menu_permissions as up')
                     ->where('up.user_id', $userId)
                     ->where('up.can_view', true)
                     ->pluck('up.menu_id');
@@ -133,47 +158,50 @@ class Perm
                 // Debug log
                 Log::info('getUserMenus: Menu IDs collected', [
                     'user_id' => $userId,
-                    'role_menu_count' => isset($roleMenuIds) ? $roleMenuIds->count() : 0,
+                    'department_id' => $user->department_id,
+                    'dept_menu_count' => isset($deptMenuIds) ? $deptMenuIds->count() : 0,
                     'user_menu_count' => $userMenuIds->count(),
                     'total_menu_ids' => $menuIds->unique()->count(),
-                    'menu_ids' => $menuIds->unique()->all()
                 ]);
 
                 // ถ้าไม่มีเมนูเลย ให้ return ว่าง
                 if ($menuIds->isEmpty()) {
                     Log::warning('getUserMenus: No menu IDs found', [
                         'user_id' => $userId,
-                        'role_count' => $roles->count(),
-                        'role_ids' => $roles->all()
+                        'department_id' => $user->department_id,
                     ]);
                     return [];
                 }
 
                 // ดึงเมนูที่ผู้ใช้มีสิทธิ์ดู
-                $query = $conn->table('menus as m')
-                    ->leftJoin('menu_groups as g', 'g.id', '=', 'm.menu_group_id')
+                $query = $conn->table('sys_menus as m')
+                    ->leftJoin('sys_departments as d', 'd.id', '=', 'm.department_id')
                     ->whereIn('m.id', $menuIds->unique()->all())
                     ->where('m.is_active', true)
                     ->where(function($q) {
-                        $q->where('g.is_active', true)
-                          ->orWhereNull('g.id');
+                        $q->where('d.is_active', true)
+                          ->orWhereNull('d.id');
                     });
 
-                if ($menuGroup !== null) {
-                    $query->where('g.key', $menuGroup);
+                if ($departmentKey !== null) {
+                    $query->where('d.key', $departmentKey);
                 }
 
-                $menus = $query->select('m.id', 'm.key', 'm.label', 'm.route', 'm.url', 'm.icon', 'm.parent_id', 'm.sort_order', 'g.key as menu_group_key', 'g.label as menu_group_label', 'g.sort_order as group_sort_order')
+                $menus = $query->select(
+                    'm.id', 'm.key', 'm.label', 'm.route', 'm.url', 'm.icon',
+                    'm.parent_id', 'm.sort_order', 'm.connection_type',
+                    'd.key as department_key', 'd.label as department_label',
+                    'd.sort_order as dept_sort_order'
+                )
                     ->distinct()
-                    ->orderBy('group_sort_order')
+                    ->orderBy('dept_sort_order')
                     ->orderBy('m.sort_order')
                     ->orderBy('m.id')
                     ->get();
 
-                // Debug log - ดูว่าดึงเมนูได้กี่ตัว
+                // Debug log
                 Log::info('getUserMenus: Menus fetched from DB', [
                     'menu_count' => $menus->count(),
-                    'sample_menus' => $menus->take(3)->toArray()
                 ]);
             }
 
@@ -191,7 +219,9 @@ class Perm
                     'icon' => $menu->icon,
                     'parent_id' => $menu->parent_id,
                     'sort_order' => $menu->sort_order,
-                    'menu_group' => $menu->menu_group_label ?? 'เมนู', // ใช้ label จากฐานข้อมูล
+                    'connection_type' => $menu->connection_type ?? 'pgsql',
+                    'department' => $menu->department_label ?? 'เมนู',
+                    'department_key' => $menu->department_key ?? 'default',
                     'children' => [],
                 ];
                 $lookup[$menu->id] = $menuItem;
@@ -205,10 +235,10 @@ class Perm
                 }
             }
 
-            // Group by menu_group_label
+            // Group by department
             $groupedMenus = [];
             foreach ($menuArray as $menu) {
-                $group = $menu['menu_group'];
+                $group = $menu['department'];
                 if (!isset($groupedMenus[$group])) {
                     $groupedMenus[$group] = [];
                 }
@@ -221,10 +251,8 @@ class Perm
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
             ]);
             return [];
         }
     }
 }
-

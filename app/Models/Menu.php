@@ -12,10 +12,10 @@ class Menu extends Model
     use HasFactory;
 
     protected $connection = 'pgsql';
-    protected $table = 'menus';
+    protected $table = 'sys_menus';
 
     protected $fillable = [
-        'key', 'label', 'route', 'url', 'icon', 'parent_id', 'sort_order', 'is_active', 'is_system', 'roles', 'menu_group', 'menu_group_id'
+        'key', 'label', 'route', 'url', 'icon', 'parent_id', 'sort_order', 'is_active', 'is_system', 'department_id', 'connection_type'
     ];
 
     protected $casts = [
@@ -84,9 +84,12 @@ class Menu extends Model
         return static::where('key', $key)->first();
     }
 
-    public function menuGroup()
+    /**
+     * Department relationship
+     */
+    public function department()
     {
-        return $this->belongsTo(MenuGroup::class, 'menu_group_id');
+        return $this->belongsTo(Department::class, 'department_id');
     }
 }
 

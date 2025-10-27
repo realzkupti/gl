@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 class ChequeTemplate extends Model
 {
     protected $connection = 'pgsql';
-    protected $table = 'cheque_templates';
+    protected $table = 'sys_cheque_templates';
 
     protected $fillable = [
         'bank',

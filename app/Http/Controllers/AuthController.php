@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 
 class AuthController extends Controller
@@ -83,5 +84,27 @@ class AuthController extends Controller
         // Do not auto-login inactive users; ask to wait for approval.
         return redirect()->route('login')
             ->with('status', 'ลงทะเบียนสำเร็จ กรุณารอผู้ดูแลระบบอนุมัติการใช้งาน');
+    }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = $request->user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        if (!Hash::check($request->input('current_password'), $user->password)) {
+            return back()->withErrors(['current_password' => 'รหัสผ่านเดิมไม่ถูกต้อง']);
+        }
+
+        $user->password = $request->input('password');
+        $user->save();
+
+        return back()->with('status', 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว');
     }
 }

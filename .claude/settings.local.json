@@ -8,7 +8,8 @@
       "Bash(cat:*)",
       "Bash(php -r:*)",
       "Bash(php create_companies_view.php:*)",
-      "Bash(php -l:*)"
+      "Bash(php -l:*)",
+      "Bash(composer show:*)"
     ],
     "deny": [],
     "ask": []

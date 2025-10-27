@@ -7,6 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 class Branch extends Model
 {
     protected $connection = 'pgsql';
-    protected $table = 'branches';
+    protected $table = 'sys_branches';
     protected $fillable = ['code', 'name'];
 }

@@ -48,21 +48,27 @@ class HomeController extends Controller
 
     public function tailadminDashboard()
     {
-        // Stats for dashboard
+        // Real stats for summary cards
         $stats = [
-            'views' => 3456,
-            'profit' => 45200.50,
-            'products' => 2450,
-            'users' => 189,
+            'users_total' => \App\Models\User::count(),
+            'users_active' => \App\Models\User::where('is_active', true)->count(),
+            'cheques' => \App\Models\Cheque::count(),
+            'companies_total' => \App\Models\Company::count(),
+            'companies_active' => \App\Models\Company::where('is_active', true)->count(),
         ];
 
-        // Recent activities
-        $activities = [
-            ['user' => 'สมชาย ใจดี', 'action' => 'เพิ่มรายการสินค้าใหม่ 5 รายการ', 'time' => '10 นาทีที่แล้ว'],
-            ['user' => 'สมหญิง รักงาน', 'action' => 'อนุมัติใบเสนอราคา #QT-2024-001', 'time' => '25 นาทีที่แล้ว'],
-            ['user' => 'ประชา ขยัน', 'action' => 'ปิดงวดบัญชีเดือนมกราคม 2025', 'time' => '1 ชั่วโมงที่แล้ว'],
-            ['user' => 'วิไล สุขใจ', 'action' => 'บันทึกรายการรับเช็ค 3 ฉบับ', 'time' => '2 ชั่วโมงที่แล้ว'],
-        ];
+        // Recent activities from logs (latest 10)
+        $activities = \App\Models\ActivityLog::with('user')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get()
+            ->map(function ($log) {
+                return [
+                    'user' => $log->user->name ?? 'ระบบ',
+                    'action' => $log->action ?? ($log->method.' '.$log->url),
+                    'time' => optional($log->created_at)->diffForHumans() ?? '',
+                ];
+            })->toArray();
 
         // Company selection data
         $companies = CompanyManager::listCompanies();

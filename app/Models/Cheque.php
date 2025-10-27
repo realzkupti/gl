@@ -27,7 +27,7 @@ class Cheque extends Model
      *
      * @var string
      */
-    protected $table = 'cheques';
+    protected $table = 'sys_cheques';
 
     /**
      * The attributes that are mass assignable.

@@ -11,6 +11,8 @@
     <link rel="icon" href="{{ asset('tailadmin-assets/images/favicon.ico') }}">
     <link href="{{ asset('tailadmin/style.css') }}" rel="stylesheet">
 
+    @vite(['resources/css/app.css','resources/js/app.js'])
+
     <link rel="stylesheet" href="{{ asset('vendor/sweetalert2/sweetalert2.min.css') }}">
     @stack('styles')
 </head>

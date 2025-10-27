@@ -7,12 +7,13 @@ use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 
 class CompanyController extends Controller
 {
     protected function ensureAdmin()
     {
-        if (!Auth::check() || Auth::user()->email !== 'admin@local') {
+        if (!Auth::check() ) {
             abort(403, 'Unauthorized');
         }
     }
@@ -146,7 +147,7 @@ class CompanyController extends Controller
             ];
 
             config(['database.connections.test_connection' => $config]);
-            \DB::connection('test_connection')->getPdo();
+            DB::connection('test_connection')->getPdo();
 
             return redirect()->route('admin.companies')->with('status', '✓ เชื่อมต่อสำเร็จ: ' . $company->label);
         } catch (\Exception $e) {

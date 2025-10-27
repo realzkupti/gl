@@ -2,14 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
-class MenuGroup extends Model
+/**
+ * MenuGroup - Alias for Department (Backward Compatibility)
+ *
+ * @deprecated Use Department model instead
+ */
+class MenuGroup extends Department
 {
-    protected $fillable = ['key', 'label', 'sort_order', 'is_active', 'is_default'];
-
-    public function menus()
-    {
-        return $this->hasMany(Menu::class, 'menu_group_id');
-    }
+    // This is just an alias for backward compatibility
+    // All functionality is inherited from Department
 }

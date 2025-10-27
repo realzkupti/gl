@@ -23,6 +23,7 @@ class MenuController extends Controller
         // Use Model instead of Query Builder
         $menus = Menu::orderBy('sort_order')->orderBy('id')->get();
 
+        // Render the fully JS-driven view
         return view('admin.menus', [
             'menus' => $menus,
         ]);
@@ -33,13 +34,14 @@ class MenuController extends Controller
         $this->ensureAdmin();
 
         $data = $request->validate([
-            'key' => 'required|string|max:100|unique:pgsql.menus,key',
+            'key' => 'required|string|max:100|unique:pgsql.sys_menus,key',
             'label' => 'required|string|max:255',
             'route' => 'nullable|string|max:255',
             'icon' => 'nullable|string|max:255',
-            'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
+            'parent_id' => 'nullable|integer|exists:pgsql.sys_menus,id',
             'sort_order' => 'nullable|integer',
-            'menu_group_id' => 'nullable|integer|exists:pgsql.menu_groups,id',
+            'department_id' => 'nullable|integer|exists:pgsql.sys_departments,id',
+            'connection_type' => 'nullable|string|in:pgsql,company',
         ]);
 
         // Use Model to create menu
@@ -50,7 +52,8 @@ class MenuController extends Controller
             'icon' => $data['icon'] ?? null,
             'parent_id' => $data['parent_id'] ?? null,
             'sort_order' => $data['sort_order'] ?? 0,
-            'menu_group_id' => $data['menu_group_id'] ?? null,
+            'department_id' => $data['department_id'] ?? null,
+            'connection_type' => $data['connection_type'] ?? 'pgsql',
             'is_active' => true,
         ]);
 
@@ -64,7 +67,7 @@ class MenuController extends Controller
         $menu = Menu::findOrFail($id);
 
         $data = $request->validate([
-            'key' => 'required|string|max:100|unique:pgsql.menus,key,' . $id,
+            'key' => 'required|string|max:100|unique:pgsql.sys_menus,key,' . $id,
             'label' => 'required|string|max:255',
             'route' => 'nullable|string|max:255',
             'icon' => 'nullable|string|max:255',
@@ -127,13 +130,14 @@ class MenuController extends Controller
         $this->ensureAdmin();
 
         $data = $request->validate([
-            'key' => 'required|string|max:100|unique:pgsql.menus,key',
+            'key' => 'required|string|max:100|unique:pgsql.sys_menus,key',
             'label' => 'required|string|max:255',
             'route' => 'nullable|string|max:255',
             'icon' => 'nullable|string|max:255',
-            'parent_id' => 'nullable|integer|exists:pgsql.menus,id',
+            'parent_id' => 'nullable|integer|exists:pgsql.sys_menus,id',
             'sort_order' => 'nullable|integer',
-            'menu_group_id' => 'nullable|integer|exists:pgsql.menu_groups,id',
+            'department_id' => 'nullable|integer|exists:pgsql.sys_departments,id',
+            'connection_type' => 'nullable|string|in:pgsql,company',
             'is_active' => 'boolean',
         ]);
 
@@ -144,7 +148,8 @@ class MenuController extends Controller
             'icon' => $data['icon'] ?? null,
             'parent_id' => $data['parent_id'] ?? null,
             'sort_order' => $data['sort_order'] ?? 0,
-            'menu_group_id' => $data['menu_group_id'] ?? null,
+            'department_id' => $data['department_id'] ?? null,
+            'connection_type' => $data['connection_type'] ?? 'pgsql',
             'is_active' => $data['is_active'] ?? true,
         ]);
 
@@ -162,7 +167,7 @@ class MenuController extends Controller
         $menu = Menu::findOrFail($id);
 
         $data = $request->validate([
-            'key' => 'required|string|max:100|unique:pgsql.menus,key,' . $id,
+            'key' => 'required|string|max:100|unique:pgsql.sys_menus,key,' . $id,
             'label' => 'required|string|max:255',
             'route' => 'nullable|string|max:255',
             'icon' => 'nullable|string|max:255',
@@ -231,4 +236,3 @@ class MenuController extends Controller
         ]);
     }
 }
-

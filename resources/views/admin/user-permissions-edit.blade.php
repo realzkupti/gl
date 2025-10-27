@@ -85,15 +85,21 @@
                         เลือกสิทธิ์สำหรับแต่ละเมนู (ถ้าไม่เลือก = ไม่มีสิทธิ์)
                     </div>
                     <div class="flex gap-2">
-                        <button type="button" id="selectAll" class="rounded-lg bg-gray-200 hover:bg-gray-300 px-4 py-2 text-sm text-gray-700 transition dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                        <button type="button" id="selectAll" class="rounded-lg px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 shadow-sm transition">
                             เลือกทั้งหมด
                         </button>
-                        <button type="button" id="deselectAll" class="rounded-lg bg-gray-200 hover:bg-gray-300 px-4 py-2 text-sm text-gray-700 transition dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                        <button type="button" id="deselectAll" class="rounded-lg px-4 py-2 text-sm font-medium text-brand-700 bg-brand-50 ring-1 ring-inset ring-brand-300 hover:bg-brand-100 transition dark:text-brand-300 dark:bg-brand-900/20 dark:ring-brand-800 dark:hover:bg-brand-900/30">
                             ยกเลิกทั้งหมด
                         </button>
                     </div>
                 </div>
 
+                @php
+                    // Filter menus by department - show menus NOT from Bplus department
+                    $defaultMenus = $menus->filter(function($m){
+                        return !$m->department || ($m->department->key ?? '') !== 'bplus';
+                    })->values();
+                @endphp
                 <!-- Default Permissions Table -->
                 <div class="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 overflow-hidden mb-6">
                     <div class="overflow-x-auto">
@@ -155,15 +161,30 @@
                         </tr>
                             </thead>
                             <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-                                @foreach ($menus->where('menu_group', 'default')->values() as $menu)
+                                @if($defaultMenus->isEmpty())
+                                <tr>
+                                    <td colspan="8" class="px-6 py-10 text-center">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                                        <p class="text-gray-600 dark:text-gray-400 mb-3">ยังไม่มีเมนูสำหรับกำหนดสิทธิ์</p>
+                                        <a href="{{ route('admin.menus') }}" class="inline-flex items-center rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">ไปหน้าจัดการเมนู</a>
+                                    </td>
+                                </tr>
+                                @endif
+                                @foreach ($defaultMenus as $menu)
                                 @php
-                                    $perm = $permissions->get($menu->id);
+                                    $perm = $userPermissions->get($menu->id);
+                                    $deptPerm = $departmentPermissions->get($menu->id);
                                 @endphp
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white sticky left-0 bg-white dark:bg-gray-900">
                                         <div>
                                             <div class="font-semibold">{{ $menu->label }}</div>
                                             <div class="text-xs text-gray-500 dark:text-gray-400">{{ $menu->key }}</div>
+                                            @if($deptPerm)
+                                            <div class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                                                แผนก: {{ $deptPerm->can_view ? '👁️' : '' }}{{ $deptPerm->can_create ? '➕' : '' }}{{ $deptPerm->can_update ? '✏️' : '' }}{{ $deptPerm->can_delete ? '🗑️' : '' }}{{ $deptPerm->can_export ? '📥' : '' }}{{ $deptPerm->can_approve ? '✅' : '' }}
+                                            </div>
+                                            @endif
                                         </div>
                                     </td>
                             <td class="px-4 py-4 text-center">
@@ -220,7 +241,10 @@
                 </div>
 
                 @php
-                    $bplusMenus = $menus->where('menu_group', 'bplus')->values();
+                    // Filter menus by Bplus department
+                    $bplusMenus = $menus->filter(function($m){
+                        return $m->department && ($m->department->key ?? '') === 'bplus';
+                    })->values();
                 @endphp
 
                 @if($bplusMenus->isEmpty())
@@ -251,7 +275,7 @@
                                     @foreach($companies as $company)
                                         <label class="flex items-center p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 transition">
                                             <input type="checkbox"
-                                                name="bplus_company_access[{{ $menu->id }}][]"
+                                                name="menu_company_access[{{ $menu->id }}][]"
                                                 value="{{ $company->id }}"
                                                 {{ in_array($company->id, $selectedCompanies) ? 'checked' : '' }}
                                                 class="w-5 h-5 text-orange-600 border-gray-300 dark:border-gray-600 rounded focus:ring-orange-500 cursor-pointer">

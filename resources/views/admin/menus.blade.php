@@ -3,7 +3,6 @@
 @section('title', 'จัดการเมนู - ' . config('app.name'))
 
 @push('styles')
-<link href="{{ asset('vendor/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet">
 <style>
 .loading-overlay {
     position: fixed;
@@ -298,23 +297,31 @@
                                 <form method="post" action="{{ route('admin.menus.toggle', $m->id) }}" class="inline">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit" class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold transition hover:shadow-md
-                                        {{ $m->is_active ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400' }}">
-                                        {{ $m->is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน' }}
-                                    </button>
+                                    @if($m->is_active)
+                                      <button type="submit" class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold transition hover:shadow-md bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400">
+                                        <svg class="w-3.5 h-3.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+                                        เปิดใช้งาน
+                                      </button>
+                                    @else
+                                      <button type="submit" class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold transition shadow-sm bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700">
+                                        <svg class="w-3.5 h-3.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                                        ปิดใช้งาน
+                                      </button>
+                                    @endif
                                 </form>
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <button onclick='editMenu(@json($m))' class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm">
+                                    <button onclick='editMenu(@json($m))' class="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30">
+                                        <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/><path d="M18.364 5.636a2 2 0 112.828 2.828L12 17H9v-3l9.364-9.364z"/></svg>
                                         แก้ไข
                                     </button>
                                     @if(!$m->is_system)
                                         <span class="text-gray-300 dark:text-gray-600">|</span>
-                                        <form method="post" action="{{ route('admin.menus.destroy', $m->id) }}" class="inline" onsubmit="return confirm('ยืนยันการลบเมนู {{ $m->label }}?')">
+                                        <form id="delete-form-{{ $m->id }}" method="post" action="{{ route('admin.menus.destroy', $m->id) }}" class="inline">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm">
+                                            <button type="button" onclick="openDeleteModal('{{ $m->id }}', '{{ addslashes($m->label) }}')" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm">
                                                 ลบ
                                             </button>
                                         </form>
@@ -342,6 +349,40 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div id="confirm-delete-modal" class="hidden fixed inset-0 bg-black/50 z-[100001] items-center justify-center p-4" onclick="if(event.target === this) closeDeleteModal()">
+    <div class="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md overflow-hidden" onclick="event.stopPropagation()">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-gradient-to-r from-red-600 to-rose-600">
+            <h3 class="text-white font-semibold">ยืนยันการลบเมนู</h3>
+            <button type="button" onclick="closeDeleteModal()" class="text-white/90 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="flex items-start gap-3">
+                <div class="mt-1 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 p-2">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div>
+                    <p class="text-gray-900 dark:text-white font-medium">คุณต้องการลบเมนูนี้ใช่หรือไม่?</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">เมนู: <span id="delete-menu-label" class="font-semibold"></span></p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button type="button" onclick="closeDeleteModal()" class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition dark:text-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700">ยกเลิก</button>
+                <button type="button" onclick="confirmDelete()" class="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 shadow-sm">ยืนยันลบ</button>
+            </div>
+        </div>
+    </div>
+    <input type="hidden" id="delete-target-id" value="">
+    <input type="hidden" id="delete-form-id" value="">
+    <input type="hidden" id="delete-url" value="">
+    <input type="hidden" id="delete-label" value="">
+    <input type="hidden" id="delete-csrf" value="{{ csrf_token() }}">
+    <input type="hidden" id="delete-method" value="DELETE">
+    <input type="hidden" id="delete-extra" value="">
 </div>
 
 <!-- Icon Picker Modal -->
@@ -476,6 +517,28 @@ function filterIcons(query) {
         const name = item.dataset.iconName;
         item.style.display = name.includes(lowerQuery) ? 'flex' : 'none';
     });
+}
+
+// Delete confirm modal logic
+function openDeleteModal(id, label) {
+    const modal = document.getElementById('confirm-delete-modal');
+    document.getElementById('delete-target-id').value = id;
+    document.getElementById('delete-form-id').value = 'delete-form-' + id;
+    document.getElementById('delete-menu-label').textContent = label;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeDeleteModal() {
+    const modal = document.getElementById('confirm-delete-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function confirmDelete() {
+    const id = document.getElementById('delete-target-id').value;
+    const form = document.getElementById('delete-form-' + id);
+    if (form) form.submit();
 }
 
 function editMenu(menu) {

@@ -17,6 +17,26 @@
         </nav>
     </div>
 
+    <!-- Summary Cards (new) -->
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div class="text-sm text-gray-500 dark:text-gray-400">ผู้ใช้งาน (ทั้งหมด / เปิดใช้งาน)</div>
+            <div class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{{ $stats['users_total'] ?? 0 }}<span class="text-base font-semibold text-gray-500 dark:text-gray-400"> / {{ $stats['users_active'] ?? 0 }}</span></div>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div class="text-sm text-gray-500 dark:text-gray-400">เช็ค (ฉบับ)</div>
+            <div class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{{ $stats['cheques'] ?? 0 }}</div>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div class="text-sm text-gray-500 dark:text-gray-400">บริษัทที่ตั้งค่า (ทั้งหมด)</div>
+            <div class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{{ $stats['companies_total'] ?? 0 }}</div>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div class="text-sm text-gray-500 dark:text-gray-400">บริษัทที่เปิดใช้งาน</div>
+            <div class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{{ $stats['companies_active'] ?? 0 }}</div>
+        </div>
+    </div>
+
     <!-- Company Selection & Settings -->
     <div class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <!-- Company Selector -->

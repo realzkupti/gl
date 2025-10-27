@@ -6,6 +6,17 @@
     <title>@yield('title', 'เข้าสู่ระบบ')</title>
     <link rel="icon" href="{{ asset('tailadmin-assets/images/favicon.ico') }}">
     <link href="{{ asset('tailadmin/style.css') }}" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var stored = localStorage.getItem('theme');
+          var enableDark = stored ? stored === 'dark' : prefersDark;
+          if (enableDark) document.documentElement.classList.add('dark');
+          else document.documentElement.classList.remove('dark');
+        } catch(e) { /* no-op */ }
+      })();
+    </script>
     @stack('styles')
     <style>
       body { min-height: 100vh; }

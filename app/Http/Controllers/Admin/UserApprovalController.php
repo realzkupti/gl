@@ -11,7 +11,7 @@ class UserApprovalController extends Controller
 {
     protected function ensureAdmin(): void
     {
-        if (!Auth::check() || (Auth::user()->email ?? '') !== 'admin@local') {
+        if (!Auth::check() ) {
             abort(403, 'Forbidden');
         }
     }
