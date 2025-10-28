@@ -51,7 +51,11 @@ class MenuController extends Controller
             ->get();
 
         // Get current menu for sticky note component
-        $currentMenu = Menu::where('route', 'admin.menus')->first();
+        // Use current route name to find the exact menu
+        $currentRouteName = \Route::currentRouteName();
+        $currentMenu = Menu::where('route', $currentRouteName)
+            ->where('has_sticky_note', true)
+            ->first();
 
         return view('admin.menus-system', [
             'menus' => $menus,
@@ -77,7 +81,7 @@ class MenuController extends Controller
             'parent_id' => 'nullable|integer|exists:pgsql.sys_menus,id',
             'sort_order' => 'nullable|integer',
             'system_type' => 'nullable|integer|in:1,2',
-            'connection_type' => 'nullable|string|in:pgsql,company',
+            'connection_type' => 'nullable|string|in:pgsql,company,sqlsrv,mysql',
             'has_sticky_note' => 'nullable|boolean',
         ]);
 
@@ -117,7 +121,7 @@ class MenuController extends Controller
             'parent_id' => 'nullable|integer|exists:pgsql.sys_menus,id',
             'sort_order' => 'nullable|integer',
             'system_type' => 'nullable|integer|in:1,2',
-            'connection_type' => 'nullable|string|in:pgsql,company',
+            'connection_type' => 'nullable|string|in:pgsql,company,sqlsrv,mysql',
             'is_active' => 'boolean',
             'has_sticky_note' => 'nullable|boolean',
         ]);
@@ -172,7 +176,14 @@ class MenuController extends Controller
     {
         $this->ensureAdmin();
 
-        $menus = Menu::with('systemType')->orderBy('sort_order')->orderBy('id')->get();
+        $query = Menu::with('systemType')->orderBy('sort_order')->orderBy('id');
+
+        // Filter by system_type if provided
+        if ($request->has('system_type')) {
+            $query->where('system_type', $request->get('system_type'));
+        }
+
+        $menus = $query->get();
 
         return response()->json([
             'success' => true,
@@ -192,7 +203,7 @@ class MenuController extends Controller
             'parent_id' => 'nullable|integer|exists:pgsql.sys_menus,id',
             'sort_order' => 'nullable|integer',
             'system_type' => 'nullable|integer|in:1,2',
-            'connection_type' => 'nullable|string|in:pgsql,company',
+            'connection_type' => 'nullable|string|in:pgsql,company,sqlsrv,mysql',
             'is_active' => 'boolean',
             'has_sticky_note' => 'nullable|boolean',
         ]);
@@ -231,7 +242,7 @@ class MenuController extends Controller
             'parent_id' => 'nullable|integer|exists:pgsql.sys_menus,id',
             'sort_order' => 'nullable|integer',
             'system_type' => 'nullable|integer|in:1,2',
-            'connection_type' => 'nullable|string|in:pgsql,company',
+            'connection_type' => 'nullable|string|in:pgsql,company,sqlsrv,mysql',
             'is_active' => 'boolean',
             'has_sticky_note' => 'nullable|boolean',
         ]);

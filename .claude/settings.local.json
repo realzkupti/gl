@@ -21,7 +21,10 @@
       "Bash(php check_departments.php:*)",
       "Bash(php fix_departments.php:*)",
       "Bash(php:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(cd:*)",
+      "Bash(D:laragonbinphpphp-8.3.13-Win32-vs16-x64php.exe check_menu_structure.php)",
+      "Bash(D:laragonbinphpphp-8.3.13-Win32-vs16-x64php.exe enable_sticky_notes.php)"
     ],
     "deny": [],
     "ask": []

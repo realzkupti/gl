@@ -22,7 +22,8 @@
         <!-- Sticky Note Badge -->
         <button @click="createNote()"
                 type="button"
-                class="group relative bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-lg px-4 py-3 shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 font-bold">
+                style="background-color: #FDE047 !important;"
+                class="group relative text-gray-900 rounded-lg px-4 py-3 shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 font-bold">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
             </svg>
@@ -201,13 +202,13 @@
             </div>
 
             <!-- Note Content -->
-            <div class="note-content p-4 overflow-y-auto" :style="`height: calc(100% - 44px);`">
+            <div class="note-content p-4 overflow-hidden" :style="`height: calc(100% - 44px);`">
                 <textarea
                     x-model="note.content"
                     @input="debounceUpdate(note)"
-                    class="w-full h-full bg-transparent border-none outline-none resize-none text-gray-900 dark:text-gray-100 placeholder-gray-400 text-base leading-relaxed"
+                    class="w-full h-full bg-transparent border-none outline-none resize-none text-gray-900 placeholder-gray-500 dark:placeholder-gray-600 text-base leading-relaxed"
                     placeholder="เขียน note ของคุณที่นี่..."
-                    style="font-family: 'Segoe UI', 'Tahoma', sans-serif;"></textarea>
+                    style="font-family: 'Segoe UI', 'Tahoma', sans-serif; color: #111827 !important; overflow: hidden;"></textarea>
             </div>
 
             <!-- Resize Handle -->

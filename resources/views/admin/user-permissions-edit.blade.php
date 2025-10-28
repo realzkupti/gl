@@ -51,31 +51,8 @@
         @csrf
         @method('PUT')
 
-        <!-- Tabs -->
-        <div class="mb-6" x-data="{ activeTab: 'default' }">
-            <div class="border-b border-gray-200 dark:border-gray-700">
-                <nav class="-mb-px flex space-x-8">
-                    <button type="button" @click="activeTab = 'default'"
-                        :class="activeTab === 'default' ? 'border-brand-500 text-brand-600 dark:text-brand-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
-                        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
-                        <svg class="inline w-5 h-5 mr-2 -mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                        </svg>
-                        สิทธิ์เมนูทั่วไป
-                    </button>
-                    <button type="button" @click="activeTab = 'bplus'"
-                        :class="activeTab === 'bplus' ? 'border-orange-500 text-orange-600 dark:text-orange-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
-                        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
-                        <svg class="inline w-5 h-5 mr-2 -mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                        </svg>
-                        สิทธิ์ BPLUS (แบ่งตามบริษัท)
-                    </button>
-                </nav>
-            </div>
-
-            <!-- Default Permissions Tab -->
-            <div x-show="activeTab === 'default'" class="mt-6">
+        <!-- All Permissions (Combined) -->
+        <div class="mb-6">
                 <!-- Action Buttons (Top) -->
                 <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div class="text-sm text-gray-600 dark:text-gray-400 flex items-center">
@@ -85,13 +62,13 @@
                         เลือกสิทธิ์สำหรับแต่ละเมนู (ถ้าไม่เลือก = ไม่มีสิทธิ์)
                     </div>
                     <div class="flex gap-2">
-                        <button type="button" id="selectAll" class="rounded-lg px-5 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 shadow-md hover:shadow-lg transition-all border-2 border-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-700">
+                        <button type="button" id="selectAll" class="rounded-lg px-5 py-2.5 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 shadow-md hover:shadow-lg transition-all border-2 border-green-700 dark:border-green-500 dark:bg-green-600 dark:hover:bg-green-700">
                             <svg class="w-4 h-4 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                             เลือกทั้งหมด
                         </button>
-                        <button type="button" id="deselectAll" class="rounded-lg px-5 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 shadow-md hover:shadow-lg transition-all border-2 border-gray-300 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-500">
+                        <button type="button" id="deselectAll" class="rounded-lg px-5 py-2.5 text-sm font-semibold text-gray-900 bg-gray-200 hover:bg-gray-300 shadow-md hover:shadow-lg transition-all border-2 border-gray-400 dark:text-white dark:bg-gray-600 dark:hover:bg-gray-500 dark:border-gray-400">
                             <svg class="w-4 h-4 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -101,10 +78,18 @@
                 </div>
 
                 @php
-                    // Filter menus by department - show menus NOT from Bplus department
-                    $defaultMenus = $menus->filter(function($m){
-                        return !$m->department || ($m->department->key ?? '') !== 'bplus';
-                    })->values();
+                    // Group all menus by system_type (1 = ระบบ, 2 = Bplus)
+                    $systemMenus = $menus->where('system_type', 1)->sortBy('sort_order')->values();
+                    $bplusMenus = $menus->where('system_type', 2)->sortBy('sort_order')->values();
+
+                    // Separate parent and child menus for hierarchical display
+                    $systemParents = $systemMenus->where('parent_id', null);
+                    $systemChildren = $systemMenus->where('parent_id', '!=', null)->groupBy('parent_id');
+
+                    $bplusParents = $bplusMenus->where('parent_id', null);
+                    $bplusChildren = $bplusMenus->where('parent_id', '!=', null)->groupBy('parent_id');
+
+                    $loopIndex = 0; // Manual loop counter for permissions array
                 @endphp
                 <!-- Default Permissions Table -->
                 <div class="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 overflow-hidden mb-6">
@@ -115,6 +100,14 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 dark:bg-gray-800 dark:text-gray-400 z-10">
                                         เมนู
                                     </th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-purple-50 dark:bg-purple-900/20">
+                                <div class="flex flex-col items-center">
+                                    <svg class="w-5 h-5 mb-1 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span class="text-purple-700 dark:text-purple-300 font-bold">ทั้งหมด</span>
+                                </div>
+                            </th>
                             <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 <div class="flex flex-col items-center">
                                     <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,7 +160,7 @@
                         </tr>
                             </thead>
                             <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-                                @if($defaultMenus->isEmpty())
+                                @if($menus->isEmpty())
                                 <tr>
                                     <td colspan="8" class="px-6 py-10 text-center">
                                         <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
@@ -176,12 +169,24 @@
                                     </td>
                                 </tr>
                                 @endif
-                                @foreach ($defaultMenus as $menu)
+
+                                {{-- ระบบ (System) Section --}}
+                                @if($systemParents->isNotEmpty())
+                                <tr class="bg-blue-50 dark:bg-blue-900/20">
+                                    <td colspan="8" class="px-6 py-3 text-sm font-bold text-blue-900 dark:text-blue-300">
+                                        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                                        </svg>
+                                        ระบบ (System)
+                                    </td>
+                                </tr>
+                                @foreach ($systemParents as $menu)
                                 @php
                                     $perm = $userPermissions->get($menu->id);
                                     $deptPerm = $departmentPermissions->get($menu->id);
                                 @endphp
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                                {{-- Parent Menu Row --}}
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition parent-menu-row" data-menu-id="{{ $menu->id }}">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white sticky left-0 bg-white dark:bg-gray-900">
                                         <div>
                                             <div class="font-semibold">{{ $menu->label }}</div>
@@ -193,111 +198,249 @@
                                             @endif
                                         </div>
                                     </td>
+                            <td class="px-4 py-4 text-center bg-purple-50 dark:bg-purple-900/10">
+                                <input type="checkbox" class="select-all-permissions w-5 h-5 text-purple-600 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 cursor-pointer" data-row-index="{{ $loopIndex }}">
+                            </td>
                             <td class="px-4 py-4 text-center">
-                                <input type="hidden" name="permissions[{{ $loop->index }}][menu_id]" value="{{ $menu->id }}">
-                                <input type="checkbox" name="permissions[{{ $loop->index }}][can_view]" value="1"
+                                <input type="hidden" name="permissions[{{ $loopIndex }}][menu_id]" value="{{ $menu->id }}">
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_view]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_view"
                                     {{ $perm && $perm->can_view ? 'checked' : '' }}
-                                    class="w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
                             </td>
                             <td class="px-4 py-4 text-center">
-                                <input type="checkbox" name="permissions[{{ $loop->index }}][can_create]" value="1"
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_create]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_create"
                                     {{ $perm && $perm->can_create ? 'checked' : '' }}
-                                    class="w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
                             </td>
                             <td class="px-4 py-4 text-center">
-                                <input type="checkbox" name="permissions[{{ $loop->index }}][can_update]" value="1"
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_update]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_update"
                                     {{ $perm && $perm->can_update ? 'checked' : '' }}
-                                    class="w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
                             </td>
                             <td class="px-4 py-4 text-center">
-                                <input type="checkbox" name="permissions[{{ $loop->index }}][can_delete]" value="1"
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_delete]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_delete"
                                     {{ $perm && $perm->can_delete ? 'checked' : '' }}
-                                    class="w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
                             </td>
                             <td class="px-4 py-4 text-center">
-                                <input type="checkbox" name="permissions[{{ $loop->index }}][can_export]" value="1"
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_export]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_export"
                                     {{ $perm && $perm->can_export ? 'checked' : '' }}
-                                    class="w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
                             </td>
                             <td class="px-4 py-4 text-center">
-                                <input type="checkbox" name="permissions[{{ $loop->index }}][can_approve]" value="1"
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_approve]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_approve"
                                     {{ $perm && $perm->can_approve ? 'checked' : '' }}
-                                    class="w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
                             </td>
                                 </tr>
+                                @php $loopIndex++; @endphp
+
+                                {{-- Child Menus for System --}}
+                                @if(isset($systemChildren[$menu->id]))
+                                    @foreach($systemChildren[$menu->id] as $childMenu)
+                                    @php
+                                        $childPerm = $userPermissions->get($childMenu->id);
+                                        $childDeptPerm = $departmentPermissions->get($childMenu->id);
+                                    @endphp
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition child-menu-row bg-gray-50/50 dark:bg-gray-800/50" data-parent-id="{{ $menu->id }}">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white sticky left-0 bg-gray-50 dark:bg-gray-800">
+                                            <div class="pl-6">
+                                                <div class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                    </svg>
+                                                    <div>
+                                                        <div class="font-medium">{{ $childMenu->label }}</div>
+                                                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ $childMenu->key }}</div>
+                                                        @if($childDeptPerm)
+                                                        <div class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                                                            แผนก: {{ $childDeptPerm->can_view ? '👁️' : '' }}{{ $childDeptPerm->can_create ? '➕' : '' }}{{ $childDeptPerm->can_update ? '✏️' : '' }}{{ $childDeptPerm->can_delete ? '🗑️' : '' }}{{ $childDeptPerm->can_export ? '📥' : '' }}{{ $childDeptPerm->can_approve ? '✅' : '' }}
+                                                        </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-purple-50 dark:bg-purple-900/10">
+                                            <input type="checkbox" class="select-all-permissions w-5 h-5 text-purple-600 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 cursor-pointer" data-row-index="{{ $loopIndex }}">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="hidden" name="permissions[{{ $loopIndex }}][menu_id]" value="{{ $childMenu->id }}">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_view]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_view ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_create]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_create ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_update]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_update ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_delete]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_delete ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_export]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_export ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_approve]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_approve ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                    </tr>
+                                    @php $loopIndex++; @endphp
+                                    @endforeach
+                                @endif
                                 @endforeach
+                                @endif
+
+                                {{-- Bplus Section --}}
+                                @if($bplusParents->isNotEmpty())
+                                <tr class="bg-orange-50 dark:bg-orange-900/20">
+                                    <td colspan="8" class="px-6 py-3 text-sm font-bold text-orange-900 dark:text-orange-300">
+                                        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                        </svg>
+                                        Bplus
+                                    </td>
+                                </tr>
+                                @foreach ($bplusParents as $menu)
+                                @php
+                                    $perm = $userPermissions->get($menu->id);
+                                    $deptPerm = $departmentPermissions->get($menu->id);
+                                @endphp
+                                {{-- Parent Menu Row --}}
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition parent-menu-row" data-menu-id="{{ $menu->id }}">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white sticky left-0 bg-white dark:bg-gray-900">
+                                        <div>
+                                            <div class="font-semibold">{{ $menu->label }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ $menu->key }}</div>
+                                            @if($deptPerm)
+                                            <div class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                                                แผนก: {{ $deptPerm->can_view ? '👁️' : '' }}{{ $deptPerm->can_create ? '➕' : '' }}{{ $deptPerm->can_update ? '✏️' : '' }}{{ $deptPerm->can_delete ? '🗑️' : '' }}{{ $deptPerm->can_export ? '📥' : '' }}{{ $deptPerm->can_approve ? '✅' : '' }}
+                                            </div>
+                                            @endif
+                                        </div>
+                                    </td>
+                            <td class="px-4 py-4 text-center bg-purple-50 dark:bg-purple-900/10">
+                                <input type="checkbox" class="select-all-permissions w-5 h-5 text-purple-600 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 cursor-pointer" data-row-index="{{ $loopIndex }}">
+                            </td>
+                            <td class="px-4 py-4 text-center">
+                                <input type="hidden" name="permissions[{{ $loopIndex }}][menu_id]" value="{{ $menu->id }}">
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_view]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_view"
+                                    {{ $perm && $perm->can_view ? 'checked' : '' }}
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                            </td>
+                            <td class="px-4 py-4 text-center">
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_create]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_create"
+                                    {{ $perm && $perm->can_create ? 'checked' : '' }}
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                            </td>
+                            <td class="px-4 py-4 text-center">
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_update]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_update"
+                                    {{ $perm && $perm->can_update ? 'checked' : '' }}
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                            </td>
+                            <td class="px-4 py-4 text-center">
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_delete]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_delete"
+                                    {{ $perm && $perm->can_delete ? 'checked' : '' }}
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                            </td>
+                            <td class="px-4 py-4 text-center">
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_export]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_export"
+                                    {{ $perm && $perm->can_export ? 'checked' : '' }}
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                            </td>
+                            <td class="px-4 py-4 text-center">
+                                <input type="checkbox" name="permissions[{{ $loopIndex }}][can_approve]" value="1" data-row-index="{{ $loopIndex }}" data-menu-id="{{ $menu->id }}" data-permission-type="can_approve"
+                                    {{ $perm && $perm->can_approve ? 'checked' : '' }}
+                                    class="permission-checkbox parent-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                            </td>
+                                </tr>
+                                @php $loopIndex++; @endphp
+
+                                {{-- Child Menus for Bplus --}}
+                                @if(isset($bplusChildren[$menu->id]))
+                                    @foreach($bplusChildren[$menu->id] as $childMenu)
+                                    @php
+                                        $childPerm = $userPermissions->get($childMenu->id);
+                                        $childDeptPerm = $departmentPermissions->get($childMenu->id);
+                                    @endphp
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition child-menu-row bg-gray-50/50 dark:bg-gray-800/50" data-parent-id="{{ $menu->id }}">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white sticky left-0 bg-gray-50 dark:bg-gray-800">
+                                            <div class="pl-6">
+                                                <div class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                    </svg>
+                                                    <div>
+                                                        <div class="font-medium">{{ $childMenu->label }}</div>
+                                                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ $childMenu->key }}</div>
+                                                        @if($childDeptPerm)
+                                                        <div class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                                                            แผนก: {{ $childDeptPerm->can_view ? '👁️' : '' }}{{ $childDeptPerm->can_create ? '➕' : '' }}{{ $childDeptPerm->can_update ? '✏️' : '' }}{{ $childDeptPerm->can_delete ? '🗑️' : '' }}{{ $childDeptPerm->can_export ? '📥' : '' }}{{ $childDeptPerm->can_approve ? '✅' : '' }}
+                                                        </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-purple-50 dark:bg-purple-900/10">
+                                            <input type="checkbox" class="select-all-permissions w-5 h-5 text-purple-600 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 cursor-pointer" data-row-index="{{ $loopIndex }}">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="hidden" name="permissions[{{ $loopIndex }}][menu_id]" value="{{ $childMenu->id }}">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_view]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_view ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_create]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_create ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_update]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_update ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_delete]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_delete ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_export]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_export ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-4 py-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <input type="checkbox" name="permissions[{{ $loopIndex }}][can_approve]" value="1" data-row-index="{{ $loopIndex }}" data-parent-id="{{ $menu->id }}"
+                                                {{ $childPerm && $childPerm->can_approve ? 'checked' : '' }}
+                                                class="permission-checkbox child-permission w-5 h-5 text-brand-600 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-500 cursor-pointer">
+                                        </td>
+                                    </tr>
+                                    @php $loopIndex++; @endphp
+                                    @endforeach
+                                @endif
+                                @endforeach
+                                @endif
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- BPLUS Permissions Tab -->
-            <div x-show="activeTab === 'bplus'" class="mt-6" style="display: none;">
-                <div class="mb-6 rounded-lg border-l-4 border-orange-500 bg-orange-50 p-4 dark:bg-orange-900/20">
-                    <div class="flex items-start">
-                        <svg class="h-5 w-5 text-orange-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                        </svg>
-                        <div>
-                            <p class="text-orange-700 dark:text-orange-400 font-medium mb-1">สิทธิ์ BPLUS แบบแยกตามบริษัท</p>
-                            <p class="text-sm text-orange-600 dark:text-orange-400">เลือกบริษัทที่ user สามารถเข้าถึงได้สำหรับแต่ละเมนู BPLUS (ต้องเปิดสิทธิ์ "ดู" ในแท็บ "สิทธิ์เมนูทั่วไป" ก่อนจึงจะมีผล)</p>
-                        </div>
-                    </div>
-                </div>
-
-                @php
-                    // Filter menus by Bplus department
-                    $bplusMenus = $menus->filter(function($m){
-                        return $m->department && ($m->department->key ?? '') === 'bplus';
-                    })->values();
-                @endphp
-
-                @if($bplusMenus->isEmpty())
-                    <div class="text-center py-12 text-gray-500 dark:text-gray-400">
-                        <svg class="mx-auto h-12 w-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-                        </svg>
-                        <p>ยังไม่มีเมนู BPLUS ในระบบ</p>
-                    </div>
-                @else
-                    <div class="space-y-4">
-                        @foreach($bplusMenus as $menu)
-                            @php
-                                $selectedCompanies = $userCompanyAccess->get($menu->id, []);
-                            @endphp
-                            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                                <div class="flex items-start justify-between mb-4">
-                                    <div>
-                                        <h4 class="text-lg font-semibold text-gray-900 dark:text-white">{{ $menu->label }}</h4>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ $menu->key }}</p>
-                                    </div>
-                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
-                                        BPLUS
-                                    </span>
-                                </div>
-
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                    @foreach($companies as $company)
-                                        <label class="flex items-center p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 transition">
-                                            <input type="checkbox"
-                                                name="menu_company_access[{{ $menu->id }}][]"
-                                                value="{{ $company->id }}"
-                                                {{ in_array($company->id, $selectedCompanies) ? 'checked' : '' }}
-                                                class="w-5 h-5 text-orange-600 border-gray-300 dark:border-gray-600 rounded focus:ring-orange-500 cursor-pointer">
-                                            <span class="ml-3 text-sm font-medium text-gray-900 dark:text-white">{{ $company->label }}</span>
-                                        </label>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-        </div>
-
         <!-- Action Buttons (Bottom) -->
-        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 sticky bottom-0 bg-white dark:bg-gray-950 py-4 border-t-2 border-gray-200 dark:border-gray-700 -mx-4 px-4 md:-mx-6 md:px-6 2xl:-mx-10 2xl:px-10 z-20 shadow-lg">
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 sticky bottom-0 bg-white dark:bg-gray-800 py-4 border-t-2 border-gray-200 dark:border-gray-600 -mx-4 px-4 md:-mx-6 md:px-6 2xl:-mx-10 2xl:px-10 z-20 shadow-lg">
             <button type="button" onclick="if(confirm('ยืนยันการล้างสิทธิ์ทั้งหมด?')) { document.getElementById('resetForm').submit(); }"
                 class="w-full sm:w-auto rounded-lg bg-red-100 hover:bg-red-200 px-6 py-3 text-red-700 font-semibold transition shadow-md hover:shadow-lg border-2 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50 dark:border-red-700">
                 <svg class="w-5 h-5 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -312,7 +455,7 @@
                     </svg>
                     ยกเลิก
                 </a>
-                <button type="submit" id="savePermissionsBtn" class="flex-1 sm:flex-none rounded-lg bg-brand-600 hover:bg-brand-700 px-8 py-3 text-white font-bold shadow-lg hover:shadow-xl transition-all border-2 border-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-700 flex items-center justify-center">
+                <button type="submit" id="savePermissionsBtn" class="flex-1 sm:flex-none rounded-lg bg-blue-600 hover:bg-blue-700 px-8 py-3 text-white font-bold shadow-lg hover:shadow-xl transition-all border-2 border-blue-700 dark:border-blue-500 dark:bg-blue-600 dark:hover:bg-blue-700 flex items-center justify-center">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
@@ -333,13 +476,148 @@
 <script>
 // Select/Deselect All functionality
 document.getElementById('selectAll').addEventListener('click', function() {
-    // Only select checkboxes in the default permissions table
-    document.querySelectorAll('table input[type="checkbox"]').forEach(cb => cb.checked = true);
+    // Only select permission checkboxes (not the "select all" column)
+    document.querySelectorAll('.permission-checkbox').forEach(cb => cb.checked = true);
+    // Update "ทั้งหมด" checkboxes
+    updateSelectAllCheckboxes();
 });
 
 document.getElementById('deselectAll').addEventListener('click', function() {
-    // Only deselect checkboxes in the default permissions table
-    document.querySelectorAll('table input[type="checkbox"]').forEach(cb => cb.checked = false);
+    // Only deselect permission checkboxes (not the "select all" column)
+    document.querySelectorAll('.permission-checkbox').forEach(cb => cb.checked = false);
+    // Update "ทั้งหมด" checkboxes
+    updateSelectAllCheckboxes();
+});
+
+// Handle "ทั้งหมด" checkbox - select/deselect all permissions for that row
+document.querySelectorAll('.select-all-permissions').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const rowIndex = this.dataset.rowIndex;
+        const isChecked = this.checked;
+
+        // Find the row to check if it's parent or child
+        const row = this.closest('tr');
+        const isParentRow = row.classList.contains('parent-menu-row');
+        const menuId = row.dataset.menuId;
+
+        if (isParentRow && menuId) {
+            // Parent row's "ทั้งหมด" - special behavior
+            if (isChecked) {
+                // Check only "can_view" for parent
+                const parentViewCb = document.querySelector(
+                    `.parent-permission[data-menu-id="${menuId}"][data-permission-type="can_view"]`
+                );
+                if (parentViewCb) parentViewCb.checked = true;
+
+                // Check ALL permissions for children
+                document.querySelectorAll(`.child-permission[data-parent-id="${menuId}"]`).forEach(cb => {
+                    cb.checked = true;
+                });
+            } else {
+                // Uncheck everything for parent and children
+                document.querySelectorAll(`.parent-permission[data-menu-id="${menuId}"]`).forEach(cb => {
+                    cb.checked = false;
+                });
+                document.querySelectorAll(`.child-permission[data-parent-id="${menuId}"]`).forEach(cb => {
+                    cb.checked = false;
+                });
+            }
+        } else {
+            // Child row's "ทั้งหมด" or regular row - normal behavior
+            document.querySelectorAll(`.permission-checkbox[data-row-index="${rowIndex}"]`).forEach(cb => {
+                cb.checked = isChecked;
+            });
+
+            // Trigger parent-child logic for each checkbox
+            document.querySelectorAll(`.permission-checkbox[data-row-index="${rowIndex}"]`).forEach(cb => {
+                handlePermissionChange(cb);
+            });
+        }
+
+        updateSelectAllCheckboxes();
+    });
+});
+
+// Handle individual permission checkboxes - update "ทั้งหมด" checkbox
+document.querySelectorAll('.permission-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        handlePermissionChange(this);
+        updateSelectAllCheckboxes();
+    });
+});
+
+// Handle parent-child menu permission relationships
+function handlePermissionChange(checkbox) {
+    const isParent = checkbox.classList.contains('parent-permission');
+    const isChild = checkbox.classList.contains('child-permission');
+    const permissionType = checkbox.dataset.permissionType;
+    const isChecked = checkbox.checked;
+
+    // Auto-enable "can_view" when any other permission is checked
+    if (isChecked && permissionType && permissionType !== 'can_view') {
+        const rowIndex = checkbox.dataset.rowIndex;
+        const viewCheckbox = document.querySelector(
+            `.permission-checkbox[data-row-index="${rowIndex}"][data-permission-type="can_view"]`
+        );
+        if (viewCheckbox && !viewCheckbox.checked) {
+            viewCheckbox.checked = true;
+        }
+    }
+
+    if (isParent) {
+        // Parent checkbox changed
+        const menuId = checkbox.dataset.menuId;
+
+        // If parent is unchecked, uncheck all children's same permission
+        if (!isChecked && permissionType) {
+            if (permissionType === 'can_view') {
+                // If parent view is unchecked, uncheck ALL child permissions
+                document.querySelectorAll(`.child-permission[data-parent-id="${menuId}"]`).forEach(childCb => {
+                    childCb.checked = false;
+                });
+            }
+        }
+    }
+
+    if (isChild) {
+        // Child checkbox changed
+        const parentId = checkbox.dataset.parentId;
+
+        // If any child permission is checked, auto-enable parent "can_view"
+        const anyChildChecked = Array.from(
+            document.querySelectorAll(`.child-permission[data-parent-id="${parentId}"]`)
+        ).some(cb => cb.checked);
+
+        if (anyChildChecked) {
+            // Find and check parent's "can_view" permission
+            const parentViewCheckbox = document.querySelector(
+                `.parent-permission[data-menu-id="${parentId}"][data-permission-type="can_view"]`
+            );
+            if (parentViewCheckbox && !parentViewCheckbox.checked) {
+                parentViewCheckbox.checked = true;
+            }
+        }
+    }
+}
+
+// Function to update "ทั้งหมด" checkboxes based on row permissions
+function updateSelectAllCheckboxes() {
+    document.querySelectorAll('.select-all-permissions').forEach(selectAllCb => {
+        const rowIndex = selectAllCb.dataset.rowIndex;
+        const rowCheckboxes = document.querySelectorAll(`.permission-checkbox[data-row-index="${rowIndex}"]`);
+
+        // Check if all permissions in this row are checked
+        const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
+        const someChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
+
+        selectAllCb.checked = allChecked;
+        selectAllCb.indeterminate = someChecked && !allChecked;
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateSelectAllCheckboxes();
 });
 
 // Toast notification function
@@ -442,4 +720,12 @@ style.textContent = `
 document.head.appendChild(style);
 </script>
 @endpush
+
+@if(isset($currentMenu) && $currentMenu && $currentMenu->has_sticky_note)
+    <x-sticky-note
+        :menu-id="$currentMenu->id"
+        :company-id="session('current_company_id')"
+    />
+@endif
+
 @endsection

@@ -25,14 +25,14 @@
     <!-- Tabs -->
     <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav class="flex space-x-4" aria-label="Tabs">
-            <a href="{{ route('admin.users', ['tab' => 'active']) }}"
-               class="px-4 py-2 border-b-2 font-medium text-sm {{ $tab === 'active' ? 'border-brand-500 text-brand-600 dark:text-brand-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}">
+            <button type="button" onclick="switchTab('active')" data-tab="active"
+               class="tab-button px-4 py-2 border-b-2 font-medium text-sm {{ $tab === 'active' ? 'border-brand-500 text-brand-600 dark:text-brand-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}">
                 ผู้ใช้ที่ใช้งานอยู่ (<span id="active-count">{{ $users->where('is_active', true)->count() }}</span>)
-            </a>
-            <a href="{{ route('admin.users', ['tab' => 'pending']) }}"
-               class="px-4 py-2 border-b-2 font-medium text-sm {{ $tab === 'pending' ? 'border-brand-500 text-brand-600 dark:text-brand-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}">
+            </button>
+            <button type="button" onclick="switchTab('pending')" data-tab="pending"
+               class="tab-button px-4 py-2 border-b-2 font-medium text-sm {{ $tab === 'pending' ? 'border-brand-500 text-brand-600 dark:text-brand-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}">
                 รออนุมัติ (<span id="pending-count">{{ $users->where('is_active', false)->count() }}</span>)
-            </a>
+            </button>
         </nav>
     </div>
 
@@ -61,7 +61,7 @@
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($users as $user)
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <tr class="user-row hover:bg-gray-50 dark:hover:bg-gray-700" data-is-active="{{ $user->is_active ? '1' : '0' }}">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0 h-10 w-10">
@@ -292,5 +292,45 @@ function loadUserCounts() {
 document.addEventListener('DOMContentLoaded', function() {
     loadUserCounts();
 });
+
+// Switch tab function - filter users without page reload
+let currentTab = '{{ $tab }}';
+
+function switchTab(tab) {
+    if (currentTab === tab) return;
+
+    currentTab = tab;
+
+    // Update tab styles
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        const isActive = btn.dataset.tab === tab;
+        if (isActive) {
+            btn.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            btn.classList.add('border-brand-500', 'text-brand-600', 'dark:text-brand-400');
+        } else {
+            btn.classList.remove('border-brand-500', 'text-brand-600', 'dark:text-brand-400');
+            btn.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+        }
+    });
+
+    // Filter user rows
+    const showActive = (tab === 'active');
+    document.querySelectorAll('.user-row').forEach(row => {
+        const isActive = row.dataset.isActive === '1';
+        if (showActive) {
+            // Show active users
+            row.style.display = isActive ? '' : 'none';
+        } else {
+            // Show pending users
+            row.style.display = isActive ? 'none' : '';
+        }
+    });
+
+    // Update URL without reload
+    if (history.pushState) {
+        const newUrl = `/admin/users?tab=${tab}`;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+    }
+}
 </script>
 @endsection

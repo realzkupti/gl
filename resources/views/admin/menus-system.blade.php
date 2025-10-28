@@ -99,8 +99,8 @@
     </div>
 
     <!-- Toast Notification -->
-    <div id="toast" class="fixed top-4 right-4 z-50 hidden">
-        <div class="rounded-lg shadow-lg p-4 max-w-sm">
+    <div id="toast" class="fixed top-4 right-4 z-[9999] hidden">
+        <div class="rounded-lg shadow-lg p-4 max-w-sm bg-green-500 text-white">
             <div class="flex items-center gap-3">
                 <svg id="toast-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
                 <p id="toast-message" class="text-sm font-medium"></p>
@@ -177,6 +177,7 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ประเภทการเชื่อมต่อ</label>
                     <select id="form-connection-type" name="connection_type" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         <option value="pgsql">PostgreSQL</option>
+                        <option value="sqlsrv">SQL Server</option>
                         <option value="mysql">MySQL</option>
                     </select>
                 </div>
@@ -316,7 +317,10 @@ const menuManager = {
     },
 
     getCurrentMenus() {
-        return this.allMenus.filter(m => m.system_type == this.selectedSystem);
+        // Since we fetch menus filtered by system_type from API,
+        // allMenus already contains only the menus for selectedSystem
+        // So we don't need to filter again
+        return this.allMenus;
     },
 
     hasChildren(parentId) {
@@ -341,8 +345,54 @@ const menuManager = {
         this.renderMenus();
     },
 
-    switchSystem(systemType) {
-        window.location.href = `/admin/menus/system?system_type=${systemType}`;
+    async switchSystem(systemType) {
+        // Don't reload if already on this system
+        if (this.selectedSystem === systemType) return;
+
+        // Update selected system
+        this.selectedSystem = systemType;
+
+        // Update tab styles
+        this.updateSystemTabs();
+
+        // Fetch menus for the new system_type
+        await this.loadMenusBySystemType(systemType);
+
+        // Re-render menus with new data
+        this.renderMenus();
+
+        // Update URL without reload (optional - for browser history)
+        if (history.pushState) {
+            const newUrl = `/admin/menus/system?system_type=${systemType}`;
+            window.history.pushState({ path: newUrl }, '', newUrl);
+        }
+    },
+
+    async loadMenusBySystemType(systemType) {
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+            const response = await fetch(`/admin/menus/list?system_type=${systemType}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': token
+                }
+            });
+
+            if (!response.ok) {
+                console.error('Failed to load menus:', response.status);
+                this.showToast('ไม่สามารถโหลดเมนูได้', 'error');
+                return;
+            }
+
+            const data = await response.json();
+            if (data.success && data.data) {
+                // Update allMenus with the new data
+                this.allMenus = data.data;
+            }
+        } catch (error) {
+            console.error('Load menus error:', error);
+            this.showToast('เกิดข้อผิดพลาดในการโหลดเมนู', 'error');
+        }
     },
 
     updateSystemTabs() {
@@ -513,38 +563,81 @@ const menuManager = {
         const allRows = Array.from(document.getElementById('menu-tbody').querySelectorAll('tr'));
         const draggedIndex = allRows.indexOf(evt.item);
 
-        // Check if dropped on/after a parent menu
-        let newParentId = null;
-        let previousRow = allRows[draggedIndex - 1];
-
-        // If previous row is a parent menu, this becomes its child
-        if (previousRow && previousRow.dataset.parent === 'true') {
-            const previousId = parseInt(previousRow.dataset.id);
-            const previousMenu = this.allMenus.find(m => m.id === previousId);
-
-            // Ask user if they want to make it a child
-            if (previousMenu && !draggedMenu.parent_id) {
-                this.pendingDragAction = {
-                    menuId: draggedId,
-                    previousMenuId: previousId,
-                    type: 'child'
-                };
-                this.openConfirmChildModal(draggedMenu.label, previousMenu.label);
-                return;
+        // Find what parent context we're in based on position
+        let contextParentId = null;
+        for (let i = draggedIndex - 1; i >= 0; i--) {
+            const row = allRows[i];
+            if (row.dataset.parent === 'true') {
+                contextParentId = parseInt(row.dataset.id);
+                break;
             }
         }
 
-        // If dragged from child to parent (not after any parent)
-        if (draggedMenu.parent_id && !newParentId) {
+        const previousRow = allRows[draggedIndex - 1];
+        const isAfterParent = previousRow && previousRow.dataset.parent === 'true';
+
+        // Case 1: Parent menu being moved to be child of another parent
+        if (!draggedMenu.parent_id && isAfterParent) {
+            const previousId = parseInt(previousRow.dataset.id);
+            const previousMenu = this.allMenus.find(m => m.id === previousId);
+
+            this.pendingDragAction = {
+                menuId: draggedId,
+                previousMenuId: previousId,
+                type: 'child'
+            };
+            this.openConfirmChildModal(draggedMenu.label, previousMenu.label);
+            return;
+        }
+
+        // Case 2: Child menu being moved to parent level (not under any parent context)
+        if (draggedMenu.parent_id && contextParentId === null) {
+            const oldParent = this.allMenus.find(m => m.id === draggedMenu.parent_id);
+            const oldParentName = oldParent ? oldParent.label : 'เมนูแม่';
+
+            if (!confirm(`ต้องการย้าย "${draggedMenu.label}" ออกจาก "${oldParentName}" เป็นเมนูหลักใช่หรือไม่?`)) {
+                this.renderMenus(); // Reset order
+                return;
+            }
+
             this.pendingDragAction = {
                 menuId: draggedId,
                 type: 'parent'
             };
-            this.openConfirmParentModal(draggedMenu.label);
+            await this.processDragAction(false, true);
             return;
         }
 
-        // No parent change, just update sort order
+        // Case 3: Child menu being moved to different parent
+        if (draggedMenu.parent_id && contextParentId && draggedMenu.parent_id !== contextParentId) {
+            const oldParent = this.allMenus.find(m => m.id === draggedMenu.parent_id);
+            const newParent = this.allMenus.find(m => m.id === contextParentId);
+            const oldParentName = oldParent ? oldParent.label : 'เมนูแม่';
+            const newParentName = newParent ? newParent.label : 'เมนูแม่';
+
+            if (!confirm(`ต้องการย้าย "${draggedMenu.label}" จาก "${oldParentName}" ไปยัง "${newParentName}" ใช่หรือไม่?`)) {
+                this.renderMenus(); // Reset order
+                return;
+            }
+
+            await this.updateMenuParent(draggedId, contextParentId);
+            await this.updateSortOrder();
+            return;
+        }
+
+        // Case 4: Child menu being reordered within same parent
+        if (draggedMenu.parent_id && contextParentId === draggedMenu.parent_id) {
+            const parentMenu = this.allMenus.find(m => m.id === draggedMenu.parent_id);
+            const parentName = parentMenu ? parentMenu.label : 'เมนูแม่';
+
+            if (!confirm(`ต้องการเปลี่ยนลำดับ "${draggedMenu.label}" ภายใต้ "${parentName}" ใช่หรือไม่?`)) {
+                this.renderMenus(); // Reset order
+                return;
+            }
+        }
+
+        // Case 5: Parent menu reordering (no confirmation needed for parent level)
+        // Just update sort order
         await this.updateSortOrder();
     },
 
@@ -591,8 +684,9 @@ const menuManager = {
                     system_type: menu.system_type,
                     parent_id: newParentId,
                     sort_order: menu.sort_order,
-                    connection_type: menu.connection_type,
-                    is_active: menu.is_active
+                    connection_type: menu.connection_type || 'pgsql',
+                    is_active: menu.is_active,
+                    has_sticky_note: menu.has_sticky_note || false
                 })
             });
 
@@ -695,6 +789,10 @@ const menuManager = {
 
         try {
             const token = document.querySelector('meta[name="csrf-token"]').content;
+
+            // Ensure system_type is set correctly (use selectedSystem as fallback)
+            const systemType = menu.system_type || this.selectedSystem;
+
             const response = await fetch(`/admin/menus/api/${menuId}`, {
                 method: 'PUT',
                 headers: {
@@ -703,14 +801,27 @@ const menuManager = {
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    ...menu,
+                    key: menu.key,
+                    label: menu.label,
+                    route: menu.route,
+                    icon: menu.icon,
+                    system_type: systemType,
+                    parent_id: menu.parent_id,
+                    sort_order: menu.sort_order,
+                    connection_type: menu.connection_type || 'pgsql',
+                    is_active: menu.is_active,
                     has_sticky_note: !menu.has_sticky_note
                 })
             });
 
             const data = await response.json();
             if (data.success) {
-                menu.has_sticky_note = !menu.has_sticky_note;
+                // Update the menu object with the response from server to preserve all fields
+                if (data.menu) {
+                    Object.assign(menu, data.menu);
+                } else {
+                    menu.has_sticky_note = !menu.has_sticky_note;
+                }
                 this.renderMenus();
                 this.showToast(menu.has_sticky_note ? 'เปิดใช้งาน Sticky Note แล้ว' : 'ปิดใช้งาน Sticky Note แล้ว', 'success');
             }
@@ -727,7 +838,36 @@ const menuManager = {
         document.getElementById('form-system-type').value = this.selectedSystem;
         document.getElementById('form-active').checked = true;
         this.updateParentOptions(this.selectedSystem);
+
+        // Calculate default sort_order (last position in parent menus)
+        this.updateSortOrderField();
+
+        // Add event listener to parent select to update sort_order
+        const parentSelect = document.getElementById('form-parent');
+        parentSelect.addEventListener('change', () => this.updateSortOrderField());
+
         document.getElementById('modal-overlay').classList.remove('hidden');
+    },
+
+    updateSortOrderField() {
+        const parentId = document.getElementById('form-parent').value;
+        let maxSortOrder = 0;
+
+        if (parentId) {
+            // Has parent - get max sort_order of children
+            const children = this.allMenus.filter(m => m.parent_id === parseInt(parentId));
+            if (children.length > 0) {
+                maxSortOrder = Math.max(...children.map(m => m.sort_order || 0));
+            }
+        } else {
+            // No parent - get max sort_order of root menus
+            const rootMenus = this.allMenus.filter(m => !m.parent_id && m.system_type === this.selectedSystem);
+            if (rootMenus.length > 0) {
+                maxSortOrder = Math.max(...rootMenus.map(m => m.sort_order || 0));
+            }
+        }
+
+        document.getElementById('form-sort-order').value = maxSortOrder + 1;
     },
 
     openEditModal(menuId) {
