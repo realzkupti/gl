@@ -326,8 +326,20 @@ async function deleteCheque(id) {
 
     if (result.isConfirmed) {
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            if (!csrfToken) {
+                console.error('CSRF Token not found!');
+                throw new Error('CSRF Token missing');
+            }
+
             const response = await fetch(`${API_BASE}/cheques/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
             });
 
             if (response.ok) {
@@ -341,12 +353,15 @@ async function deleteCheque(id) {
                 chequesTable.ajax.reload();
                 updateStats();
             } else {
-                throw new Error('Delete failed');
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Delete failed:', response.status, errorData);
+                throw new Error(errorData.message || 'Delete failed');
             }
         } catch (error) {
+            console.error('Delete error:', error);
             Swal.fire({
                 title: 'เกิดข้อผิดพลาด!',
-                text: 'ไม่สามารถลบข้อมูลได้',
+                text: error.message || 'ไม่สามารถลบข้อมูลได้',
                 icon: 'error',
                 confirmButtonColor: '#ef4444'
             });

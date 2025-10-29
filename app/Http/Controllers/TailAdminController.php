@@ -93,21 +93,12 @@ class TailAdminController extends Controller
     }
 
     /**
-     * Cheque Print Page
+     * Cheque Print Page (with integrated designer tab)
      */
     public function chequePrint(): View
     {
         $page = 'cheque-print';
         return view('tailadmin.pages.cheque.print', compact('page'));
-    }
-
-    /**
-     * Cheque Designer Page
-     */
-    public function chequeDesigner(): View
-    {
-        $page = 'cheque-designer';
-        return view('tailadmin.pages.cheque.designer', compact('page'));
     }
 
     /**

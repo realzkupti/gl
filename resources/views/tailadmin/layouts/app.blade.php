@@ -15,6 +15,27 @@
 
     <link rel="stylesheet" href="{{ asset('vendor/sweetalert2/sweetalert2.min.css') }}">
     @stack('styles')
+
+    @php
+        // Auto-inject $currentMenu based on current route
+        if (!isset($currentMenu)) {
+            $routeName = request()->route()?->getName();
+
+            // Try to find menu by exact route name match first
+            $currentMenu = \App\Models\Menu::where('route', $routeName)
+                                           ->where('is_active', true)
+                                           ->first();
+
+            // Fallback: try prefix match (e.g., 'cheque.print' → 'cheque')
+            if (!$currentMenu && $routeName && str_contains($routeName, '.')) {
+                $prefix = explode('.', $routeName)[0];
+                $currentMenu = \App\Models\Menu::where('route', $prefix)
+                                               ->orWhere('key', $prefix)
+                                               ->where('is_active', true)
+                                               ->first();
+            }
+        }
+    @endphp
 </head>
 <body
     x-data="{
@@ -61,6 +82,14 @@
         <!-- ===== Content Area End ===== -->
     </div>
     <!-- ===== Page Wrapper End ===== -->
+
+    {{-- Sticky Note Component - Auto-inject for all pages using this layout --}}
+    @if(isset($currentMenu) && $currentMenu && $currentMenu->has_sticky_note)
+        <x-sticky-note
+            :menu-id="$currentMenu->id"
+            :company-id="session('current_company_id')"
+        />
+    @endif
 
     <!-- Company Switcher Modal -->
     <div id="companySwitcherModal" style="display: none;" class="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">

@@ -1,6 +1,6 @@
 @extends('tailadmin.layouts.app')
 
-@section('title', 'พิมพ์เช็ค - ' . config('app.name'))
+@section('title', 'ระบบเช็ค - ' . config('app.name'))
 
 @push('styles')
 <link href="{{ asset('vendor/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet">
@@ -15,21 +15,30 @@
 
 .cheque-preview {
     position: relative;
-    width: 800px;
-    height: 350px;
+    width: 890px;
+    height: 445px;
     background: white;
+    background-size: contain;
+    background-position: top left;
+    background-repeat: no-repeat;
     border: 2px solid #ddd;
     margin: 20px auto;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.cheque-preview.has-background {
+    background-color: transparent;
 }
 
 .draggable {
     position: absolute;
     cursor: move;
     user-select: none;
-    padding: 2px 5px;
+    padding: 0;
+    margin: 0;
     border: 1px dashed transparent;
     white-space: nowrap;
+    line-height: 1;
 }
 
 /* Date should respect multiple spaces for box-fit */
@@ -69,6 +78,33 @@
     margin-bottom: 10px;
 }
 
+/* Tabs */
+.tab-button {
+    padding: 12px 24px;
+    border-bottom: 3px solid transparent;
+    font-weight: 500;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+
+.tab-button:hover {
+    color: #374151;
+    border-bottom-color: #d1d5db;
+}
+
+.tab-button.active {
+    color: #4f46e5;
+    border-bottom-color: #4f46e5;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
 @media print {
     /* Hide everything first */
     * {
@@ -103,10 +139,9 @@
     /* Style the cheque preview box */
     #chequePreview {
         position: relative !important;
-        width: 800px !important;
-        height: 350px !important;
-        border: 1px solid #000 !important;
+        border: none !important;
         background: white !important;
+        background-image: none !important;
         margin: 0 !important;
         padding: 0 !important;
         page-break-inside: avoid !important;
@@ -122,6 +157,9 @@
         border: none !important;
         background: transparent !important;
         white-space: nowrap !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        line-height: 1 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
@@ -178,7 +216,7 @@
 }
 
 @page {
-    size: A4 portrait;
+    size: 178mm 89mm;  /* BOT Standard Cheque Size */
     margin: 0;
 }
 
@@ -220,184 +258,65 @@
     <!-- Breadcrumb -->
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 class="text-title-md2 font-bold text-gray-900 dark:text-white">
-            พิมพ์เช็ค
+            ระบบเช็ค
         </h2>
 
         <nav>
             <ol class="flex items-center gap-2">
                 <li><a class="font-medium text-gray-700 hover:text-brand-500 dark:text-gray-400" href="{{ route('tailadmin.dashboard') }}">Dashboard /</a></li>
-                <li class="font-medium text-brand-500">พิมพ์เช็ค</li>
+                <li class="font-medium text-brand-500">ระบบเช็ค</li>
             </ol>
         </nav>
     </div>
 
-    <div class="grid grid-cols-1 gap-6">
-        <!-- Top: Form (แนวนอน) -->
-        <div class="w-full">
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">📝 ข้อมูลเช็ค</h3>
+    <!-- Tabs Navigation -->
+    <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex gap-4">
+            <button onclick="switchTab('print')" class="tab-button active" id="tab-print-btn">
+                📝 พิมพ์เช็ค
+            </button>
+            <button onclick="switchTab('designer')" class="tab-button" id="tab-designer-btn">
+                🎨 ออกแบบตำแหน่ง
+            </button>
+        </div>
+    </div>
 
-                <form id="cheque-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <!-- Branch -->
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">🏢 สาขา</label>
-                        <select id="branch_code" name="branch_code" class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white">
-                            <option value="">-- เลือกสาขา --</option>
-                        </select>
-                    </div>
+    <!-- Tab Content: Print -->
+    <div id="tab-print-content" class="tab-content active">
+        <div class="grid grid-cols-1 gap-6">
+            <!-- Print Form -->
+            @include('tailadmin.pages.cheque.components.print-form')
 
-                    <!-- Bank -->
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">📋 ธนาคาร</label>
-                        <select id="bank_code" name="bank_code" onchange="loadBankTemplate()" class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white">
-                            <option value="custom">กำหนดเอง</option>
-                            <option value="scb">ธนาคารไทยพาณิชย์ (SCB)</option>
-                            <option value="kbank">ธนาคารกสิกรไทย (KBANK)</option>
-                            <option value="ktb">ธนาคารกรุงไทย (KTB)</option>
-                        </select>
-                    </div>
-
-                    <!-- Cheque Number -->
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">🔢 หมายเลขเช็ค</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="cheque_number" name="cheque_number" placeholder="เลขที่เช็ค" required
-                                onblur="loadChequeByNumber()"
-                                class="flex-1 rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
-                            <button type="button" onclick="useNextChequeNo()" class="rounded bg-gray-100 px-4 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700" title="เลขถัดไป">
-                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                            </button>
-                        </div>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">กรอกเลขที่เช็คเดิมเพื่อโหลดข้อมูล</p>
-                    </div>
-
-                    <!-- Date -->
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">📅 วันที่</label>
-                        <input type="text" id="date" name="date" required readonly
-                            placeholder="เลือกวันที่"
-                            class="w-full rounded border border-gray-300 bg-white px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 cursor-pointer" />
-                    </div>
-
-                    <!-- Payee -->
-                    <div class="relative">
-                        <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">👤 จ่ายให้</label>
-                        <input type="text" id="payee" name="payee" placeholder="ชื่อผู้รับเงิน" required autocomplete="off"
-                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
-                        <div id="payee-autocomplete" class="absolute z-50 mt-1 w-full hidden bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
-                    </div>
-
-                    <!-- Amount -->
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-900 dark:text-white">💰 จำนวนเงิน (บาท)</label>
-                        <input type="text" id="amount" name="amount" placeholder="0.00" required oninput="updateAmountText()"
-                            class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white" />
-                        <p id="amount-text" class="mt-1 text-sm text-gray-600 dark:text-gray-400"></p>
-                    </div>
-
-                    <!-- Checkboxes -->
-                    <div>
-                        <label class="flex items-center gap-2 text-sm text-gray-900 dark:text-white">
-                            <input type="checkbox" id="show_ac_payee" checked onchange="toggleAcPayee()"
-                                class="rounded border-gray-300 text-brand-500 focus:ring-brand-500" />
-                            แสดง A/C PAYEE ONLY
-                        </label>
-                    </div>
-
-                    <div>
-                        <label class="flex items-center gap-2 text-sm text-gray-900 dark:text-white">
-                            <input type="checkbox" id="show_line" checked onchange="toggleLine()"
-                                class="rounded border-gray-300 text-brand-500 focus:ring-brand-500" />
-                            แสดงเส้น (หรือผู้ถือ)
-                        </label>
-                    </div>
-
-                    <!-- Buttons -->
-                    <div class="flex gap-2 md:col-span-2 lg:col-span-4">
-                        <button type="button" onclick="printCheque()" class="flex-1 rounded bg-brand-500 px-6 py-2.5 text-white hover:bg-brand-600">
-                            🖨️ พิมพ์เช็ค
-                        </button>
-                        <button type="button" onclick="clearForm()" class="flex-1 rounded border border-gray-300 px-6 py-2.5 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
-                            🔄 เริ่มใหม่
-                        </button>
-                    </div>
-                </form>
+            <!-- Preview Container (shown in both tabs) -->
+            <div class="w-full" id="preview-container">
+                @include('tailadmin.pages.cheque.components.cheque-preview')
             </div>
         </div>
+    </div>
 
-        <!-- Bottom: Preview -->
-        <div class="w-full">
-            <div class="cheque-workspace">
-                <div class="mb-4">
-                    <span class="info-badge">💡 คลิกที่องค์ประกอบเพื่อแก้ไข</span>
-                    <span class="info-badge">🖱️ ลากเพื่อย้ายตำแหน่ง</span>
-                    <span class="info-badge">📐 ไปที่หน้าออกแบบเพื่อปรับแต่งขนาดและสี</span>
-                </div>
+    <!-- Tab Content: Designer -->
+    <div id="tab-designer-content" class="tab-content">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
+            <!-- Designer Controls (Left Sidebar) -->
+            @include('tailadmin.pages.cheque.components.designer-form')
 
-                <!-- Quick Controls: Date spacing + Selected font size + Print offset -->
-                <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                        <label for="date_spacing" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Spaces between date characters</label>
-                        <input id="date_spacing" type="range" min="0" max="8" step="1" value="3" class="w-full"
-                               oninput="updateDateSpacingLabel(this.value)" onchange="saveDateSpacing(this.value); updateDateDisplay();" />
-                        <div class="text-[11px] text-gray-500 dark:text-gray-400">Spaces per character: <span id="date_spacing_value">3</span></div>
-                    </div>
-                    <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">Font size (selected element)</span>
-                            <span id="font_size_value" class="text-[11px] text-gray-500 dark:text-gray-400">-</span>
-                        </div>
-                        <input id="font_size_slider" type="range" min="10" max="40" step="1" value="18" class="w-full" disabled
-                               oninput="onFontSizeSlide(this.value)" onchange="onFontSizeCommit(this.value)" />
-                        <div class="mt-2">
-                            <label class="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
-                                <input id="bold_toggle" type="checkbox" class="rounded border-gray-300"
-                                       onchange="onBoldToggle(this.checked)" disabled>
-                                <span>Bold</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                        <div class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Print offset (px)</div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label for="print_offset_x" class="block text-[11px] text-gray-500 dark:text-gray-400">Offset X</label>
-                                <input id="print_offset_x" type="number" step="1" value="0"
-                                       class="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-700"
-                                       oninput="savePrintOffsets()" />
-                            </div>
-                            <div>
-                                <label for="print_offset_y" class="block text-[11px] text-gray-500 dark:text-gray-400">Offset Y</label>
-                                <input id="print_offset_y" type="number" step="1" value="0"
-                                       class="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-700"
-                                       oninput="savePrintOffsets()" />
-                            </div>
-                        </div>
-                        <p class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">ใช้สำหรับชดเชยความคลาดเคลื่อนของเครื่องพิมพ์</p>
+            <!-- Preview (Right - 3 columns) -->
+            <div class="lg:col-span-3">
+                <div class="mb-4 space-y-2">
+                    <div class="flex gap-2 flex-wrap">
+                        <span class="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
+                            💡 คลิกที่องค์ประกอบเพื่อแก้ไข
+                        </span>
+                        <span class="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
+                            🖱️ ลากเพื่อย้ายตำแหน่ง
+                        </span>
+                        <span class="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
+                            ⌨️ ใช้ลูกศรเพื่อปรับละเอียด
+                        </span>
                     </div>
                 </div>
-
-                <!-- Wrapper for print -->
-                <div class="print-cheque-container">
-                    <div class="cheque-preview" id="chequePreview">
-                        <div class="draggable ac-payee" id="acPayee" data-name="A/C PAYEE ONLY">
-                            A/C PAYEE ONLY
-                        </div>
-                        <div class="draggable line-holder" id="lineHolder" data-name="เส้น (หรือผู้ถือ)">
-                            --------
-                        </div>
-                        <div class="draggable" id="dateDisplay" data-name="วันที่"></div>
-                        <div class="draggable" id="payeeDisplay" data-name="ชื่อผู้รับเงิน">
-                            &lt;สั่งจ่าย&gt;
-                        </div>
-                        <div class="draggable" id="amountText" data-name="จำนวนเงิน (ตัวอักษร)"></div>
-                        <div class="draggable" id="amountNumber" data-name="จำนวนเงิน (ตัวเลข)">
-                            ***0.00***
-                        </div>
-                    </div>
-                </div>
+                <!-- Preview will be moved here when switching to designer tab -->
+                <div id="preview-placeholder"></div>
             </div>
         </div>
     </div>
@@ -408,11 +327,100 @@
 <script src="{{ asset('vendor/flatpickr/flatpickr.min.js') }}"></script>
 <script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
 <script>
-// API Base URL
+// =====================================
+// Tab Management
+// =====================================
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`tab-${tabName}-btn`).classList.add('active');
+
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    document.getElementById(`tab-${tabName}-content`).classList.add('active');
+
+    // Move preview to correct location
+    const previewContainer = document.getElementById('preview-container');
+    if (!previewContainer) {
+        console.error('Preview container not found!');
+        return;
+    }
+
+    if (tabName === 'print') {
+        // Move preview back to print tab
+        const printContent = document.getElementById('tab-print-content');
+        const printGrid = printContent.querySelector('.grid');
+        if (printGrid && !printGrid.contains(previewContainer)) {
+            printGrid.appendChild(previewContainer);
+        }
+        previewContainer.className = 'w-full';
+        updatePreviewWithRealData();
+    } else if (tabName === 'designer') {
+        // Move preview to designer tab
+        const designerPlaceholder = document.getElementById('preview-placeholder');
+        if (designerPlaceholder && !designerPlaceholder.contains(previewContainer)) {
+            designerPlaceholder.appendChild(previewContainer);
+        }
+        previewContainer.className = '';
+        updatePreviewWithSampleData();
+        loadChequeBackground(); // Only load background in designer tab
+    }
+}
+
+// Update preview with real form data (for Print tab)
+function updatePreviewWithRealData() {
+    updateDateDisplay();
+    updatePayeeDisplay();
+    updateAmountText();
+
+    // Remove background image in print tab
+    const preview = document.getElementById('chequePreview');
+    if (preview) {
+        preview.style.backgroundImage = '';
+        preview.classList.remove('has-background');
+    }
+}
+
+// Update preview with sample data (for Designer tab)
+function updatePreviewWithSampleData() {
+    // Load saved positions first
+    loadPositions();
+
+    // Set sample date
+    const today = new Date();
+    const day = today.getDate();
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear() + 543;
+    const dateString = `${day}${month}${year}`;
+    const spacesCount = parseInt(localStorage.getItem('chequeDateSpacing') || '3');
+    const spacer = ' '.repeat(spacesCount);
+    const spacedDate = dateString.split('').join(spacer);
+    document.getElementById('dateDisplay').textContent = spacedDate;
+
+    // Set sample payee
+    document.getElementById('payeeDisplay').textContent = 'บริษัท ตัวอย่าง จำกัด';
+
+    // Set sample amount
+    document.getElementById('amountText').textContent = 'หนึ่งพันสองร้อยห้าสิบบาทถ้วน';
+    document.getElementById('amountNumber').textContent = '***1,250.00***';
+
+    // Load background for designer
+    loadChequeBackground();
+
+    // Also update the bank template selector to match current bank (if any)
+    const bankCode = document.getElementById('bank_code');
+    const bankTemplate = document.getElementById('bank_template');
+    if (bankCode && bankTemplate && bankCode.value) {
+        bankTemplate.value = bankCode.value;
+    }
+}
+
+// =====================================
+// Shared Constants & Variables
+// =====================================
 const API_BASE = '/api';
 const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-// Debug CSRF Token
 console.log('CSRF Token loaded:', CSRF_TOKEN ? 'Found' : 'NOT FOUND');
 if (!CSRF_TOKEN) {
     console.error('⚠️ WARNING: CSRF Token is missing! Check if meta tag exists in layout.');
@@ -423,6 +431,15 @@ let selectedElement = null;
 let draggedElement = null;
 let offsetX = 0;
 let offsetY = 0;
+
+// BOT Standard Cheque Dimensions
+const chequeDimensions = {
+    standard: { width: 890, height: 445 },  // 178mm x 89mm @ 5px/mm
+    scb:      { width: 890, height: 445 },
+    kbank:    { width: 890, height: 445 },
+    ktb:      { width: 890, height: 445 },
+    custom:   { width: 890, height: 445 }
+};
 
 // Default positions
 const defaultPositions = {
@@ -462,37 +479,147 @@ const bankTemplates = {
     }
 };
 
-// Initialize on load
+// Track if cheque was loaded from database
+let isExistingCheque = false;
+let loadedChequeId = null;
+
+// =====================================
+// Initialization
+// =====================================
 document.addEventListener('DOMContentLoaded', function() {
     loadBranches();
     loadPositions();
     setupDragAndDrop();
     initializeDatePicker();
     loadFormData();
+    loadDateSpacing();
+    setupPayeeAutocomplete();
+    loadAutoClearSetting();
+
+    // Load saved cheque size or apply default
+    const savedSize = localStorage.getItem('currentChequeSize');
+    if (savedSize) {
+        const dimensions = JSON.parse(savedSize);
+        const preview = document.getElementById('chequePreview');
+        if (preview) {
+            preview.style.width = dimensions.width + 'px';
+            preview.style.height = dimensions.height + 'px';
+        }
+    }
+
+    // Initialize with print tab (real data, no background)
+    updatePreviewWithRealData();
 });
 
-// Load branches from API
+// =====================================
+// Background Image Management (Designer Tab Only)
+// =====================================
+function handleBackgroundUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        alert('กรุณาเลือกไฟล์รูปภาพ (PNG, JPG, etc.)');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const imageData = e.target.result;
+        setChequeBackground(imageData);
+
+        const bank = document.getElementById('bank_template')?.value || 'custom';
+        const key = `chequeBackground_${bank}`;
+        localStorage.setItem(key, imageData);
+
+        alert('อัปโหลดรูปพื้นหลังสำเร็จ!');
+    };
+    reader.readAsDataURL(file);
+}
+
+function loadBackgroundFromUrl(url) {
+    if (!url || url.trim() === '') return;
+
+    try {
+        new URL(url);
+    } catch {
+        alert('URL ไม่ถูกต้อง กรุณาใส่ URL ที่ถูกต้อง');
+        return;
+    }
+
+    setChequeBackground(url);
+
+    const bank = document.getElementById('bank_template')?.value || 'custom';
+    const key = `chequeBackground_${bank}`;
+    localStorage.setItem(key, url);
+
+    alert('โหลดรูปพื้นหลังสำเร็จ!');
+}
+
+function setChequeBackground(imageSource) {
+    const preview = document.getElementById('chequePreview');
+    if (preview) {
+        preview.style.backgroundImage = `url('${imageSource}')`;
+        preview.classList.add('has-background');
+    }
+}
+
+function removeChequeBackground() {
+    const preview = document.getElementById('chequePreview');
+    if (preview) {
+        preview.style.backgroundImage = '';
+        preview.classList.remove('has-background');
+    }
+
+    const bank = document.getElementById('bank_template')?.value || 'custom';
+    const key = `chequeBackground_${bank}`;
+    localStorage.removeItem(key);
+
+    const uploadInput = document.getElementById('cheque_bg_upload');
+    const urlInput = document.getElementById('cheque_bg_url');
+    if (uploadInput) uploadInput.value = '';
+    if (urlInput) urlInput.value = '';
+
+    alert('ลบรูปพื้นหลังสำเร็จ!');
+}
+
+function loadChequeBackground() {
+    const bank = document.getElementById('bank_template')?.value || document.getElementById('bank_code')?.value || 'custom';
+    const key = `chequeBackground_${bank}`;
+    const saved = localStorage.getItem(key);
+
+    if (saved) {
+        setChequeBackground(saved);
+        const urlInput = document.getElementById('cheque_bg_url');
+        if (urlInput && !saved.startsWith('data:')) {
+            urlInput.value = saved;
+        }
+    }
+}
+
+// =====================================
+// Data Loading & API Calls
+// =====================================
 async function loadBranches() {
     try {
         const response = await fetch(`${API_BASE}/branches`);
         const branches = await response.json();
         const select = document.getElementById('branch_code');
-        branches.forEach(branch => {
-            const option = document.createElement('option');
-            option.value = branch.code;
-            option.textContent = `${branch.code} - ${branch.name}`;
-            select.appendChild(option);
-        });
+        if (select) {
+            branches.forEach(branch => {
+                const option = document.createElement('option');
+                option.value = branch.code;
+                option.textContent = `${branch.code} - ${branch.name}`;
+                select.appendChild(option);
+            });
+        }
     } catch (error) {
         console.error('Error loading branches:', error);
     }
 }
 
-// Load positions from localStorage or database
 function loadPositions() {
-    const bank = document.getElementById('bank_code').value;
     const saved = localStorage.getItem('chequePositions');
-
     if (saved) {
         const positions = JSON.parse(saved);
         applyPositions(positions);
@@ -501,7 +628,6 @@ function loadPositions() {
     }
 }
 
-// Apply positions to elements
 function applyPositions(positions) {
     Object.keys(positions).forEach(id => {
         const element = document.getElementById(id);
@@ -519,16 +645,16 @@ function applyPositions(positions) {
             if (props.fontSize) element.style.fontSize = props.fontSize + 'px';
             if (props.color) element.style.color = props.color;
             if (props.bold !== undefined) element.style.fontWeight = props.bold ? 'bold' : 'normal';
-            if (id === 'dateDisplay' && props.letterSpacing !== undefined) {
-                element.style.letterSpacing = (props.letterSpacing || 0) + 'px';
-            }
         }
     });
 }
 
-// Load bank template
 async function loadBankTemplate() {
-    const bank = document.getElementById('bank_code').value;
+    const bank = document.getElementById('bank_code')?.value;
+    if (!bank) return;
+
+    applyChequeSize(bank);
+
     if (bank === 'custom') {
         loadPositions();
         return;
@@ -549,12 +675,53 @@ async function loadBankTemplate() {
     if (!template) template = bankTemplates[bank];
     if (template) {
         applyPositions(template);
-        // Persist applied template locally for immediate reuse
         localStorage.setItem('chequePositions', JSON.stringify(template));
     }
 }
 
-// Setup drag and drop
+async function loadTemplate() {
+    const bank = document.getElementById('bank_template')?.value;
+    if (!bank) return;
+
+    loadChequeBackground();
+    applyChequeSize(bank);
+
+    if (bank === 'custom') {
+        loadPositions();
+        return;
+    }
+
+    // Try API first
+    let template = null;
+    try {
+        const response = await fetch(`${API_BASE}/templates`);
+        const templates = await response.json();
+        const found = templates.find(t => t.bank === bank);
+        if (found) template = found.template_json;
+    } catch (error) {
+        console.error('Error loading template:', error);
+    }
+
+    // Fallback to built-in templates
+    if (!template) template = bankTemplates[bank];
+    if (template) applyPositions(template);
+}
+
+function applyChequeSize(bank) {
+    const preview = document.getElementById('chequePreview');
+    if (!preview) return;
+
+    const dimensions = chequeDimensions[bank] || chequeDimensions.custom;
+    preview.style.width = dimensions.width + 'px';
+    preview.style.height = dimensions.height + 'px';
+
+    localStorage.setItem('currentChequeSize', JSON.stringify(dimensions));
+    console.log(`Applied ${bank} cheque size: ${dimensions.width}x${dimensions.height}px`);
+}
+
+// =====================================
+// Drag and Drop
+// =====================================
 function setupDragAndDrop() {
     const draggables = document.querySelectorAll('.draggable');
 
@@ -562,7 +729,6 @@ function setupDragAndDrop() {
         element.addEventListener('mousedown', function(e) {
             draggedElement = element;
             const rect = element.getBoundingClientRect();
-            const parentRect = element.parentElement.getBoundingClientRect();
             offsetX = e.clientX - rect.left;
             offsetY = e.clientY - rect.top;
 
@@ -571,24 +737,11 @@ function setupDragAndDrop() {
             element.classList.add('selected');
             selectedElement = element;
 
-            // Sync font size slider with selected element
-            try {
-                const slider = document.getElementById('font_size_slider');
-                const label = document.getElementById('font_size_value');
-                const boldToggle = document.getElementById('bold_toggle');
-                if (slider && label) {
-                    const computed = window.getComputedStyle(element);
-                    const size = parseInt(computed.fontSize) || 16;
-                    slider.disabled = false;
-                    slider.value = size;
-                    label.textContent = size + 'px';
-                }
-                if (boldToggle) {
-                    const computed = window.getComputedStyle(element);
-                    boldToggle.disabled = false;
-                    boldToggle.checked = (computed.fontWeight === 'bold' || parseInt(computed.fontWeight) >= 700);
-                }
-            } catch (err) { console.warn('Failed to sync font size slider', err); }
+            // Sync controls (Print tab)
+            syncFontSizeSlider();
+
+            // Sync property panel (Designer tab)
+            syncPropertyPanel();
 
             e.preventDefault();
         });
@@ -609,6 +762,14 @@ function setupDragAndDrop() {
             draggedElement.style.left = x + 'px';
             draggedElement.style.top = y + 'px';
             draggedElement.style.right = 'auto';
+
+            // Update property panel if in designer tab
+            if (selectedElement === draggedElement) {
+                const propX = document.getElementById('prop_x');
+                const propY = document.getElementById('prop_y');
+                if (propX) propX.value = Math.round(x);
+                if (propY) propY.value = Math.round(y);
+            }
         }
     });
 
@@ -620,8 +781,88 @@ function setupDragAndDrop() {
     });
 }
 
+function syncFontSizeSlider() {
+    if (!selectedElement) return;
+
+    try {
+        const slider = document.getElementById('font_size_slider');
+        const label = document.getElementById('font_size_value');
+        const boldToggle = document.getElementById('bold_toggle');
+
+        if (slider && label) {
+            const computed = window.getComputedStyle(selectedElement);
+            const size = parseInt(computed.fontSize) || 16;
+            slider.disabled = false;
+            slider.value = size;
+            label.textContent = size + 'px';
+        }
+
+        if (boldToggle) {
+            const computed = window.getComputedStyle(selectedElement);
+            boldToggle.disabled = false;
+            boldToggle.checked = (computed.fontWeight === 'bold' || parseInt(computed.fontWeight) >= 700);
+        }
+    } catch (err) {
+        console.warn('Failed to sync font size slider', err);
+    }
+}
+
+function syncPropertyPanel() {
+    const elementProps = document.getElementById('element_properties');
+    if (!elementProps) return;
+
+    elementProps.style.display = 'block';
+    const nameSpan = document.getElementById('selected_element_name');
+    if (nameSpan) {
+        nameSpan.textContent = selectedElement.getAttribute('data-name');
+    }
+
+    // Populate property panel
+    const computedStyle = window.getComputedStyle(selectedElement);
+    const propX = document.getElementById('prop_x');
+    const propY = document.getElementById('prop_y');
+    const propFontSize = document.getElementById('prop_font_size');
+    const propColor = document.getElementById('prop_color');
+    const propBold = document.getElementById('prop_bold');
+
+    if (propX) propX.value = parseInt(selectedElement.style.left) || 0;
+    if (propY) propY.value = parseInt(selectedElement.style.top) || 0;
+    if (propFontSize) propFontSize.value = parseInt(computedStyle.fontSize);
+    if (propColor) propColor.value = rgbToHex(computedStyle.color);
+    if (propBold) propBold.checked = computedStyle.fontWeight === 'bold' || computedStyle.fontWeight >= 700;
+}
+
+function updateElementProperty() {
+    if (!selectedElement) return;
+
+    const x = parseInt(document.getElementById('prop_x')?.value || 0);
+    const y = parseInt(document.getElementById('prop_y')?.value || 0);
+    const fontSize = parseInt(document.getElementById('prop_font_size')?.value || 16);
+    const color = document.getElementById('prop_color')?.value || '#000000';
+    const bold = document.getElementById('prop_bold')?.checked || false;
+
+    selectedElement.style.left = x + 'px';
+    selectedElement.style.top = y + 'px';
+    selectedElement.style.right = 'auto';
+    selectedElement.style.fontSize = fontSize + 'px';
+    selectedElement.style.color = color;
+    selectedElement.style.fontWeight = bold ? 'bold' : 'normal';
+
+    savePositions();
+}
+
+function rgbToHex(rgb) {
+    const match = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+    if (!match) return '#000000';
+    return '#' + [match[1], match[2], match[3]].map(x => {
+        const hex = parseInt(x).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+    }).join('');
+}
+
 // Save positions (local + auto-save to server when bank selected)
 let saveTemplateTimeout = null;
+
 function collectPositions() {
     const positions = {};
     document.querySelectorAll('.draggable').forEach(el => {
@@ -641,7 +882,7 @@ function savePositions() {
     const positions = collectPositions();
     localStorage.setItem('chequePositions', JSON.stringify(positions));
 
-    const bank = document.getElementById('bank_code').value;
+    const bank = document.getElementById('bank_code')?.value || document.getElementById('bank_template')?.value;
     if (bank && bank !== 'custom') {
         clearTimeout(saveTemplateTimeout);
         saveTemplateTimeout = setTimeout(() => savePositionsToServer(bank, positions), 400);
@@ -669,7 +910,9 @@ async function savePositionsToServer(bank, positions) {
     }
 }
 
-// Font-size quick control
+// =====================================
+// Font Size & Bold Controls (Print Tab)
+// =====================================
 function onFontSizeSlide(val) {
     const v = parseInt(val);
     const label = document.getElementById('font_size_value');
@@ -692,7 +935,6 @@ function onBoldToggle(checked) {
 // Keyboard nudging for selected element
 document.addEventListener('keydown', function(e) {
     if (!selectedElement) return;
-    // Ignore when typing in inputs
     const tag = (e.target && e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
 
@@ -706,7 +948,6 @@ document.addEventListener('keydown', function(e) {
 
     e.preventDefault();
 
-    // Ensure base position from computed rect if left/top not set
     const parent = selectedElement.parentElement;
     const parentRect = parent.getBoundingClientRect();
     const rect = selectedElement.getBoundingClientRect();
@@ -718,7 +959,6 @@ document.addEventListener('keydown', function(e) {
     }
     left += dx; top += dy;
 
-    // Constrain within parent
     left = Math.max(0, Math.min(left, parentRect.width - selectedElement.offsetWidth));
     top = Math.max(0, Math.min(top, parentRect.height - selectedElement.offsetHeight));
 
@@ -729,12 +969,14 @@ document.addEventListener('keydown', function(e) {
     savePositions();
 });
 
-// Initialize Flatpickr Date Picker
+// =====================================
+// Date Picker & Display Updates
+// =====================================
 function initializeDatePicker() {
     flatpickr("#date", {
-        dateFormat: "d/m/Y", // Display format
+        dateFormat: "d/m/Y",
         altInput: true,
-        altFormat: "d/m/Y", // Alt display format
+        altFormat: "d/m/Y",
         defaultDate: new Date(),
         locale: {
             firstDayOfWeek: 1,
@@ -758,40 +1000,37 @@ function initializeDatePicker() {
     const month = today.getMonth() + 1;
     const year = today.getFullYear();
     const dateStr = `${day}/${month}/${year}`;
-    document.getElementById('date').value = dateStr;
+    const dateInput = document.getElementById('date');
+    if (dateInput) dateInput.value = dateStr;
     updateDateDisplay(dateStr);
 }
 
-// Update displays when inputs change
-document.getElementById('payee')?.addEventListener('input', updatePayeeDisplay);
-document.getElementById('amount')?.addEventListener('input', updateAmountText);
-
 function updateDateDisplay(dateStr) {
     if (!dateStr) {
-        dateStr = document.getElementById('date').value;
+        const dateInput = document.getElementById('date');
+        dateStr = dateInput ? dateInput.value : '';
     }
 
     if (dateStr) {
-        // Parse d/m/Y format
         const parts = dateStr.split('/');
         if (parts.length === 3) {
             const day = parseInt(parts[0]);
             const month = parseInt(parts[1]);
-            const year = parseInt(parts[2]) + 543; // Convert to Thai year
+            const year = parseInt(parts[2]) + 543;
             const displayDate = `${day}${month}${year}`;
-            // Add dynamic spaces between each character
             const spacesCount = parseInt(localStorage.getItem('chequeDateSpacing') || '3');
             const spacer = ' '.repeat(isNaN(spacesCount) ? 3 : spacesCount);
             const spacedDate = displayDate.split('').join(spacer);
             const dd = document.getElementById('dateDisplay');
-            dd.textContent = spacedDate;
-            // Ensure spaces are respected
-            dd.style.whiteSpace = 'pre';
+            if (dd) {
+                dd.textContent = spacedDate;
+                dd.style.whiteSpace = 'pre';
+            }
         }
     }
 }
 
-// Date spacing helpers
+// Date spacing for both tabs
 function saveDateSpacing(val) {
     const n = parseInt(val);
     localStorage.setItem('chequeDateSpacing', isNaN(n) ? '3' : String(n));
@@ -802,23 +1041,52 @@ function updateDateSpacingLabel(val) {
     if (el) el.textContent = String(val);
 }
 
-// Initialize quick controls after DOM ready
-document.addEventListener('DOMContentLoaded', function() {
-    try {
-        const spacingInput = document.getElementById('date_spacing');
-        const saved = parseInt(localStorage.getItem('chequeDateSpacing') || '3');
-        if (spacingInput) {
-            spacingInput.value = isNaN(saved) ? 3 : saved;
-            updateDateSpacingLabel(spacingInput.value);
-        }
-        // Load print offsets
-        const off = getPrintOffsets();
-        const ox = document.getElementById('print_offset_x');
-        const oy = document.getElementById('print_offset_y');
-        if (ox) ox.value = off.x;
-        if (oy) oy.value = off.y;
-    } catch {}
-});
+function saveDateSpacingDesigner(val) {
+    localStorage.setItem('chequeDateSpacing', val);
+}
+
+function updateDateSpacingDesigner(val) {
+    const label = document.getElementById('date_spacing_value_designer');
+    if (label) label.textContent = val;
+
+    const today = new Date();
+    const day = today.getDate();
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear() + 543;
+
+    const spacer = ' '.repeat(parseInt(val));
+    const dateString = `${day}${month}${year}`;
+    const spacedDate = dateString.split('').join(spacer);
+    const dd = document.getElementById('dateDisplay');
+    if (dd) {
+        dd.textContent = spacedDate;
+        dd.style.whiteSpace = 'pre';
+    }
+}
+
+function loadDateSpacing() {
+    const saved = parseInt(localStorage.getItem('chequeDateSpacing') || '3');
+
+    // Load for print tab
+    const spacingInput = document.getElementById('date_spacing');
+    if (spacingInput) {
+        spacingInput.value = isNaN(saved) ? 3 : saved;
+        updateDateSpacingLabel(spacingInput.value);
+    }
+
+    // Load for designer tab
+    const designerInput = document.getElementById('date_spacing_designer');
+    const designerLabel = document.getElementById('date_spacing_value_designer');
+    if (designerInput) designerInput.value = saved;
+    if (designerLabel) designerLabel.textContent = saved;
+
+    // Load print offsets
+    const off = getPrintOffsets();
+    const ox = document.getElementById('print_offset_x');
+    const oy = document.getElementById('print_offset_y');
+    if (ox) ox.value = off.x;
+    if (oy) oy.value = off.y;
+}
 
 // Print offset helpers
 function getPrintOffsets() {
@@ -834,26 +1102,37 @@ function savePrintOffsets() {
     localStorage.setItem('chequePrintOffsetY', isNaN(oy) ? '0' : String(oy));
 }
 
+document.getElementById('payee')?.addEventListener('input', updatePayeeDisplay);
+document.getElementById('amount')?.addEventListener('input', updateAmountText);
+
 function updatePayeeDisplay() {
-    const payee = document.getElementById('payee').value;
-    document.getElementById('payeeDisplay').textContent = payee || '<สั่งจ่าย>';
+    const payeeInput = document.getElementById('payee');
+    const payeeDisplay = document.getElementById('payeeDisplay');
+    if (payeeInput && payeeDisplay) {
+        payeeDisplay.textContent = payeeInput.value || '<สั่งจ่าย>';
+    }
 }
 
 function updateAmountText() {
-    const amount = document.getElementById('amount').value;
+    const amountInput = document.getElementById('amount');
+    const amount = amountInput ? amountInput.value : '';
     const parsed = parseFloat(amount.replace(/,/g, ''));
+
+    const amountTextEl = document.getElementById('amount-text');
+    const amountTextDisplay = document.getElementById('amountText');
+    const amountNumberDisplay = document.getElementById('amountNumber');
 
     if (!isNaN(parsed) && parsed > 0) {
         const text = thaiNumberToText(parsed);
-        document.getElementById('amount-text').textContent = text;
-        document.getElementById('amountText').textContent = text;
-        // Format number with commas
+        if (amountTextEl) amountTextEl.textContent = text;
+        if (amountTextDisplay) amountTextDisplay.textContent = text;
+
         const formatted = parsed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        document.getElementById('amountNumber').textContent = `***${formatted}***`;
+        if (amountNumberDisplay) amountNumberDisplay.textContent = `***${formatted}***`;
     } else {
-        document.getElementById('amount-text').textContent = '';
-        document.getElementById('amountText').textContent = '';
-        document.getElementById('amountNumber').textContent = '***0.00***';
+        if (amountTextEl) amountTextEl.textContent = '';
+        if (amountTextDisplay) amountTextDisplay.textContent = '';
+        if (amountNumberDisplay) amountNumberDisplay.textContent = '***0.00***';
     }
 }
 
@@ -870,12 +1149,10 @@ function thaiNumberToText(num) {
 
     let result = '';
 
-    // Convert baht
     if (baht > 0) {
         result = convertIntegerToThai(baht, ones, places) + 'บาท';
     }
 
-    // Convert satang
     if (satang > 0) {
         result += convertIntegerToThai(satang, ones, places) + 'สตางค์';
     } else {
@@ -892,7 +1169,6 @@ function convertIntegerToThai(number, ones, places) {
     const len = numStr.length;
     let result = '';
 
-    // Handle millions
     if (len > 6) {
         const millions = parseInt(numStr.substring(0, len - 6));
         result += convertIntegerToThai(millions, ones, places) + 'ล้าน';
@@ -908,15 +1184,15 @@ function convertIntegerToThai(number, ones, places) {
 
         if (digit === 0) continue;
 
-        if (position === 5) { // แสน
+        if (position === 5) {
             result += ones[digit] + 'แสน';
-        } else if (position === 4) { // หมื่น
+        } else if (position === 4) {
             result += ones[digit] + 'หมื่น';
-        } else if (position === 3) { // พัน
+        } else if (position === 3) {
             result += ones[digit] + 'พัน';
-        } else if (position === 2) { // ร้อย
+        } else if (position === 2) {
             result += ones[digit] + 'ร้อย';
-        } else if (position === 1) { // สิบ
+        } else if (position === 1) {
             if (digit === 1) {
                 result += 'สิบ';
             } else if (digit === 2) {
@@ -924,7 +1200,7 @@ function convertIntegerToThai(number, ones, places) {
             } else {
                 result += ones[digit] + 'สิบ';
             }
-        } else { // หน่วย
+        } else {
             if (digit === 1 && positions > 1) {
                 result += 'เอ็ด';
             } else {
@@ -940,18 +1216,26 @@ function convertIntegerToThai(number, ones, places) {
 function toggleAcPayee() {
     const checkbox = document.getElementById('show_ac_payee');
     const element = document.getElementById('acPayee');
-    element.style.display = checkbox.checked ? 'block' : 'none';
+    if (checkbox && element) {
+        element.style.display = checkbox.checked ? 'block' : 'none';
+    }
 }
 
 function toggleLine() {
     const checkbox = document.getElementById('show_line');
     const element = document.getElementById('lineHolder');
-    element.style.display = checkbox.checked ? 'block' : 'none';
+    if (checkbox && element) {
+        element.style.display = checkbox.checked ? 'block' : 'none';
+    }
 }
 
-// Use next cheque number
+// =====================================
+// Cheque Operations (Print Tab)
+// =====================================
 async function useNextChequeNo() {
-    const branch = document.getElementById('branch_code').value;
+    const branchSelect = document.getElementById('branch_code');
+    const branch = branchSelect ? branchSelect.value : '';
+
     if (!branch) {
         Swal.fire({
             icon: 'warning',
@@ -965,8 +1249,9 @@ async function useNextChequeNo() {
     try {
         const response = await fetch(`${API_BASE}/cheques/next?branch=${branch}`);
         const data = await response.json();
-        if (data.cheque_number) {
-            document.getElementById('cheque_number').value = data.cheque_number;
+        const chequeNumInput = document.getElementById('cheque_number');
+        if (data.cheque_number && chequeNumInput) {
+            chequeNumInput.value = data.cheque_number;
             saveFormData();
         }
     } catch (error) {
@@ -974,12 +1259,11 @@ async function useNextChequeNo() {
     }
 }
 
-// Load cheque data by number
 async function loadChequeByNumber() {
-    const chequeNumber = document.getElementById('cheque_number').value.trim();
+    const chequeNumInput = document.getElementById('cheque_number');
+    const chequeNumber = chequeNumInput ? chequeNumInput.value.trim() : '';
 
     if (!chequeNumber) {
-        // Reset flags when field is empty
         isExistingCheque = false;
         loadedChequeId = null;
         return;
@@ -989,26 +1273,21 @@ async function loadChequeByNumber() {
         const response = await fetch(`${API_BASE}/cheques/number/${encodeURIComponent(chequeNumber)}`);
         const result = await response.json();
 
-        // Handle 404 - cheque not found (this is OK for new cheques)
         if (response.status === 404 || !result.success) {
             console.log('Cheque number not found - will create new cheque');
-            // Reset flags for new cheque
             isExistingCheque = false;
             loadedChequeId = null;
             return;
         }
 
-        // Handle other errors
         if (!response.ok) {
             console.error('Error loading cheque:', result);
             return;
         }
 
-        // Success - found existing cheque
         if (result.success && result.data) {
             const cheque = result.data;
 
-            // Show confirmation before loading
             const confirm = await Swal.fire({
                 title: 'พบข้อมูลเช็คเดิม',
                 html: `
@@ -1028,34 +1307,35 @@ async function loadChequeByNumber() {
             });
 
             if (confirm.isConfirmed) {
-                // Mark as existing cheque
                 isExistingCheque = true;
                 loadedChequeId = cheque.id;
 
-                // Populate form with existing data
                 if (cheque.branch_code) {
-                    document.getElementById('branch_code').value = cheque.branch_code;
+                    const branchSelect = document.getElementById('branch_code');
+                    if (branchSelect) branchSelect.value = cheque.branch_code;
                 }
                 if (cheque.bank) {
-                    document.getElementById('bank_code').value = cheque.bank;
-                    await loadBankTemplate(); // Load bank template
+                    const bankSelect = document.getElementById('bank_code');
+                    if (bankSelect) bankSelect.value = cheque.bank;
+                    await loadBankTemplate();
                 }
 
-                // Convert date from Y-m-d to d/m/Y
                 if (cheque.date) {
                     const dateParts = cheque.date.split('-');
                     if (dateParts.length === 3) {
                         const [year, month, day] = dateParts;
                         const displayDate = `${parseInt(day)}/${parseInt(month)}/${year}`;
-                        document.getElementById('date').value = displayDate;
+                        const dateInput = document.getElementById('date');
+                        if (dateInput) dateInput.value = displayDate;
                         updateDateDisplay(displayDate);
                     }
                 }
 
-                document.getElementById('payee').value = cheque.payee || '';
-                document.getElementById('amount').value = parseFloat(cheque.amount).toFixed(2);
+                const payeeInput = document.getElementById('payee');
+                const amountInput = document.getElementById('amount');
+                if (payeeInput) payeeInput.value = cheque.payee || '';
+                if (amountInput) amountInput.value = parseFloat(cheque.amount).toFixed(2);
 
-                // Update displays
                 updatePayeeDisplay();
                 updateAmountText();
 
@@ -1070,28 +1350,29 @@ async function loadChequeByNumber() {
         }
     } catch (error) {
         console.error('Error loading cheque:', error);
-        // Don't show error for 404 - it means this is a new cheque
     }
 }
 
-// Track if cheque was loaded from database
-let isExistingCheque = false;
-let loadedChequeId = null;
-
-// Print cheque
 async function printCheque() {
     console.log('=== printCheque() called ===');
 
-    const branch = document.getElementById('branch_code').value;
-    const bank = document.getElementById('bank_code').value;
-    const chequeNum = document.getElementById('cheque_number').value;
-    const dateInput = document.getElementById('date').value;
-    const payee = document.getElementById('payee').value;
-    const amount = document.getElementById('amount').value;
+    const branchSelect = document.getElementById('branch_code');
+    const bankSelect = document.getElementById('bank_code');
+    const chequeNumInput = document.getElementById('cheque_number');
+    const dateInput = document.getElementById('date');
+    const payeeInput = document.getElementById('payee');
+    const amountInput = document.getElementById('amount');
 
-    console.log('Form data:', { branch, bank, chequeNum, dateInput, payee, amount });
+    const branch = branchSelect ? branchSelect.value : '';
+    const bank = bankSelect ? bankSelect.value : '';
+    const chequeNum = chequeNumInput ? chequeNumInput.value : '';
+    const dateVal = dateInput ? dateInput.value : '';
+    const payee = payeeInput ? payeeInput.value : '';
+    const amount = amountInput ? amountInput.value : '';
 
-    if (!chequeNum || !dateInput || !payee || !amount) {
+    console.log('Form data:', { branch, bank, chequeNum, dateVal, payee, amount });
+
+    if (!chequeNum || !dateVal || !payee || !amount) {
         console.warn('Validation failed: Missing required fields');
         Swal.fire({
             title: 'ข้อมูลไม่ครบถ้วน!',
@@ -1102,7 +1383,6 @@ async function printCheque() {
         return;
     }
 
-    // Check CSRF token
     if (!CSRF_TOKEN) {
         console.error('CSRF Token is missing!');
         Swal.fire({
@@ -1117,16 +1397,16 @@ async function printCheque() {
     console.log('CSRF Token verified:', CSRF_TOKEN.substring(0, 10) + '...');
 
     // Convert date from d/m/Y to Y-m-d for database
-    let formattedDate = dateInput;
-    if (dateInput.includes('/')) {
-        const parts = dateInput.split('/');
+    let formattedDate = dateVal;
+    if (dateVal.includes('/')) {
+        const parts = dateVal.split('/');
         if (parts.length === 3) {
             const [day, month, year] = parts;
             formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
         }
     }
 
-    console.log('Date conversion:', dateInput, '=>', formattedDate);
+    console.log('Date conversion:', dateVal, '=>', formattedDate);
 
     // Update displays before printing
     console.log('Updating displays...');
@@ -1148,6 +1428,14 @@ async function printCheque() {
         setTimeout(() => {
             console.log('Opening print window for existing cheque...');
             forcePrint();
+
+            // Auto-clear after print if enabled
+            const autoClearCheckbox = document.getElementById('auto_clear_after_print');
+            if (autoClearCheckbox && autoClearCheckbox.checked) {
+                setTimeout(() => {
+                    clearFormAfterPrint();
+                }, 1000); // Wait 1 second after opening print dialog
+            }
         }, 500);
         return;
     }
@@ -1186,15 +1474,12 @@ async function printCheque() {
                 data: data
             });
 
-            // Show detailed error for debugging
             if (response.status === 422) {
                 console.error('Validation errors:', data.errors);
 
-                // Check if it's a duplicate error
                 if (data.message && (data.message.includes('already exists') || data.message.includes('already been taken'))) {
                     console.log('Duplicate cheque number detected, attempting to load existing data...');
 
-                    // Try to load the existing cheque data
                     try {
                         const loadResponse = await fetch(`${API_BASE}/cheques/number/${encodeURIComponent(chequeNum)}`);
                         const loadResult = await loadResponse.json();
@@ -1203,33 +1488,29 @@ async function printCheque() {
                             const existingCheque = loadResult.data;
                             console.log('Loaded existing cheque:', existingCheque);
 
-                            // Mark as existing cheque
                             isExistingCheque = true;
                             loadedChequeId = existingCheque.id;
 
-                            // Populate form with existing data FIRST
-                            if (existingCheque.branch_code) {
-                                document.getElementById('branch_code').value = existingCheque.branch_code;
+                            if (existingCheque.branch_code && branchSelect) {
+                                branchSelect.value = existingCheque.branch_code;
                             }
-                            if (existingCheque.bank) {
-                                document.getElementById('bank_code').value = existingCheque.bank;
-                                await loadBankTemplate(); // Load bank template
+                            if (existingCheque.bank && bankSelect) {
+                                bankSelect.value = existingCheque.bank;
+                                await loadBankTemplate();
                             }
 
-                            // Convert date from ISO to d/m/Y format
                             if (existingCheque.date) {
                                 const dateObj = new Date(existingCheque.date);
                                 const day = dateObj.getDate();
                                 const month = dateObj.getMonth() + 1;
                                 const year = dateObj.getFullYear();
                                 const displayDate = `${day}/${month}/${year}`;
-                                document.getElementById('date').value = displayDate;
+                                if (dateInput) dateInput.value = displayDate;
                             }
 
-                            document.getElementById('payee').value = existingCheque.payee || '';
-                            document.getElementById('amount').value = parseFloat(existingCheque.amount).toFixed(2);
+                            if (payeeInput) payeeInput.value = existingCheque.payee || '';
+                            if (amountInput) amountInput.value = parseFloat(existingCheque.amount).toFixed(2);
 
-                            // Update all displays
                             updateDateDisplay();
                             updatePayeeDisplay();
                             updateAmountText();
@@ -1256,14 +1537,12 @@ async function printCheque() {
                             if (result.isConfirmed) {
                                 console.log('User confirmed to print existing cheque');
 
-                                // Data is already loaded and displays are updated
                                 setTimeout(() => {
                                     console.log('Opening print window for duplicate cheque...');
                                     forcePrint();
                                 }, 500);
                             } else {
                                 console.log('User cancelled printing, resetting flags');
-                                // User cancelled, reset flags
                                 isExistingCheque = false;
                                 loadedChequeId = null;
                             }
@@ -1282,7 +1561,6 @@ async function printCheque() {
                     return;
                 }
 
-                // Other validation errors
                 const errorMessages = [];
                 if (data.errors) {
                     Object.keys(data.errors).forEach(field => {
@@ -1309,11 +1587,9 @@ async function printCheque() {
 
         console.log('✓ Cheque saved successfully with ID:', data.id);
 
-        // Mark as existing cheque to prevent duplicate saves
         isExistingCheque = true;
         loadedChequeId = data.id;
 
-        // Show success message
         Swal.fire({
             title: 'บันทึกสำเร็จ!',
             text: 'ข้อมูลเช็คถูกบันทึกแล้ว กำลังเปิดหน้าพิมพ์...',
@@ -1322,10 +1598,17 @@ async function printCheque() {
             showConfirmButton: false
         });
 
-        // Print after saving
         setTimeout(() => {
             console.log('Opening print window...');
             forcePrint();
+
+            // Auto-clear after print if enabled
+            const autoClearCheckbox = document.getElementById('auto_clear_after_print');
+            if (autoClearCheckbox && autoClearCheckbox.checked) {
+                setTimeout(() => {
+                    clearFormAfterPrint();
+                }, 1000); // Wait 1 second after opening print dialog
+            }
         }, 500);
 
     } catch (error) {
@@ -1335,7 +1618,6 @@ async function printCheque() {
             stack: error.stack
         });
 
-        // Ask user if they want to print anyway
         const result = await Swal.fire({
             title: 'ไม่สามารถบันทึกข้อมูลได้!',
             html: `
@@ -1358,112 +1640,23 @@ async function printCheque() {
         if (result.isConfirmed) {
             console.log('User chose to print anyway...');
             forcePrint();
+
+            // Auto-clear after print if enabled (even when save failed)
+            const autoClearCheckbox = document.getElementById('auto_clear_after_print');
+            if (autoClearCheckbox && autoClearCheckbox.checked) {
+                setTimeout(() => {
+                    clearFormAfterPrint();
+                }, 1000); // Wait 1 second after opening print dialog
+            }
         } else {
             console.log('User cancelled printing');
         }
     }
 }
 
-// Debug function to test print layout
-function debugPrintLayout() {
-    console.log('=== Debug Print Layout ===');
-    const container = document.querySelector('.print-cheque-container');
-    const preview = document.getElementById('chequePreview');
-    const draggables = document.querySelectorAll('.draggable');
-
-    console.log('Container:', {
-        exists: !!container,
-        dimensions: container ? `${container.offsetWidth}x${container.offsetHeight}` : 'N/A',
-        position: container ? window.getComputedStyle(container).position : 'N/A'
-    });
-
-    console.log('Preview:', {
-        exists: !!preview,
-        dimensions: preview ? `${preview.offsetWidth}x${preview.offsetHeight}` : 'N/A',
-        position: preview ? window.getComputedStyle(preview).position : 'N/A'
-    });
-
-    console.log('Draggable elements:', draggables.length);
-    draggables.forEach(el => {
-        const style = window.getComputedStyle(el);
-        console.log(`${el.id}:`, {
-            text: el.textContent.trim(),
-            top: el.style.top,
-            left: el.style.left,
-            right: el.style.right,
-            fontSize: style.fontSize,
-            color: style.color,
-            display: style.display,
-            visibility: style.visibility,
-            position: style.position
-        });
-    });
-}
-
-// Make debug function available globally
-window.debugPrintLayout = debugPrintLayout;
-
-// Test print preview without actually printing
-function testPrintPreview() {
-    console.log('=== Testing Print Preview ===');
-
-    // Add a temporary print-mode class to body
-    document.body.classList.add('print-preview-mode');
-
-    // Apply print styles temporarily
-    const style = document.createElement('style');
-    style.id = 'test-print-preview';
-    style.textContent = `
-        body.print-preview-mode {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: #f0f0f0 !important;
-        }
-
-        body.print-preview-mode > *:not(:has(.print-cheque-container)) {
-            display: none !important;
-        }
-
-        body.print-preview-mode .print-cheque-container {
-            display: block !important;
-            position: fixed !important;
-            left: 50% !important;
-            top: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            padding: 20px !important;
-            background: white !important;
-            box-shadow: 0 0 50px rgba(0,0,0,0.3) !important;
-            z-index: 999999 !important;
-        }
-
-        body.print-preview-mode #chequePreview {
-            border: 2px solid #000 !important;
-        }
-    `;
-    document.head.appendChild(style);
-
-    console.log('Print preview mode activated. Click anywhere to exit.');
-
-    // Click to exit preview
-    const exitPreview = () => {
-        document.body.classList.remove('print-preview-mode');
-        document.getElementById('test-print-preview')?.remove();
-        document.removeEventListener('click', exitPreview);
-        console.log('Print preview mode deactivated.');
-    };
-
-    setTimeout(() => {
-        document.addEventListener('click', exitPreview, { once: true });
-    }, 100);
-}
-
-window.testPrintPreview = testPrintPreview;
-
-// Force print using simplified approach
 function forcePrint() {
     console.log('=== Force Print with Minimal CSS ===');
 
-    // Create a new window with only the cheque
     const printWindow = window.open('', '_blank', 'width=900,height=500');
 
     const chequePreview = document.getElementById('chequePreview');
@@ -1472,11 +1665,11 @@ function forcePrint() {
         return;
     }
 
-    // Clone the cheque preview
     const clonedCheque = chequePreview.cloneNode(true);
+
     // Apply user-defined printer offsets (px)
     try {
-        const off = (function(){ const x=parseInt(localStorage.getItem('chequePrintOffsetX')||'0'); const y=parseInt(localStorage.getItem('chequePrintOffsetY')||'0'); return {x:isNaN(x)?0:x, y:isNaN(y)?0:y}; })();
+        const off = getPrintOffsets();
         if (off.x || off.y) {
             clonedCheque.style.transform = `translate(${off.x}px, ${off.y}px)`;
         }
@@ -1505,8 +1698,8 @@ function forcePrint() {
 
                 #chequePreview {
                     position: relative;
-                    width: 800px;
-                    height: 350px;
+                    width: 890px;
+                    height: 445px;
                     border: none;
                     background: white;
                     margin: 0;
@@ -1518,7 +1711,9 @@ function forcePrint() {
                     white-space: nowrap;
                     border: none;
                     background: transparent;
-                    line-height: 1.2;
+                    padding: 0;
+                    margin: 0;
+                    line-height: 1;
                 }
 
                 #acPayee {
@@ -1541,7 +1736,7 @@ function forcePrint() {
                     -webkit-print-color-adjust: exact;
                     print-color-adjust: exact;
                 }
-                /* Preserve spaces in date */
+
                 #dateDisplay { white-space: pre; }
 
                 #amountNumber,
@@ -1573,8 +1768,6 @@ function forcePrint() {
                 window.onload = function() {
                     setTimeout(function() {
                         window.print();
-                        // Uncomment to auto-close after print dialog
-                        // setTimeout(function() { window.close(); }, 100);
                     }, 500);
                 };
             <\/script>
@@ -1583,19 +1776,14 @@ function forcePrint() {
     `;
 
     printWindow.document.write(html);
-
     printWindow.document.close();
     console.log('Print window opened');
 }
 
-window.forcePrint = forcePrint;
-
-
-// Clear form
 async function clearForm() {
     const result = await Swal.fire({
         title: 'ยืนยันการล้างข้อมูล',
-        text: 'ต้องการล้างข้อมูลทั้งหมดและเริ่มใหม่หรือไม่?',
+        text: 'จะล้างเฉพาะ วันที่, จ่ายให้, และจำนวนเงิน',
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
@@ -1606,21 +1794,8 @@ async function clearForm() {
     });
 
     if (result.isConfirmed) {
-        console.log('Clearing form data...');
+        clearFormFields();
 
-        // Reset flags
-        isExistingCheque = false;
-        loadedChequeId = null;
-
-        document.getElementById('cheque-form').reset();
-        initializeDatePicker(); // Re-initialize with today's date
-        document.getElementById('payeeDisplay').textContent = '<สั่งจ่าย>';
-        document.getElementById('amountText').textContent = '';
-        document.getElementById('amountNumber').textContent = '***0.00***';
-        document.getElementById('amount-text').textContent = '';
-        localStorage.removeItem('chequeFormData');
-
-        // Show success message
         Swal.fire({
             title: 'ล้างข้อมูลสำเร็จ!',
             text: 'พร้อมสำหรับการกรอกข้อมูลใหม่',
@@ -1631,17 +1806,160 @@ async function clearForm() {
     }
 }
 
-// Save/load form data
+// ล้างเฉพาะฟิลด์ที่จำเป็น (ไม่ล้าง สาขา, ธนาคาร, เลขเช็ค)
+function clearFormFields() {
+    console.log('Clearing form fields...');
+
+    isExistingCheque = false;
+    loadedChequeId = null;
+
+    // ล้างวันที่ (ตั้งเป็นวันปัจจุบัน)
+    const today = new Date();
+    const day = today.getDate();
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear();
+    const dateStr = `${day}/${month}/${year}`;
+    const dateInput = document.getElementById('date');
+    if (dateInput) {
+        dateInput.value = dateStr;
+        // Update flatpickr instance
+        if (dateInput._flatpickr) {
+            dateInput._flatpickr.setDate(today);
+        }
+    }
+    updateDateDisplay(dateStr);
+
+    // ล้างจ่ายให้
+    const payeeInput = document.getElementById('payee');
+    if (payeeInput) payeeInput.value = '';
+
+    // ล้างจำนวนเงิน
+    const amountInput = document.getElementById('amount');
+    if (amountInput) amountInput.value = '';
+
+    // Update displays
+    const payeeDisplay = document.getElementById('payeeDisplay');
+    const amountTextDisplay = document.getElementById('amountText');
+    const amountNumberDisplay = document.getElementById('amountNumber');
+    const amountTextEl = document.getElementById('amount-text');
+
+    if (payeeDisplay) payeeDisplay.textContent = '<สั่งจ่าย>';
+    if (amountTextDisplay) amountTextDisplay.textContent = '';
+    if (amountNumberDisplay) amountNumberDisplay.textContent = '***0.00***';
+    if (amountTextEl) amountTextEl.textContent = '';
+
+    // Update localStorage (keep branch, bank, cheque_number)
+    saveFormData();
+}
+
+// Auto-clear after print
+function clearFormAfterPrint() {
+    console.log('Auto-clearing form after print...');
+
+    // ล้างเฉพาะ จ่ายให้ และ จำนวนเงิน (ไม่ล้างวันที่)
+    const payeeInput = document.getElementById('payee');
+    if (payeeInput) payeeInput.value = '';
+
+    const amountInput = document.getElementById('amount');
+    if (amountInput) amountInput.value = '';
+
+    // Update displays
+    const payeeDisplay = document.getElementById('payeeDisplay');
+    const amountTextDisplay = document.getElementById('amountText');
+    const amountNumberDisplay = document.getElementById('amountNumber');
+    const amountTextEl = document.getElementById('amount-text');
+
+    if (payeeDisplay) payeeDisplay.textContent = '<สั่งจ่าย>';
+    if (amountTextDisplay) amountTextDisplay.textContent = '';
+    if (amountNumberDisplay) amountNumberDisplay.textContent = '***0.00***';
+    if (amountTextEl) amountTextEl.textContent = '';
+
+    // เพิ่มเลขที่เช็ค +1 (รองรับทุก format)
+    incrementChequeNumber();
+
+    isExistingCheque = false;
+    loadedChequeId = null;
+
+    saveFormData();
+
+    // Auto-focus ที่ฟิลด์ "จ่ายให้"
+    if (payeeInput) {
+        setTimeout(() => {
+            payeeInput.focus();
+            console.log('Auto-focused on payee input');
+        }, 100);
+    }
+}
+
+// Increment cheque number (support any format)
+function incrementChequeNumber() {
+    const chequeNumInput = document.getElementById('cheque_number');
+    if (!chequeNumInput) return;
+
+    const currentValue = chequeNumInput.value.trim();
+    if (!currentValue) return;
+
+    // Find the last number in the string
+    const matches = currentValue.match(/(\d+)(?!.*\d)/);
+
+    if (matches) {
+        const lastNumber = matches[1];
+        const numberLength = lastNumber.length;
+        const incrementedNumber = (parseInt(lastNumber) + 1).toString();
+
+        // Pad with zeros to maintain original length
+        const paddedNumber = incrementedNumber.padStart(numberLength, '0');
+
+        // Replace the last number in the original string
+        const newValue = currentValue.replace(/(\d+)(?!.*\d)/, paddedNumber);
+
+        chequeNumInput.value = newValue;
+        console.log(`Cheque number incremented: ${currentValue} → ${newValue}`);
+    } else {
+        console.warn('No number found in cheque number:', currentValue);
+    }
+}
+
+// Save auto-clear setting
+function saveAutoClearSetting() {
+    const checkbox = document.getElementById('auto_clear_after_print');
+    if (checkbox) {
+        localStorage.setItem('autoClearAfterPrint', checkbox.checked ? '1' : '0');
+        console.log('Auto-clear setting saved:', checkbox.checked);
+    }
+}
+
+// Load auto-clear setting
+function loadAutoClearSetting() {
+    const checkbox = document.getElementById('auto_clear_after_print');
+    const saved = localStorage.getItem('autoClearAfterPrint');
+    if (checkbox && saved) {
+        checkbox.checked = saved === '1';
+    }
+}
+
+// =====================================
+// Form Data Persistence
+// =====================================
 function saveFormData() {
+    const branchSelect = document.getElementById('branch_code');
+    const bankSelect = document.getElementById('bank_code');
+    const chequeNumInput = document.getElementById('cheque_number');
+    const dateInput = document.getElementById('date');
+    const payeeInput = document.getElementById('payee');
+    const amountInput = document.getElementById('amount');
+    const acPayeeCheck = document.getElementById('show_ac_payee');
+    const lineCheck = document.getElementById('show_line');
+
     const formData = {
-        branch_code: document.getElementById('branch_code').value,
-        bank_code: document.getElementById('bank_code').value,
-        cheque_number: document.getElementById('cheque_number').value,
-        date: document.getElementById('date').value,
-        payee: document.getElementById('payee').value,
-        amount: document.getElementById('amount').value,
-        show_ac_payee: document.getElementById('show_ac_payee').checked,
-        show_line: document.getElementById('show_line').checked
+        branch_code: branchSelect ? branchSelect.value : '',
+        bank_code: bankSelect ? bankSelect.value : '',
+        cheque_number: chequeNumInput ? chequeNumInput.value : '',
+        date: dateInput ? dateInput.value : '',
+        payee: payeeInput ? payeeInput.value : '',
+        amount: amountInput ? amountInput.value : '',
+        show_ac_payee: acPayeeCheck ? acPayeeCheck.checked : true,
+        show_line: lineCheck ? lineCheck.checked : true
     };
     localStorage.setItem('chequeFormData', JSON.stringify(formData));
 }
@@ -1673,7 +1991,6 @@ function loadFormData() {
         element.addEventListener('change', saveFormData);
         element.addEventListener('input', saveFormData);
 
-        // Reset flags when cheque number changes
         if (id === 'cheque_number') {
             element.addEventListener('input', function() {
                 isExistingCheque = false;
@@ -1683,65 +2000,283 @@ function loadFormData() {
     }
 });
 
+// =====================================
 // Payee Autocomplete
+// =====================================
 let autocompleteTimeout;
-const payeeInput = document.getElementById('payee');
-const autocompleteDiv = document.getElementById('payee-autocomplete');
 
-payeeInput.addEventListener('input', function() {
-    clearTimeout(autocompleteTimeout);
-    const query = this.value.trim();
+function setupPayeeAutocomplete() {
+    const payeeInput = document.getElementById('payee');
+    const autocompleteDiv = document.getElementById('payee-autocomplete');
 
-    if (query.length < 2) {
-        autocompleteDiv.classList.add('hidden');
+    if (!payeeInput || !autocompleteDiv) {
+        console.warn('Payee autocomplete elements not found');
         return;
     }
 
-    autocompleteTimeout = setTimeout(async () => {
-        try {
-            const branch = document.getElementById('branch_code').value;
-            const url = `${API_BASE}/payees?q=${encodeURIComponent(query)}&limit=10${branch ? '&branch=' + branch : ''}`;
-            const response = await fetch(url);
-            const payees = await response.json();
+    console.log('✓ Payee autocomplete initialized');
 
-            if (payees.length === 0) {
-                autocompleteDiv.classList.add('hidden');
-                return;
-            }
+    payeeInput.addEventListener('input', function() {
+        clearTimeout(autocompleteTimeout);
+        const query = this.value.trim();
 
-            autocompleteDiv.innerHTML = payees.map(payee => `
-                <div class="payee-item px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
-                     onclick="selectPayee('${payee.replace(/'/g, "\\'")}')">
-                    ${payee}
-                </div>
-            `).join('');
-
-            autocompleteDiv.classList.remove('hidden');
-        } catch (error) {
-            console.error('Error fetching payees:', error);
+        if (query.length < 2) {
+            autocompleteDiv.classList.add('hidden');
+            return;
         }
-    }, 300);
-});
+
+        autocompleteTimeout = setTimeout(async () => {
+            try {
+                const branchSelect = document.getElementById('branch_code');
+                const branch = branchSelect ? branchSelect.value : '';
+                const url = `${API_BASE}/payees?q=${encodeURIComponent(query)}&limit=10${branch ? '&branch=' + branch : ''}`;
+
+                console.log('Fetching payees:', url);
+                const response = await fetch(url);
+                const payees = await response.json();
+
+                console.log('Found payees:', payees.length);
+
+                if (payees.length === 0) {
+                    autocompleteDiv.classList.add('hidden');
+                    return;
+                }
+
+                autocompleteDiv.innerHTML = payees.map(payee => `
+                    <div class="payee-item px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                         onclick="selectPayee('${payee.replace(/'/g, "\\'")}')">
+                        ${payee}
+                    </div>
+                `).join('');
+
+                autocompleteDiv.classList.remove('hidden');
+            } catch (error) {
+                console.error('Error fetching payees:', error);
+            }
+        }, 300);
+    });
+
+    payeeInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            autocompleteDiv.classList.add('hidden');
+        }
+    });
+
+    // Close autocomplete when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!payeeInput.contains(e.target) && !autocompleteDiv.contains(e.target)) {
+            autocompleteDiv.classList.add('hidden');
+        }
+    });
+}
 
 function selectPayee(name) {
-    payeeInput.value = name;
-    autocompleteDiv.classList.add('hidden');
+    const payeeInput = document.getElementById('payee');
+    const autocompleteDiv = document.getElementById('payee-autocomplete');
+
+    if (payeeInput) payeeInput.value = name;
+    if (autocompleteDiv) autocompleteDiv.classList.add('hidden');
     updatePayeeDisplay();
     saveFormData();
 }
 
-// Hide autocomplete when clicking outside
-document.addEventListener('click', function(e) {
-    if (!payeeInput.contains(e.target) && !autocompleteDiv.contains(e.target)) {
-        autocompleteDiv.classList.add('hidden');
-    }
-});
+// =====================================
+// Designer Tab Functions
+// =====================================
+async function saveAsTemplate() {
+    const bankTemplate = document.getElementById('bank_template');
+    const bank = bankTemplate ? bankTemplate.value : '';
 
-// Hide autocomplete on escape key
-payeeInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        autocompleteDiv.classList.add('hidden');
+    if (bank === 'custom') {
+        Swal.fire({
+            title: 'ไม่สามารถบันทึกได้!',
+            text: 'กรุณาเลือกธนาคารก่อนบันทึก Template',
+            icon: 'error',
+            confirmButtonColor: '#ef4444'
+        });
+        return;
     }
-});
+
+    const positions = collectPositions();
+
+    try {
+        const response = await fetch(`${API_BASE}/templates`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF_TOKEN
+            },
+            body: JSON.stringify({ bank, template_json: positions })
+        });
+
+        if (response.ok) {
+            Swal.fire({
+                title: 'บันทึกสำเร็จ!',
+                text: 'Template ถูกบันทึกสำหรับธนาคารนี้แล้ว',
+                icon: 'success',
+                confirmButtonColor: '#10b981'
+            });
+        } else {
+            throw new Error('Save failed');
+        }
+    } catch (error) {
+        Swal.fire({
+            title: 'เกิดข้อผิดพลาด!',
+            text: 'ไม่สามารถบันทึก Template ได้',
+            icon: 'error',
+            confirmButtonColor: '#ef4444'
+        });
+    }
+}
+
+function resetPositions() {
+    Swal.fire({
+        title: 'รีเซ็ตตำแหน่ง?',
+        text: 'ตำแหน่งทั้งหมดจะถูกรีเซ็ตเป็นค่าเริ่มต้น',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'ใช่, รีเซ็ต',
+        cancelButtonText: 'ยกเลิก'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            applyPositions(defaultPositions);
+            savePositions();
+            Swal.fire({
+                title: 'รีเซ็ตแล้ว!',
+                text: 'ตำแหน่งถูกรีเซ็ตเป็นค่าเริ่มต้นแล้ว',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+}
+
+function testPrintCheque() {
+    const preview = document.getElementById('chequePreview');
+    if (!preview) {
+        alert('ไม่พบ Preview!');
+        return;
+    }
+
+    const clonedCheque = preview.cloneNode(true);
+
+    // Get current dimensions
+    const currentWidth = preview.style.width || '890px';
+    const currentHeight = preview.style.height || '445px';
+
+    // Remove background image for print
+    clonedCheque.style.backgroundImage = 'none';
+    clonedCheque.classList.remove('has-background');
+
+    // Add watermark to cloned cheque
+    const watermark = document.createElement('div');
+    watermark.className = 'test-watermark';
+    watermark.textContent = 'ทดสอบพิมพ์';
+    clonedCheque.appendChild(watermark);
+
+    // Create print window
+    const printWindow = window.open('', '_blank', 'width=900,height=500');
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>ทดสอบพิมพ์เช็ค</title>
+            <style>
+                @page {
+                    size: A4 portrait;
+                    margin: 0;
+                }
+
+                body {
+                    margin: 0;
+                    padding: 0;
+                    background: white;
+                    font-family: Arial, Tahoma, sans-serif;
+                }
+
+                .cheque-preview {
+                    position: relative;
+                    width: ${currentWidth};
+                    height: ${currentHeight};
+                    border: none;
+                    background: white;
+                    margin: 0;
+                }
+
+                .draggable {
+                    position: absolute;
+                    white-space: nowrap;
+                    border: none;
+                    background: transparent;
+                    padding: 0;
+                    margin: 0;
+                    line-height: 1;
+                }
+
+                .ac-payee {
+                    font-weight: bold !important;
+                    font-size: 18px !important;
+                    transform: rotate(-40deg);
+                    transform-origin: left top;
+                    color: #ff0000 !important;
+                    text-decoration: overline underline !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                #dateDisplay { white-space: pre; }
+
+                .line-holder {
+                    font-size: 20px;
+                    font-weight: bold;
+                }
+
+                /* Watermark */
+                .test-watermark {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%) rotate(-45deg);
+                    font-size: 72px;
+                    font-weight: bold;
+                    color: rgba(200, 200, 200, 0.3);
+                    pointer-events: none;
+                    user-select: none;
+                    z-index: 999;
+                    white-space: nowrap;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                @media print {
+                    .test-watermark {
+                        color: rgba(180, 180, 180, 0.25) !important;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            ${clonedCheque.outerHTML}
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                    }, 500);
+                };
+            <\/script>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    console.log('Test print window opened');
+}
 </script>
 @endpush

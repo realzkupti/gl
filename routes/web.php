@@ -46,7 +46,7 @@ Route::prefix('tailadmin')->name('tailadmin.')->middleware(['auth', 'company.con
 // NOTE: Cheque system uses PostgreSQL only, NOT company database
 Route::prefix('cheque')->name('cheque.')->middleware(['auth','menu:cheque,view'])->group(function () {
     Route::get('print', [TailAdminController::class, 'chequePrint'])->name('print');
-    Route::get('designer', [TailAdminController::class, 'chequeDesigner'])->name('designer');
+    // Designer route removed - now integrated as tab in print page
     Route::get('reports', [TailAdminController::class, 'chequeReports'])->name('reports');
     Route::get('branches', [TailAdminController::class, 'chequeBranches'])->name('branches');
     Route::get('settings', [TailAdminController::class, 'chequeSettings'])->name('settings');

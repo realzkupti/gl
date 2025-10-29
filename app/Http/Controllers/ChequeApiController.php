@@ -141,7 +141,7 @@ class ChequeApiController extends Controller
         $validated = $request->validate([
             'branch_code' => 'nullable|string|max:50',
             'bank' => 'required|string|max:50',
-            'cheque_number' => 'required|string|max:50|unique:cheques,cheque_number',
+            'cheque_number' => 'required|string|max:50|unique:sys_cheques,cheque_number',
             'date' => 'required|date',
             'payee' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0',
