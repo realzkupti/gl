@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Company;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Schema;
 
 class CompanyManager
 {
@@ -12,6 +14,23 @@ class CompanyManager
     {
         if (!is_null(self::$cache)) return self::$cache;
 
+        // Try to read from PostgreSQL database first
+        try {
+            $schema = Schema::connection('pgsql');
+            if ($schema->hasTable('companies')) {
+                $companies = Company::getAllAsArray();
+
+                // If we have companies in DB, use them
+                if (!empty($companies)) {
+                    self::$cache = $companies;
+                    return $companies;
+                }
+            }
+        } catch (\Throwable $e) {
+            // If DB fails, fall through to JSON fallback
+        }
+
+        // Fallback to JSON file (legacy support)
         $path = base_path('config/companies.json');
         if (!file_exists($path)) return [];
         $raw = file_get_contents($path);

@@ -13,48 +13,65 @@ class TrialBalanceController extends Controller
 {
     public function index(Request $request)
     {
-        $periodKey = $request->input('period', null);
+        try {
+            $periodKey = $request->input('period', null);
 
-        if (!$periodKey) {
-            // Default to current month if no period selected
-            $currentMonth = now()->format('Y-m');
-            $periods = TrialBalance::getGLPeriods();
-            foreach ($periods as $period) {
-                if (substr($period->GLP_ST_DATE, 0, 7) === $currentMonth) {
-                    $periodKey = $period->GLP_KEY;
-                    break;
+            if (!$periodKey) {
+                // Default to current month if no period selected
+                $currentMonth = now()->format('Y-m');
+                $periods = TrialBalance::getGLPeriods();
+                foreach ($periods as $period) {
+                    if (substr($period->GLP_ST_DATE, 0, 7) === $currentMonth) {
+                        $periodKey = $period->GLP_KEY;
+                        break;
+                    }
+                }
+                if (!$periodKey && $periods) {
+                    $periodKey = $periods[0]->GLP_KEY; // fallback to first period
                 }
             }
-            if (!$periodKey && $periods) {
-                $periodKey = $periods[0]->GLP_KEY; // fallback to first period
+
+            $period = TrialBalance::getPeriodByKey($periodKey);
+
+            if (!$period) {
+                return view('trial_balance_plain', [
+                    'rows' => [],
+                    'periods' => TrialBalance::getGLPeriods(),
+                    'selectedPeriod' => null,
+                    'error' => 'ไม่พบงวดบัญชีที่เลือก',
+                    'companies' => \App\Services\CompanyManager::listCompanies(),
+                    'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
+                ]);
             }
-        }
 
-        $period = TrialBalance::getPeriodByKey($periodKey);
+            $movementRows = TrialBalance::getMovementBalancesForPeriod($periodKey);
+            $openingRows = TrialBalance::getOpeningBalancesForPeriod($periodKey);
 
-        if (!$period) {
+            $rows = TrialBalance::processTrialBalanceData($movementRows, $openingRows);
+
+            $currentMenu = \App\Models\Menu::where('route', 'trial-balance.plain')->first();
+
             return view('trial_balance_plain', [
-                'rows' => [],
+                'rows' => $rows,
                 'periods' => TrialBalance::getGLPeriods(),
-                'selectedPeriod' => null,
-                'error' => 'Invalid period selected',
+                'selectedPeriod' => $period,
                 'companies' => \App\Services\CompanyManager::listCompanies(),
                 'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
+                'currentMenu' => $currentMenu,
+            ]);
+        } catch (\Throwable $e) {
+            $currentMenu = \App\Models\Menu::where('route', 'trial-balance.plain')->first();
+
+            return view('trial_balance_plain', [
+                'rows' => [],
+                'periods' => [],
+                'selectedPeriod' => null,
+                'error' => 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้',
+                'companies' => \App\Services\CompanyManager::listCompanies(),
+                'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
+                'currentMenu' => $currentMenu,
             ]);
         }
-
-        $movementRows = TrialBalance::getMovementBalancesForPeriod($periodKey);
-        $openingRows = TrialBalance::getOpeningBalancesForPeriod($periodKey);
-
-        $rows = TrialBalance::processTrialBalanceData($movementRows, $openingRows);
-
-        return view('trial_balance_plain', [
-            'rows' => $rows,
-            'periods' => TrialBalance::getGLPeriods(),
-            'selectedPeriod' => $period,
-            'companies' => \App\Services\CompanyManager::listCompanies(),
-            'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
-        ]);
     }
 
     // Return JSON detail rows for a given account and period
@@ -69,21 +86,25 @@ class TrialBalanceController extends Controller
             return response()->json(['data' => []]);
         }
 
-        $period = TrialBalance::getPeriodByKey($periodKey);
-        if (!$period) {
-            return response()->json(['data' => []]);
+        try {
+            $period = TrialBalance::getPeriodByKey($periodKey);
+            if (!$period) {
+                return response()->json(['data' => [], 'error' => 'invalid period']);
+            }
+
+            // For detail, show transactions within the selected period
+            $dateS = $period->GLP_ST_DATE;
+            $dateE = $period->GLP_EN_DATE;
+
+            // Opening net balance before start date (DR-CR)
+            $opening = TrialBalance::getAccountOpeningNet($account, $dateS);
+
+            $rows = TrialBalance::getAccountDetails($account, $dateS, $dateE);
+
+            return response()->json(['data' => $rows, 'opening' => $opening]);
+        } catch (\Throwable $e) {
+            return response()->json(['data' => [], 'error' => 'connection error']);
         }
-
-        // For detail, show transactions within the selected period
-        $dateS = $period->GLP_ST_DATE;
-        $dateE = $period->GLP_EN_DATE;
-
-        // Opening net balance before start date (DR-CR)
-        $opening = TrialBalance::getAccountOpeningNet($account, $dateS);
-
-        $rows = TrialBalance::getAccountDetails($account, $dateS, $dateE);
-
-        return response()->json(['data' => $rows, 'opening' => $opening]);
     }
 
     // Return accounting entries (postings) for a given document DI_KEY
@@ -94,9 +115,12 @@ class TrialBalanceController extends Controller
             return response()->json(['data' => []]);
         }
 
-        $rows = TrialBalance::getDocumentEntries($docKey);
-
-        return response()->json(['data' => $rows]);
+        try {
+            $rows = TrialBalance::getDocumentEntries($docKey);
+            return response()->json(['data' => $rows]);
+        } catch (\Throwable $e) {
+            return response()->json(['data' => [], 'error' => 'connection error']);
+        }
     }
 
     public function pdf(Request $request)
@@ -155,7 +179,8 @@ class TrialBalanceController extends Controller
         // Use mPDF for better Thai rendering
         $html = view('trial_balance_pdf', $data)->render();
 
-        if ($engine === 'dompdf') {
+        // If explicitly requested or mPDF class not available, use DomPDF
+        if ($engine === 'dompdf' || !class_exists('Mpdf\\Mpdf')) {
             // Optional fallback engine for debugging viewer differences
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('a4', 'landscape');
             $file = 'trial-balance-'.($period->GLP_YEAR).'_'.$period->GLP_SEQUENCE.'.pdf';
@@ -252,5 +277,53 @@ class TrialBalanceController extends Controller
             fclose($out);
         };
         return response()->stream($callback, 200, $headers);
+    }
+
+    // Blade + JS branch trial balance page (no Livewire) - now using TailAdmin layout
+    public function branch(Request $request)
+    {
+        $periods = TrialBalance::getGLPeriods();
+        $selected = $request->query('period');
+        if (!$selected && $periods) {
+            $currentMonth = now()->format('Y-m');
+            foreach ($periods as $p) {
+                if (substr($p->GLP_ST_DATE,0,7) === $currentMonth) { $selected = $p->GLP_KEY; break; }
+            }
+            if (!$selected) $selected = $periods[0]->GLP_KEY ?? null;
+        }
+        $branches = [];
+        if (\DB::getSchemaBuilder()->hasTable('BRANCH')) {
+            $branches = \DB::table('BRANCH')->select('BR_CODE as code','BR_THAIDESC as name')->orderBy('BR_CODE')->get();
+        } elseif (\DB::getSchemaBuilder()->hasTable('DOCTYPE')) {
+            $branches = \DB::table('DOCTYPE')->select(\DB::raw('DT_1ST_BR_CODE as code'))
+                ->distinct()->orderBy('DT_1ST_BR_CODE')->get()->map(function($r){ $r->name=$r->code; return $r; });
+        } elseif (\DB::getSchemaBuilder()->hasTable('branches')) {
+            $branches = \DB::table('branches')->select('code','name')->orderBy('code')->get();
+        }
+
+        $page = 'trial-balance'; // For active menu state
+        $currentMenu = \App\Models\Menu::where('route', 'trial-balance.branch')->first();
+
+        return view('tailadmin.pages.trial-balance', [
+            'periods' => $periods,
+            'selectedPeriodKey' => $selected,
+            'branches' => $branches,
+            'page' => $page,
+            'currentMenu' => $currentMenu,
+        ]);
+    }
+
+    // JSON data endpoint for branch trial balance table
+    public function branchData(Request $request)
+    {
+        $periodKey = $request->query('period');
+        $branch = $request->query('branch');
+        if (!$periodKey) return response()->json(['data'=>[]]);
+        try {
+            $rows = TrialBalance::getBranchPeriodData($periodKey, $branch ?: null);
+            return response()->json(['data'=>$rows]);
+        } catch (\Throwable $e) {
+            return response()->json(['data'=>[], 'error'=>'connection error']);
+        }
     }
 }

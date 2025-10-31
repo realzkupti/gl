@@ -285,4 +285,251 @@ class TrialBalance extends Model
 
         return self::getMovementBalances($periodStart, $periodEnd);
     }
+
+    /**
+     * Movement within date range grouped by account and branch
+     */
+    public static function getMovementByBranch($dateStart, $dateEnd, $branchCode = null)
+    {
+        $branchWhere = '';
+        $bindings = [$dateStart, $dateEnd, $dateStart, $dateEnd];
+        if ($branchCode) {
+            $branchWhere = ' AND DT.DT_1ST_BR_CODE = ?';
+            // One param for each inner select (2 selects)
+            $bindings[] = $branchCode;
+            $bindings[] = $branchCode;
+        }
+
+        $sql = "
+            SELECT account_number, account_name, branch_code, SUM(DR) AS DR, SUM(CR) AS CR
+            FROM (
+                SELECT AC.AC_CODE AS account_number, AC.AC_THAIDESC AS account_name, DT.DT_1ST_BR_CODE AS branch_code,
+                       SUM(GL.TRJ_DEBIT) AS DR, SUM(GL.TRJ_CREDIT) AS CR
+                FROM TRANSTKJ GL
+                INNER JOIN DOCINFO DI ON GL.TRJ_DI = DI.DI_KEY
+                INNER JOIN ACCOUNTCHART AC ON GL.TRJ_AC = AC.AC_KEY
+                INNER JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
+                WHERE DI.DI_DATE BETWEEN ? AND ?
+                {$branchWhere}
+                GROUP BY AC.AC_CODE, AC.AC_THAIDESC, DT.DT_1ST_BR_CODE
+
+                UNION ALL
+
+                SELECT AC.AC_CODE AS account_number, AC.AC_THAIDESC AS account_name, DT.DT_1ST_BR_CODE AS branch_code,
+                       SUM(GL.TPJ_DEBIT) AS DR, SUM(GL.TPJ_CREDIT) AS CR
+                FROM TRANPAYJ GL
+                INNER JOIN ACCOUNTCHART AC ON GL.TPJ_AC = AC.AC_KEY
+                INNER JOIN DOCINFO DI ON GL.TPJ_DI = DI.DI_KEY
+                INNER JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
+                WHERE DI.DI_DATE BETWEEN ? AND ?
+                {$branchWhere}
+                GROUP BY AC.AC_CODE, AC.AC_THAIDESC, DT.DT_1ST_BR_CODE
+            ) x
+            GROUP BY account_number, account_name, branch_code
+            ORDER BY account_number
+        ";
+        return DB::select($sql, $bindings);
+    }
+
+    /**
+     * Opening before date grouped by account and branch
+     */
+    public static function getOpeningByBranch($dateStart, $branchCode = null)
+    {
+        $branchWhere = '';
+        $bindings = [$dateStart, $dateStart];
+        if ($branchCode) {
+            $branchWhere = ' AND DT.DT_1ST_BR_CODE = ?';
+            // One param for each inner select (2 selects)
+            $bindings[] = $branchCode;
+            $bindings[] = $branchCode;
+        }
+
+        $sql = "
+            SELECT account_number, account_name, branch_code, SUM(DR) AS DR, SUM(CR) AS CR
+            FROM (
+                SELECT AC.AC_CODE AS account_number, AC.AC_THAIDESC AS account_name, DT.DT_1ST_BR_CODE AS branch_code,
+                       SUM(GL.TRJ_DEBIT) AS DR, SUM(GL.TRJ_CREDIT) AS CR
+                FROM TRANSTKJ GL
+                INNER JOIN DOCINFO DI ON GL.TRJ_DI = DI.DI_KEY
+                INNER JOIN ACCOUNTCHART AC ON GL.TRJ_AC = AC.AC_KEY
+                INNER JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
+                WHERE DI.DI_DATE < ?
+                {$branchWhere}
+                GROUP BY AC.AC_CODE, AC.AC_THAIDESC, DT.DT_1ST_BR_CODE
+
+                UNION ALL
+
+                SELECT AC.AC_CODE AS account_number, AC.AC_THAIDESC AS account_name, DT.DT_1ST_BR_CODE AS branch_code,
+                       SUM(GL.TPJ_DEBIT) AS DR, SUM(GL.TPJ_CREDIT) AS CR
+                FROM TRANPAYJ GL
+                INNER JOIN ACCOUNTCHART AC ON GL.TPJ_AC = AC.AC_KEY
+                INNER JOIN DOCINFO DI ON GL.TPJ_DI = DI.DI_KEY
+                INNER JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
+                WHERE DI.DI_DATE < ?
+                {$branchWhere}
+                GROUP BY AC.AC_CODE, AC.AC_THAIDESC, DT.DT_1ST_BR_CODE
+            ) x
+            GROUP BY account_number, account_name, branch_code
+            ORDER BY account_number
+        ";
+        return DB::select($sql, $bindings);
+    }
+
+    public static function getBranchPeriodData($periodKey, $branchCode = null)
+    {
+        $period = self::getPeriodByKey($periodKey);
+        if (!$period) return [];
+        $movement = self::getMovementByBranch($period->GLP_ST_DATE, $period->GLP_EN_DATE, $branchCode);
+        $opening  = self::getOpeningByBranch($period->GLP_ST_DATE, $branchCode);
+
+        // Merge like Livewire map logic (account + branch)
+        $map = [];
+        foreach ($opening as $r) {
+            $key = $r->account_number.'|'.($r->branch_code ?? '');
+            $map[$key] = [
+                'branch_id' => $r->branch_code,
+                'branch_name' => $r->branch_code,
+                'account_number' => $r->account_number,
+                'account_name' => $r->account_name,
+                'opening_debit' => (float)$r->DR,
+                'opening_credit' => (float)$r->CR,
+                'movement_debit' => 0.0,
+                'movement_credit' => 0.0,
+            ];
+        }
+        foreach ($movement as $r) {
+            $key = $r->account_number.'|'.($r->branch_code ?? '');
+            if (!isset($map[$key])) {
+                $map[$key] = [
+                    'branch_id' => $r->branch_code,
+                    'branch_name' => $r->branch_code,
+                    'account_number' => $r->account_number,
+                    'account_name' => $r->account_name,
+                    'opening_debit' => 0.0,
+                    'opening_credit' => 0.0,
+                    'movement_debit' => (float)$r->DR,
+                    'movement_credit' => (float)$r->CR,
+                ];
+            } else {
+                $map[$key]['movement_debit'] = (float)$r->DR;
+                $map[$key]['movement_credit'] = (float)$r->CR;
+            }
+        }
+        $rows = [];
+        foreach ($map as $v) {
+            $net = ($v['opening_debit'] - $v['opening_credit']) + ($v['movement_debit'] - $v['movement_credit']);
+            $rows[] = $v + [
+                'balance_debit' => $net >= 0 ? $net : 0,
+                'balance_credit' => $net < 0 ? abs($net) : 0,
+            ];
+        }
+        usort($rows, function($a,$b){
+            if (($a['branch_id'] ?? '') === ($b['branch_id'] ?? '')) return strcmp($a['account_number'],$b['account_number']);
+            return strcmp((string)($a['branch_id'] ?? ''),(string)($b['branch_id'] ?? ''));
+        });
+        return $rows;
+    }
+
+    /**
+     * Get trial balance by branch
+     */
+    public static function getTrialBalanceByBranch($periodKey, $branchCode)
+    {
+        return self::getBranchPeriodData($periodKey, $branchCode);
+    }
+
+    /**
+     * Get all branches from DOCTYPE
+     */
+    public static function getBranches()
+    {
+        return DB::select("SELECT DISTINCT DT.DT_1ST_BR_CODE AS branch_code FROM DOCTYPE DT WHERE DT.DT_1ST_BR_CODE IS NOT NULL ORDER BY DT.DT_1ST_BR_CODE");
+    }
+
+    /**
+     * Sort rows by account number and add subtotals by category
+     */
+    public static function addSubtotals($rows)
+    {
+        // Sort by account number
+        usort($rows, function($a, $b) {
+            return strcmp($a['account_number'] ?? '', $b['account_number'] ?? '');
+        });
+
+        // Add subtotals by category
+        $result = [];
+        $currentCategory = null;
+        $subtotals = ['dr' => 0.0, 'cr' => 0.0];
+
+        foreach ($rows as $row) {
+            $acc = (string)($row['account_number'] ?? '');
+            $first = substr($acc, 0, 1);
+
+            // Determine category
+            $category = null;
+            if ($first === '1') $category = '1';
+            elseif ($first === '2') $category = '2';
+            elseif ($first === '3') $category = '3';
+            elseif ($first === '4') $category = '4';
+            else $category = '5'; // 5-9 grouped as expenses
+
+            // If category changed, add subtotal
+            if ($currentCategory !== null && $currentCategory !== $category) {
+                $result[] = [
+                    'is_subtotal' => true,
+                    'category' => $currentCategory,
+                    'account_number' => 'รวม ' . self::getCategoryName($currentCategory),
+                    'account_name' => '',
+                    'opening_debit' => '',
+                    'opening_credit' => '',
+                    'movement_debit' => '',
+                    'movement_credit' => '',
+                    'balance_debit' => $subtotals['dr'],
+                    'balance_credit' => $subtotals['cr'],
+                ];
+                $subtotals = ['dr' => 0.0, 'cr' => 0.0];
+            }
+
+            $currentCategory = $category;
+            $result[] = $row;
+
+            // Accumulate subtotals
+            $subtotals['dr'] += (float)($row['balance_debit'] ?? 0);
+            $subtotals['cr'] += (float)($row['balance_credit'] ?? 0);
+        }
+
+        // Add final subtotal
+        if ($currentCategory !== null) {
+            $result[] = [
+                'is_subtotal' => true,
+                'category' => $currentCategory,
+                'account_number' => 'รวม ' . self::getCategoryName($currentCategory),
+                'account_name' => '',
+                'opening_debit' => '',
+                'opening_credit' => '',
+                'movement_debit' => '',
+                'movement_credit' => '',
+                'balance_debit' => $subtotals['dr'],
+                'balance_credit' => $subtotals['cr'],
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get category name in Thai
+     */
+    protected static function getCategoryName($category)
+    {
+        $names = [
+            '1' => 'สินทรัพย์',
+            '2' => 'หนี้สิน',
+            '3' => 'ทุน',
+            '4' => 'รายได้',
+            '5' => 'ค่าใช้จ่าย',
+        ];
+        return $names[$category] ?? 'อื่นๆ';
+    }
 }

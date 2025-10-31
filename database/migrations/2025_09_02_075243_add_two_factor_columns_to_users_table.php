@@ -11,11 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->text('two_factor_secret')->after('password')->nullable();
-            $table->text('two_factor_recovery_codes')->after('two_factor_secret')->nullable();
-            $table->timestamp('two_factor_confirmed_at')->after('two_factor_recovery_codes')->nullable();
-        });
+        $schema = Schema::connection('pgsql');
+        if (!$schema->hasTable('users')) {
+            return; // users table not present; nothing to add
+        }
+        // Avoid duplicate columns on re-run
+        if (!$schema->hasColumn('users', 'two_factor_secret')) {
+            $schema->table('users', function (Blueprint $table) {
+                $table->text('two_factor_secret')->after('password')->nullable();
+                $table->text('two_factor_recovery_codes')->after('two_factor_secret')->nullable();
+                $table->timestamp('two_factor_confirmed_at')->after('two_factor_recovery_codes')->nullable();
+            });
+        }
     }
 
     /**
@@ -23,12 +30,17 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn([
-                'two_factor_secret',
-                'two_factor_recovery_codes',
-                'two_factor_confirmed_at',
-            ]);
+        $schema = Schema::connection('pgsql');
+        if (!$schema->hasTable('users')) { return; }
+        // Drop only if columns exist
+        $schema->table('users', function (Blueprint $table) use ($schema) {
+            $drops = [];
+            foreach (['two_factor_secret','two_factor_recovery_codes','two_factor_confirmed_at'] as $col) {
+                if ($schema->hasColumn('users', $col)) { $drops[] = $col; }
+            }
+            if (!empty($drops)) {
+                $table->dropColumn($drops);
+            }
         });
     }
 };
