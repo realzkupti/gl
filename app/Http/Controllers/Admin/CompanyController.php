@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CompanyController extends Controller
 {
@@ -190,19 +191,45 @@ class CompanyController extends Controller
     {
         $this->ensureAdmin();
 
-        $company = Company::findOrFail($id);
+        Log::info("Testing connection for company ID: {$id}");
 
         try {
+            $company = Company::findOrFail($id);
+
+            Log::info("Company found: {$company->label}, Driver: {$company->driver}");
+
             // Try to decrypt password, if fails, use as plain text (for old data)
-            $password = '';
+            $password = null;
             if (!empty($company->password)) {
                 try {
                     $password = Crypt::decryptString($company->password);
+                    Log::info("Password decrypted successfully for company {$company->id}");
+
+                    // Check if decrypted password is empty
+                    if (empty($password)) {
+                        Log::warning("Decrypted password is empty for company {$company->id}");
+                        $password = null;
+                    }
                 } catch (\Exception $e) {
-                    // Password is not encrypted or corrupted, use as is
-                    \Log::warning("Could not decrypt password for company {$company->id}, using as plain text");
-                    $password = $company->password;
+                    // Password is not encrypted or corrupted, try using as is
+                    Log::warning("Could not decrypt password for company {$company->id}: " . $e->getMessage());
+                    Log::info("Attempting to use password as plain text");
+
+                    // Only use plain text if it's not empty
+                    if (!empty($company->password)) {
+                        $password = $company->password;
+                    } else {
+                        $password = null;
+                    }
                 }
+            } else {
+                Log::warning("Company {$company->id} has empty password field");
+                $password = null;
+            }
+
+            // If password is still null or empty, we cannot proceed
+            if ($password === null || $password === '') {
+                throw new \Exception("Password is empty or could not be decrypted. Please update the company password.");
             }
 
             $config = [
@@ -216,11 +243,29 @@ class CompanyController extends Controller
                 'collation' => $company->collation,
             ];
 
+            // Add driver-specific configuration
+            if ($company->driver === 'sqlsrv') {
+                $config['options'] = [
+                    'TrustServerCertificate' => true,
+                ];
+            }
+
+            Log::info("Attempting connection with config: " . json_encode([
+                'driver' => $config['driver'],
+                'host' => $config['host'],
+                'port' => $config['port'],
+                'database' => $config['database'],
+                'username' => $config['username'],
+            ]));
+
             config(['database.connections.test_connection' => $config]);
-            DB::connection('test_connection')->getPdo();
+            $pdo = DB::connection('test_connection')->getPdo();
+
+            Log::info("Connection successful! PDO Driver: " . $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME));
+
             DB::purge('test_connection'); // Clean up
 
-            $message = '✓ เชื่อมต่อสำเร็จ: ' . $company->label;
+            $message = '✓ เชื่อมต่อสำเร็จ: ' . $company->label . ' (' . $company->driver . ')';
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -231,13 +276,18 @@ class CompanyController extends Controller
 
             return redirect()->route('admin.companies')->with('status', $message);
         } catch (\Exception $e) {
+            Log::error("Connection test failed: " . $e->getMessage());
+            Log::error("Stack trace: " . $e->getTraceAsString());
+
             $message = '✗ เชื่อมต่อไม่สำเร็จ: ' . $e->getMessage();
 
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => $message
-                ]);
+                    'message' => $message,
+                    'error' => $e->getMessage(),
+                    'trace' => config('app.debug') ? $e->getTraceAsString() : null
+                ], 500);
             }
 
             return redirect()->route('admin.companies')->with('error', $message);
@@ -267,13 +317,21 @@ class CompanyController extends Controller
         // Store company ID in session
         session(['current_company_id' => $company->id]);
 
+        Log::info('Company switched', [
+            'user_id' => Auth::id(),
+            'company_id' => $company->id,
+            'company_label' => $company->label,
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'สลับบริษัทเป็น: ' . $company->label,
+            'redirect_url' => route('bplus.dashboard'),
             'company' => [
                 'id' => $company->id,
                 'key' => $company->key,
                 'label' => $company->label,
+                'logo' => $company->logo,
             ]
         ]);
     }

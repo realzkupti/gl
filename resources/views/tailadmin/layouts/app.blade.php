@@ -92,11 +92,11 @@
     @endif
 
     <!-- Company Switcher Modal -->
-    <div id="companySwitcherModal" style="display: none;" class="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+    <div id="companySwitcherModal" style="display: none;" class="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4" onclick="companySwitcher.handleBackdropClick(event)">
+        <div class="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md overflow-hidden" onclick="event.stopPropagation()">
             <div class="bg-gradient-to-r from-brand-600 to-brand-700 px-6 py-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-white">เลือกบริษัท</h3>
-                <button onclick="companySwitcher.closeModal()" class="text-white/90 hover:text-white transition">
+                <h3 class="text-lg font-semibold text-white" id="modalTitle">เลือกบริษัท</h3>
+                <button id="modalCloseBtn" onclick="companySwitcher.closeModal()" class="text-white/90 hover:text-white transition">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -133,22 +133,54 @@
     const companySwitcher = {
         currentCompanyId: null,
         companies: [],
+        isBlocking: false,
 
-        async openModal() {
+        async openModal(blocking = false) {
+            this.isBlocking = blocking;
+
+            // Update modal UI based on blocking mode
+            const modalTitle = document.getElementById('modalTitle');
+            const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+            if (blocking) {
+                modalTitle.textContent = 'กรุณาเลือกบริษัทเพื่อเริ่มใช้งาน';
+                modalCloseBtn.style.display = 'none';
+            } else {
+                modalTitle.textContent = 'เลือกบริษัท';
+                modalCloseBtn.style.display = 'block';
+            }
+
             document.getElementById('companySwitcherModal').style.display = 'flex';
             await this.loadCompanies();
         },
 
         closeModal() {
+            // Prevent closing if in blocking mode
+            if (this.isBlocking) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'กรุณาเลือกบริษัท',
+                    text: 'คุณต้องเลือกบริษัทก่อนใช้งานระบบ',
+                    confirmButtonColor: '#3B82F6'
+                });
+                return;
+            }
+
             document.getElementById('companySwitcherModal').style.display = 'none';
+        },
+
+        handleBackdropClick(event) {
+            if (event.target.id === 'companySwitcherModal') {
+                this.closeModal();
+            }
         },
 
         async loadCompanies() {
             try {
-                const response = await fetch('/admin/companies/accessible', {
+                const response = await fetch("{{ url('admin/companies/accessible') }}", {
                     headers: {
                         'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'X-CSRF-TOKEN': "{{ csrf_token() }}",
                     }
                 });
 
@@ -206,17 +238,17 @@
         },
 
         async switchTo(companyId) {
-            if (companyId === this.currentCompanyId) {
+            if (companyId === this.currentCompanyId && !this.isBlocking) {
                 this.closeModal();
                 return;
             }
 
             try {
-                const response = await fetch('/admin/companies/switch', {
+                const response = await fetch("{{ url('admin/companies/switch') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'X-CSRF-TOKEN': "{{ csrf_token() }}",
                         'Accept': 'application/json',
                     },
                     body: JSON.stringify({ company_id: companyId }),
@@ -225,47 +257,61 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Show success message
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'สำเร็จ',
-                            text: data.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        }).then(() => {
-                            // Reload page to refresh with new company context
-                            window.location.reload();
-                        });
-                    } else {
-                        alert(data.message);
-                        window.location.reload();
-                    }
+                    // Save to localStorage
+                    localStorage.setItem('glite_last_company_id', companyId);
+
+                    // Show toast message
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 2000,
+                        timerProgressBar: true
+                    });
+
+                    await Toast.fire({
+                        icon: 'success',
+                        title: data.message
+                    });
+
+                    // Redirect to Bplus Dashboard (or provided redirect URL)
+                    const redirectUrl = data.redirect_url || "{{ url('bplus/dashboard') }}";
+                    window.location.href = redirectUrl;
                 } else {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'เกิดข้อผิดพลาด',
-                            text: data.message
-                        });
-                    } else {
-                        alert(data.message);
-                    }
-                }
-            } catch (error) {
-                console.error('Error switching company:', error);
-                if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'error',
                         title: 'เกิดข้อผิดพลาด',
-                        text: 'ไม่สามารถสลับบริษัทได้'
+                        text: data.message,
+                        confirmButtonColor: '#ef4444'
                     });
-                } else {
-                    alert('ไม่สามารถสลับบริษัทได้');
                 }
+            } catch (error) {
+                console.error('Error switching company:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถสลับบริษัทได้',
+                    confirmButtonColor: '#ef4444'
+                });
             }
         }
     };
+
+    // Auto-open modal if required
+    document.addEventListener('DOMContentLoaded', function() {
+        @if(session('require_company_selection'))
+            companySwitcher.openModal(true); // blocking mode
+        @endif
+
+        // Auto-restore from localStorage if no current company
+        @if(!session('current_company_id'))
+            const lastCompanyId = localStorage.getItem('glite_last_company_id');
+            if (lastCompanyId) {
+                console.log('Auto-restoring company from localStorage:', lastCompanyId);
+                companySwitcher.switchTo(parseInt(lastCompanyId));
+            }
+        @endif
+    });
     </script>
 
     @stack('scripts')

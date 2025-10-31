@@ -430,4 +430,106 @@ class TrialBalance extends Model
         });
         return $rows;
     }
+
+    /**
+     * Get trial balance by branch
+     */
+    public static function getTrialBalanceByBranch($periodKey, $branchCode)
+    {
+        return self::getBranchPeriodData($periodKey, $branchCode);
+    }
+
+    /**
+     * Get all branches from DOCTYPE
+     */
+    public static function getBranches()
+    {
+        return DB::select("SELECT DISTINCT DT.DT_1ST_BR_CODE AS branch_code FROM DOCTYPE DT WHERE DT.DT_1ST_BR_CODE IS NOT NULL ORDER BY DT.DT_1ST_BR_CODE");
+    }
+
+    /**
+     * Sort rows by account number and add subtotals by category
+     */
+    public static function addSubtotals($rows)
+    {
+        // Sort by account number
+        usort($rows, function($a, $b) {
+            return strcmp($a['account_number'] ?? '', $b['account_number'] ?? '');
+        });
+
+        // Add subtotals by category
+        $result = [];
+        $currentCategory = null;
+        $subtotals = ['dr' => 0.0, 'cr' => 0.0];
+
+        foreach ($rows as $row) {
+            $acc = (string)($row['account_number'] ?? '');
+            $first = substr($acc, 0, 1);
+
+            // Determine category
+            $category = null;
+            if ($first === '1') $category = '1';
+            elseif ($first === '2') $category = '2';
+            elseif ($first === '3') $category = '3';
+            elseif ($first === '4') $category = '4';
+            else $category = '5'; // 5-9 grouped as expenses
+
+            // If category changed, add subtotal
+            if ($currentCategory !== null && $currentCategory !== $category) {
+                $result[] = [
+                    'is_subtotal' => true,
+                    'category' => $currentCategory,
+                    'account_number' => 'รวม ' . self::getCategoryName($currentCategory),
+                    'account_name' => '',
+                    'opening_debit' => '',
+                    'opening_credit' => '',
+                    'movement_debit' => '',
+                    'movement_credit' => '',
+                    'balance_debit' => $subtotals['dr'],
+                    'balance_credit' => $subtotals['cr'],
+                ];
+                $subtotals = ['dr' => 0.0, 'cr' => 0.0];
+            }
+
+            $currentCategory = $category;
+            $result[] = $row;
+
+            // Accumulate subtotals
+            $subtotals['dr'] += (float)($row['balance_debit'] ?? 0);
+            $subtotals['cr'] += (float)($row['balance_credit'] ?? 0);
+        }
+
+        // Add final subtotal
+        if ($currentCategory !== null) {
+            $result[] = [
+                'is_subtotal' => true,
+                'category' => $currentCategory,
+                'account_number' => 'รวม ' . self::getCategoryName($currentCategory),
+                'account_name' => '',
+                'opening_debit' => '',
+                'opening_credit' => '',
+                'movement_debit' => '',
+                'movement_credit' => '',
+                'balance_debit' => $subtotals['dr'],
+                'balance_credit' => $subtotals['cr'],
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get category name in Thai
+     */
+    protected static function getCategoryName($category)
+    {
+        $names = [
+            '1' => 'สินทรัพย์',
+            '2' => 'หนี้สิน',
+            '3' => 'ทุน',
+            '4' => 'รายได้',
+            '5' => 'ค่าใช้จ่าย',
+        ];
+        return $names[$category] ?? 'อื่นๆ';
+    }
 }

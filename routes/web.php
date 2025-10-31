@@ -11,7 +11,12 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TailAdminController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\CompanyController;
-
+use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\DepartmentPermissionController;
+use App\Http\Controllers\StickyNoteController;
+use App\Http\Controllers\Bplus\DashboardController;
+use App\Http\Controllers\Bplus\TrialBalanceController as BplusTrialBalanceController;
 
 Route::get('/', [HomeController::class, 'index'])->middleware(['auth', 'company.connection'])->name('home');
 Route::get('teset', function () {
@@ -55,6 +60,25 @@ Route::prefix('cheque')->name('cheque.')->middleware(['auth','menu:cheque,view']
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
+
+// Bplus Routes (with company selection check - but allow dashboard without company)
+Route::middleware(['auth'])->group(function () {
+    // Bplus Dashboard - accessible without company (will prompt to select)
+    Route::get('bplus/dashboard', [DashboardController::class, 'index'])->name('bplus.dashboard');
+
+    // Bplus Trial Balance - requires company connection
+    Route::middleware(['company.connection'])->group(function () {
+        Route::get('bplus/trial-balance', [BplusTrialBalanceController::class, 'index'])->name('bplus.trial-balance');
+        Route::get('bplus/trial-balance-pdf', [BplusTrialBalanceController::class, 'pdf'])->name('bplus.trial-balance.pdf');
+        Route::get('bplus/trial-balance-excel', [BplusTrialBalanceController::class, 'excel'])->name('bplus.trial-balance.excel');
+        Route::get('bplus/trial-balance-detail', [BplusTrialBalanceController::class, 'detail'])->name('bplus.trial-balance.detail');
+        Route::get('bplus/trial-balance-entries', [BplusTrialBalanceController::class, 'entries'])->name('bplus.trial-balance.entries');
+
+        // Branch trial balance
+        Route::get('bplus/trial-balance-branch', [BplusTrialBalanceController::class, 'branch'])->name('bplus.trial-balance-branch');
+        Route::get('bplus/trial-balance-branch-data', [BplusTrialBalanceController::class, 'branchData'])->name('bplus.trial-balance-branch.data');
+    });
+});
 
 Route::middleware(['auth', 'company.connection'])->group(function () {
     // Trial balance quick view (keep)
@@ -121,14 +145,14 @@ Route::delete('api/branches/{code}', [ChequeApiController::class, 'branchesDestr
 // Admin: User management
 Route::middleware(['auth'])->group(function(){
     // User management (with tabs: active/pending)
-    Route::get('admin/users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('admin.users');
-    Route::get('admin/users/counts', [\App\Http\Controllers\Admin\UserController::class, 'getCounts'])->name('admin.users.counts');
-    Route::post('admin/users', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('admin.users.store');
-    Route::put('admin/users/{id}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('admin.users.update');
-    Route::delete('admin/users/{id}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('admin.users.destroy');
-    Route::post('admin/users/{id}/approve', [\App\Http\Controllers\Admin\UserController::class, 'approve'])->name('admin.users.approve');
-    Route::delete('admin/users/{id}/reject', [\App\Http\Controllers\Admin\UserController::class, 'reject'])->name('admin.users.reject');
-    Route::patch('admin/users/{id}/toggle', [\App\Http\Controllers\Admin\UserController::class, 'toggle'])->name('admin.users.toggle');
+    Route::get('admin/users', [UserController::class, 'index'])->name('admin.users');
+    Route::get('admin/users/counts', [UserController::class, 'getCounts'])->name('admin.users.counts');
+    Route::post('admin/users', [UserController::class, 'store'])->name('admin.users.store');
+    Route::put('admin/users/{id}', [UserController::class, 'update'])->name('admin.users.update');
+    Route::delete('admin/users/{id}', [UserController::class, 'destroy'])->name('admin.users.destroy');
+    Route::post('admin/users/{id}/approve', [UserController::class, 'approve'])->name('admin.users.approve');
+    Route::delete('admin/users/{id}/reject', [UserController::class, 'reject'])->name('admin.users.reject');
+    Route::patch('admin/users/{id}/toggle', [UserController::class, 'toggle'])->name('admin.users.toggle');
 
     // Admin: Menus API (JSON responses for AJAX) - MUST come BEFORE traditional routes!
     Route::get('admin/menus/list', [MenuController::class, 'list'])->name('admin.menus.list');
@@ -152,22 +176,22 @@ Route::middleware(['auth'])->group(function(){
     Route::delete('admin/menus/{id}', [MenuController::class, 'destroy'])->name('admin.menus.destroy');
 
     // Admin: Departments CRUD (เดิมคือ Menu Groups)
-    Route::get('admin/departments', [\App\Http\Controllers\Admin\DepartmentController::class, 'index'])->name('admin.departments.index');
-    Route::get('admin/departments/create', [\App\Http\Controllers\Admin\DepartmentController::class, 'create'])->name('admin.departments.create');
-    Route::post('admin/departments', [\App\Http\Controllers\Admin\DepartmentController::class, 'store'])->name('admin.departments.store');
-    Route::get('admin/departments/{id}', [\App\Http\Controllers\Admin\DepartmentController::class, 'show'])->name('admin.departments.show');
-    Route::get('admin/departments/{id}/edit', [\App\Http\Controllers\Admin\DepartmentController::class, 'edit'])->name('admin.departments.edit');
-    Route::put('admin/departments/{id}', [\App\Http\Controllers\Admin\DepartmentController::class, 'update'])->name('admin.departments.update');
-    Route::delete('admin/departments/{id}', [\App\Http\Controllers\Admin\DepartmentController::class, 'destroy'])->name('admin.departments.destroy');
+    Route::get('admin/departments', [DepartmentController::class, 'index'])->name('admin.departments.index');
+    Route::get('admin/departments/create', [DepartmentController::class, 'create'])->name('admin.departments.create');
+    Route::post('admin/departments', [DepartmentController::class, 'store'])->name('admin.departments.store');
+    Route::get('admin/departments/{id}', [DepartmentController::class, 'show'])->name('admin.departments.show');
+    Route::get('admin/departments/{id}/edit', [DepartmentController::class, 'edit'])->name('admin.departments.edit');
+    Route::put('admin/departments/{id}', [DepartmentController::class, 'update'])->name('admin.departments.update');
+    Route::delete('admin/departments/{id}', [DepartmentController::class, 'destroy'])->name('admin.departments.destroy');
 
     // Admin: Departments API (for AJAX)
-    Route::get('admin/departments/list', [\App\Http\Controllers\Admin\DepartmentController::class, 'list'])->name('admin.departments.list');
+    Route::get('admin/departments/list', [DepartmentController::class, 'list'])->name('admin.departments.list');
 
     // Admin: Department Permissions (กำหนดสิทธิ์แผนก)
-    Route::get('admin/department-permissions', [\App\Http\Controllers\Admin\DepartmentPermissionController::class, 'index'])->name('admin.department-permissions.index');
-    Route::get('admin/department-permissions/{departmentId}', [\App\Http\Controllers\Admin\DepartmentPermissionController::class, 'edit'])->name('admin.department-permissions.edit');
-    Route::put('admin/department-permissions/{departmentId}', [\App\Http\Controllers\Admin\DepartmentPermissionController::class, 'update'])->name('admin.department-permissions.update');
-    Route::delete('admin/department-permissions/{departmentId}', [\App\Http\Controllers\Admin\DepartmentPermissionController::class, 'reset'])->name('admin.department-permissions.reset');
+    Route::get('admin/department-permissions', [DepartmentPermissionController::class, 'index'])->name('admin.department-permissions.index');
+    Route::get('admin/department-permissions/{departmentId}', [DepartmentPermissionController::class, 'edit'])->name('admin.department-permissions.edit');
+    Route::put('admin/department-permissions/{departmentId}', [DepartmentPermissionController::class, 'update'])->name('admin.department-permissions.update');
+    Route::delete('admin/department-permissions/{departmentId}', [DepartmentPermissionController::class, 'reset'])->name('admin.department-permissions.reset');
 
     // Admin: Companies CRUD
     Route::get('admin/companies', [CompanyController::class, 'index'])->name('admin.companies');
@@ -178,14 +202,14 @@ Route::middleware(['auth'])->group(function(){
     Route::delete('admin/companies/{id}', [CompanyController::class, 'destroy'])->name('admin.companies.destroy');
 
     // Sticky Notes API
-    Route::get('api/sticky-notes', [\App\Http\Controllers\StickyNoteController::class, 'index'])->name('api.sticky-notes.index');
-    Route::get('api/sticky-notes/trash', [\App\Http\Controllers\StickyNoteController::class, 'trash'])->name('api.sticky-notes.trash');
-    Route::post('api/sticky-notes', [\App\Http\Controllers\StickyNoteController::class, 'store'])->name('api.sticky-notes.store');
-    Route::put('api/sticky-notes/{id}', [\App\Http\Controllers\StickyNoteController::class, 'update'])->name('api.sticky-notes.update');
-    Route::delete('api/sticky-notes/{id}', [\App\Http\Controllers\StickyNoteController::class, 'destroy'])->name('api.sticky-notes.destroy');
-    Route::post('api/sticky-notes/{id}/restore', [\App\Http\Controllers\StickyNoteController::class, 'restore'])->name('api.sticky-notes.restore');
-    Route::delete('api/sticky-notes/{id}/force', [\App\Http\Controllers\StickyNoteController::class, 'forceDelete'])->name('api.sticky-notes.force-delete');
-    Route::post('api/sticky-notes/bulk-update', [\App\Http\Controllers\StickyNoteController::class, 'bulkUpdate'])->name('api.sticky-notes.bulk-update');
+    Route::get('api/sticky-notes', [StickyNoteController::class, 'index'])->name('api.sticky-notes.index');
+    Route::get('api/sticky-notes/trash', [StickyNoteController::class, 'trash'])->name('api.sticky-notes.trash');
+    Route::post('api/sticky-notes', [StickyNoteController::class, 'store'])->name('api.sticky-notes.store');
+    Route::put('api/sticky-notes/{id}', [StickyNoteController::class, 'update'])->name('api.sticky-notes.update');
+    Route::delete('api/sticky-notes/{id}', [StickyNoteController::class, 'destroy'])->name('api.sticky-notes.destroy');
+    Route::post('api/sticky-notes/{id}/restore', [StickyNoteController::class, 'restore'])->name('api.sticky-notes.restore');
+    Route::delete('api/sticky-notes/{id}/force', [StickyNoteController::class, 'forceDelete'])->name('api.sticky-notes.force-delete');
+    Route::post('api/sticky-notes/bulk-update', [StickyNoteController::class, 'bulkUpdate'])->name('api.sticky-notes.bulk-update');
 
     // Company Switching API
     Route::post('admin/companies/switch', [CompanyController::class, 'switchCompany'])->name('admin.companies.switch');

@@ -63,15 +63,61 @@
             <!-- Hamburger Toggle BTN -->
 
             <a href="{{ route('tailadmin.dashboard') }}" class="xl:hidden">
-                <img class="dark:hidden" src="{{ asset('tailadmin/src/images/logo/logo.svg') }}" alt="Logo" />
+                <img class="dark:hidden" src="{{ asset('tailadmin/src/images/logo/GLite-logo.png') }}" alt="Logo" />
                 <img
                     class="hidden dark:block"
-                    src="{{ asset('tailadmin/src/images/logo/logo-dark.svg') }}"
+                    src="{{ asset('tailadmin/src/images/logo/GLite-logo.png') }}"
                     alt="Logo"
                 />
             </a>
 
+            <!-- GLite Brand (Desktop only) -->
+            <div class="hidden xl:block">
+                <span class="text-lg font-semibold text-gray-900 dark:text-white">GLite</span>
+            </div>
+
             <div class="ml-auto flex items-center gap-2">
+                <!-- Company Selector Button -->
+                @auth
+                @php
+                    $currentCompany = auth()->user()?->getCurrentCompany();
+                @endphp
+                @if($currentCompany)
+                    <button
+                        onclick="companySwitcher.openModal(false)"
+                        class="hidden sm:flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 transition"
+                        title="เปลี่ยนบริษัท"
+                    >
+                        @if($currentCompany->logo)
+                            <img
+                                src="{{ asset('storage/' . $currentCompany->logo) }}"
+                                alt="{{ $currentCompany->label }}"
+                                class="w-6 h-6 object-contain rounded"
+                            />
+                        @else
+                            <svg class="w-5 h-5 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                        @endif
+                        <span class="font-medium text-gray-900 dark:text-white max-w-[150px] truncate">{{ $currentCompany->label }}</span>
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+                        </svg>
+                    </button>
+                @else
+                    <button
+                        onclick="companySwitcher.openModal(true)"
+                        class="hidden sm:flex items-center gap-2 rounded-lg border-2 border-orange-500 bg-orange-50 px-3 py-2 text-sm hover:bg-orange-100 dark:border-orange-600 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 transition animate-pulse"
+                        title="เลือกบริษัท"
+                    >
+                        <svg class="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <span class="font-medium text-orange-700 dark:text-orange-300">กรุณาเลือกบริษัท</span>
+                    </button>
+                @endif
+                @endauth
+
                 <!-- Dark Mode Toggle -->
                 <button
                     @click="darkMode = !darkMode"

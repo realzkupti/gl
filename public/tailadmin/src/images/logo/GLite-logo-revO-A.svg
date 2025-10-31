@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600" viewBox="0 0 1600 600">
+  <defs>
+    <style>
+      .word { font-family: Inter, Poppins, Arial, Helvetica, sans-serif; font-weight: 700; fill: #111111; }
+    </style>
+  </defs>
+  <rect width="100%" height="100%" fill="#ffffff"/>
+<g transform="translate(140,170)">
+  <rect x="0" y="0" width="260" height="260" rx="56" ry="56" fill="#111111"/>
+
+      <path d="
+        M 90.4 66.2
+        H 169.6
+        Q 209.2 66.2 209.2 105.80000000000001
+        V 163.00000000000003
+        Q 209.2 202.60000000000002 169.6 202.60000000000002
+        H 90.4
+        Q 50.8 202.60000000000002 50.8 163.00000000000003
+        V 105.80000000000001
+        Q 50.8 66.2 90.4 66.2
+        Z" 
+        fill="#ffffff"   />
+    
+      <rect x="201.28" y="61.8" width="39.6" height="136.4" rx="19.8" ry="19.8" fill="#ffffff"   />
+    
+      <rect x="145.84" y="146.368" width="44.0" height="35.2" rx="14.080000000000002" ry="14.080000000000002" fill="#ffffff" opacity="0.95"/>
+    </g>
+<text x="440" y="335" font-size="200" class="word">GLite</text>
+</svg>

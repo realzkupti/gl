@@ -185,243 +185,244 @@ $(document).ready(function() {
     updateStats();
 });
 
-function initializeDataTable() {
-    chequesTable = $('#cheques-table').DataTable({
-        ajax: {
-            url: `${API_BASE}/cheques`,
-            dataSrc: ''
-        },
-        columns: [
-            { data: 'branch_code' },
-            { data: 'bank' },
-            { data: 'cheque_number' },
-            {
-                data: 'date',
-                render: function(data, type, row) {
-                    // For sorting, use raw data (ISO format)
-                    if (type === 'sort' || type === 'type') {
-                        return data || '';
-                    }
-                    // For display, format as Thai date
-                    if (!data) return '-';
-                    const date = new Date(data);
-                    const day = date.getDate();
-                    const month = date.getMonth() + 1;
-                    const year = date.getFullYear() + 543; // Thai year
-                    return `${day}/${month}/${year}`;
-                }
+console.log("{{url('/api/cheques')}}");
+    function initializeDataTable() {
+        chequesTable = $('#cheques-table').DataTable({
+            ajax: {
+                url: "{{url('/api/cheques')}}",
+                dataSrc: ''
             },
-            { data: 'payee' },
-            {
-                data: 'amount',
-                render: function(data, type, row) {
-                    // For sorting, use numeric value
-                    if (type === 'sort' || type === 'type') {
-                        return parseFloat(data) || 0;
+            columns: [
+                { data: 'branch_code' },
+                { data: 'bank' },
+                { data: 'cheque_number' },
+                {
+                    data: 'date',
+                    render: function(data, type, row) {
+                        // For sorting, use raw data (ISO format)
+                        if (type === 'sort' || type === 'type') {
+                            return data || '';
+                        }
+                        // For display, format as Thai date
+                        if (!data) return '-';
+                        const date = new Date(data);
+                        const day = date.getDate();
+                        const month = date.getMonth() + 1;
+                        const year = date.getFullYear() + 543; // Thai year
+                        return `${day}/${month}/${year}`;
                     }
-                    // For display, format with currency
-                    return '฿' + parseFloat(data).toLocaleString('th-TH', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    });
-                }
-            },
-            {
-                data: 'printed_at',
-                render: function(data, type, row) {
-                    // For sorting, use raw data (ISO format)
-                    if (type === 'sort' || type === 'type') {
-                        return data || '';
+                },
+                { data: 'payee' },
+                {
+                    data: 'amount',
+                    render: function(data, type, row) {
+                        // For sorting, use numeric value
+                        if (type === 'sort' || type === 'type') {
+                            return parseFloat(data) || 0;
+                        }
+                        // For display, format with currency
+                        return '฿' + parseFloat(data).toLocaleString('th-TH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
                     }
-                    // For display, format as Thai datetime
-                    if (!data) return '-';
-                    const date = new Date(data);
-                    const day = date.getDate();
-                    const month = date.getMonth() + 1;
-                    const year = date.getFullYear() + 543; // Thai year
-                    const hours = date.getHours().toString().padStart(2, '0');
-                    const minutes = date.getMinutes().toString().padStart(2, '0');
-                    return `${day}/${month}/${year} ${hours}:${minutes}`;
+                },
+                {
+                    data: 'printed_at',
+                    render: function(data, type, row) {
+                        // For sorting, use raw data (ISO format)
+                        if (type === 'sort' || type === 'type') {
+                            return data || '';
+                        }
+                        // For display, format as Thai datetime
+                        if (!data) return '-';
+                        const date = new Date(data);
+                        const day = date.getDate();
+                        const month = date.getMonth() + 1;
+                        const year = date.getFullYear() + 543; // Thai year
+                        const hours = date.getHours().toString().padStart(2, '0');
+                        const minutes = date.getMinutes().toString().padStart(2, '0');
+                        return `${day}/${month}/${year} ${hours}:${minutes}`;
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    render: function(data, type, row) {
+                        return `
+                            <button onclick="deleteCheque(${row.id})" class="text-red-500 hover:text-red-700" title="ลบ">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        `;
+                    }
                 }
-            },
-            {
-                data: null,
-                orderable: false,
-                render: function(data, type, row) {
-                    return `
-                        <button onclick="deleteCheque(${row.id})" class="text-red-500 hover:text-red-700" title="ลบ">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
-                    `;
-                }
+            ],
+            order: [[6, 'desc']], // Sort by printed_at descending
+            deferRender: true, // Optimize rendering for large datasets
+            pageLength: 25,
+            language: {
+                search: "ค้นหา:",
+                lengthMenu: "แสดง _MENU_ รายการ",
+                info: "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ",
+                infoEmpty: "ไม่มีข้อมูล",
+                infoFiltered: "(กรองจาก _MAX_ รายการทั้งหมด)",
+                paginate: {
+                    first: "แรก",
+                    last: "สุดท้าย",
+                    next: "ถัดไป",
+                    previous: "ก่อนหน้า"
+                },
+                zeroRecords: "ไม่พบข้อมูลที่ค้นหา",
+                emptyTable: "ยังไม่มีข้อมูลการพิมพ์เช็ค"
             }
-        ],
-        order: [[6, 'desc']], // Sort by printed_at descending
-        deferRender: true, // Optimize rendering for large datasets
-        pageLength: 25,
-        language: {
-            search: "ค้นหา:",
-            lengthMenu: "แสดง _MENU_ รายการ",
-            info: "แสดง _START_ ถึง _END_ จาก _TOTAL_ รายการ",
-            infoEmpty: "ไม่มีข้อมูล",
-            infoFiltered: "(กรองจาก _MAX_ รายการทั้งหมด)",
-            paginate: {
-                first: "แรก",
-                last: "สุดท้าย",
-                next: "ถัดไป",
-                previous: "ก่อนหน้า"
-            },
-            zeroRecords: "ไม่พบข้อมูลที่ค้นหา",
-            emptyTable: "ยังไม่มีข้อมูลการพิมพ์เช็ค"
-        }
-    });
-}
-
-async function updateStats() {
-    try {
-        const response = await fetch(`${API_BASE}/cheques`);
-        const cheques = await response.json();
-
-        // Total cheques
-        document.getElementById('total-cheques').textContent = cheques.length;
-
-        // Total amount
-        const totalAmount = cheques.reduce((sum, cheque) => sum + parseFloat(cheque.amount || 0), 0);
-        document.getElementById('total-amount').textContent = '฿' + totalAmount.toLocaleString('th-TH', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
         });
-
-        // Today's cheques
-        const today = new Date().toISOString().split('T')[0];
-        const todayCheques = cheques.filter(c => {
-            if (!c.printed_at) return false;
-            const printedDate = new Date(c.printed_at).toISOString().split('T')[0];
-            return printedDate === today;
-        });
-        document.getElementById('today-cheques').textContent = todayCheques.length;
-
-        // Unique payees
-        const uniquePayees = new Set(cheques.map(c => c.payee).filter(p => p));
-        document.getElementById('unique-payees').textContent = uniquePayees.size;
-
-    } catch (error) {
-        console.error('Error updating stats:', error);
     }
-}
 
-async function deleteCheque(id) {
-    const result = await Swal.fire({
-        title: 'ต้องการลบเช็คนี้?',
-        text: 'การกระทำนี้ไม่สามารถย้อนกลับได้',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'ใช่, ลบเลย',
-        cancelButtonText: 'ยกเลิก'
-    });
-
-    if (result.isConfirmed) {
+    async function updateStats() {
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const response = await fetch(`${API_BASE}/cheques`);
+            const cheques = await response.json();
 
-            if (!csrfToken) {
-                console.error('CSRF Token not found!');
-                throw new Error('CSRF Token missing');
-            }
+            // Total cheques
+            document.getElementById('total-cheques').textContent = cheques.length;
 
-            const response = await fetch(`${API_BASE}/cheques/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
+            // Total amount
+            const totalAmount = cheques.reduce((sum, cheque) => sum + parseFloat(cheque.amount || 0), 0);
+            document.getElementById('total-amount').textContent = '฿' + totalAmount.toLocaleString('th-TH', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
             });
 
-            if (response.ok) {
-                Swal.fire({
-                    title: 'ลบสำเร็จ!',
-                    text: 'ลบข้อมูลเช็คแล้ว',
-                    icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-                chequesTable.ajax.reload();
-                updateStats();
-            } else {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('Delete failed:', response.status, errorData);
-                throw new Error(errorData.message || 'Delete failed');
-            }
+            // Today's cheques
+            const today = new Date().toISOString().split('T')[0];
+            const todayCheques = cheques.filter(c => {
+                if (!c.printed_at) return false;
+                const printedDate = new Date(c.printed_at).toISOString().split('T')[0];
+                return printedDate === today;
+            });
+            document.getElementById('today-cheques').textContent = todayCheques.length;
+
+            // Unique payees
+            const uniquePayees = new Set(cheques.map(c => c.payee).filter(p => p));
+            document.getElementById('unique-payees').textContent = uniquePayees.size;
+
         } catch (error) {
-            console.error('Delete error:', error);
-            Swal.fire({
-                title: 'เกิดข้อผิดพลาด!',
-                text: error.message || 'ไม่สามารถลบข้อมูลได้',
-                icon: 'error',
-                confirmButtonColor: '#ef4444'
-            });
+            console.error('Error updating stats:', error);
         }
     }
-}
 
-function refreshData() {
-    chequesTable.ajax.reload();
-    updateStats();
-    Swal.fire({
-        title: 'รีเฟรชสำเร็จ!',
-        icon: 'success',
-        timer: 1000,
-        showConfirmButton: false
-    });
-}
-
-function exportToExcel() {
-    // Get all data from table
-    const data = chequesTable.rows().data().toArray();
-
-    if (data.length === 0) {
-        Swal.fire({
-            title: 'ไม่มีข้อมูล!',
-            text: 'ยังไม่มีข้อมูลการพิมพ์เช็คสำหรับ Export',
+    async function deleteCheque(id) {
+        const result = await Swal.fire({
+            title: 'ต้องการลบเช็คนี้?',
+            text: 'การกระทำนี้ไม่สามารถย้อนกลับได้',
             icon: 'warning',
-            confirmButtonColor: '#ff9800'
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'ใช่, ลบเลย',
+            cancelButtonText: 'ยกเลิก'
         });
-        return;
+
+        if (result.isConfirmed) {
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                if (!csrfToken) {
+                    console.error('CSRF Token not found!');
+                    throw new Error('CSRF Token missing');
+                }
+
+                const response = await fetch(`${API_BASE}/cheques/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    Swal.fire({
+                        title: 'ลบสำเร็จ!',
+                        text: 'ลบข้อมูลเช็คแล้ว',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    chequesTable.ajax.reload();
+                    updateStats();
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Delete failed:', response.status, errorData);
+                    throw new Error(errorData.message || 'Delete failed');
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด!',
+                    text: error.message || 'ไม่สามารถลบข้อมูลได้',
+                    icon: 'error',
+                    confirmButtonColor: '#ef4444'
+                });
+            }
+        }
     }
 
-    // Create CSV content
-    let csvContent = 'data:text/csv;charset=utf-8,\uFEFF';
-    csvContent += 'รหัสสาขา,ธนาคาร,เลขที่เช็ค,วันที่,ผู้รับเงิน,จำนวนเงิน,พิมพ์เมื่อ\n';
+    function refreshData() {
+        chequesTable.ajax.reload();
+        updateStats();
+        Swal.fire({
+            title: 'รีเฟรชสำเร็จ!',
+            icon: 'success',
+            timer: 1000,
+            showConfirmButton: false
+        });
+    }
 
-    data.forEach(row => {
-        const date = row.date ? new Date(row.date).toLocaleDateString('th-TH') : '';
-        const printed = row.printed_at ? new Date(row.printed_at).toLocaleString('th-TH') : '';
-        const amount = parseFloat(row.amount || 0).toFixed(2);
+    function exportToExcel() {
+        // Get all data from table
+        const data = chequesTable.rows().data().toArray();
 
-        csvContent += `"${row.branch_code}","${row.bank}","${row.cheque_number}","${date}","${row.payee}","${amount}","${printed}"\n`;
-    });
+        if (data.length === 0) {
+            Swal.fire({
+                title: 'ไม่มีข้อมูล!',
+                text: 'ยังไม่มีข้อมูลการพิมพ์เช็คสำหรับ Export',
+                icon: 'warning',
+                confirmButtonColor: '#ff9800'
+            });
+            return;
+        }
 
-    // Create download link
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `cheque-report-${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+        // Create CSV content
+        let csvContent = 'data:text/csv;charset=utf-8,\uFEFF';
+        csvContent += 'รหัสสาขา,ธนาคาร,เลขที่เช็ค,วันที่,ผู้รับเงิน,จำนวนเงิน,พิมพ์เมื่อ\n';
 
-    Swal.fire({
-        title: 'Export สำเร็จ!',
-        text: 'ดาวน์โหลดไฟล์เรียบร้อยแล้ว',
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false
-    });
-}
+        data.forEach(row => {
+            const date = row.date ? new Date(row.date).toLocaleDateString('th-TH') : '';
+            const printed = row.printed_at ? new Date(row.printed_at).toLocaleString('th-TH') : '';
+            const amount = parseFloat(row.amount || 0).toFixed(2);
+
+            csvContent += `"${row.branch_code}","${row.bank}","${row.cheque_number}","${date}","${row.payee}","${amount}","${printed}"\n`;
+        });
+
+        // Create download link
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', `cheque-report-${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        Swal.fire({
+            title: 'Export สำเร็จ!',
+            text: 'ดาวน์โหลดไฟล์เรียบร้อยแล้ว',
+            icon: 'success',
+            timer: 2000,
+            showConfirmButton: false
+        });
+    }
 </script>
 @endpush

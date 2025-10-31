@@ -364,14 +364,37 @@ const companyManager = {
     async testConnection(companyId) {
         console.log('Testing connection for company:', companyId);
 
+        // Show loading toast
+        this.showToast('กำลังทดสอบการเชื่อมต่อ...', 'success');
+
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+            if (!csrfToken) {
+                console.error('CSRF Token not found!');
+                this.showToast('ไม่พบ CSRF Token', 'error');
+                return;
+            }
+
+            console.log('Sending request to:', `/admin/companies/${companyId}/test`);
+
             const response = await fetch(`/admin/companies/${companyId}/test`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json'
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
                 }
             });
+
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Response error:', errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+            }
 
             const data = await response.json();
             console.log('Test connection response:', data);

@@ -153,7 +153,7 @@ class User extends Authenticatable
      */
     public function hasAccessToCompany($companyId): bool
     {
-        return $this->companies()->where('companies.id', $companyId)->exists();
+        return $this->companies()->where('sys_companies.id', $companyId)->exists();
     }
 
     /**
