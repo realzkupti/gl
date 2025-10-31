@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost/admin/dashboard-demo)",
+      "Bash(php artisan:*)",
+      "Bash(curl -s http://localhost/cheque)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(php -r:*)",
+      "Bash(php create_companies_view.php:*)",
+      "Bash(php -l:*)",
+      "Bash(composer show:*)",
+      "Bash(npm run build:*)",
+      "Read(//d/**)",
+      "Bash(findstr:*)",
+      "Bash(dir:*)",
+      "Bash(php check_users.php:*)",
+      "Bash(npm install)",
+      "Bash(php check_database_structure.php:*)",
+      "Bash(php reset_users.php:*)",
+      "Bash(php check_departments.php:*)",
+      "Bash(php fix_departments.php:*)",
+      "Bash(php:*)",
+      "Bash(del:*)",
+      "Bash(cd:*)",
+      "Bash(D:laragonbinphpphp-8.3.13-Win32-vs16-x64php.exe check_menu_structure.php)",
+      "Bash(D:laragonbinphpphp-8.3.13-Win32-vs16-x64php.exe enable_sticky_notes.php)",
+      "Bash(test:*)",
+      "Bash(D:laragonbinphpphp-8.3.13-Win32-vs16-x64php.exe test_connection.php)",
+      "Bash(/d/laragon/bin/php/php-8.3.13-Win32-vs16-x64/php.exe:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

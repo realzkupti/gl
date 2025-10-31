@@ -3,176 +3,108 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\TrialBalance;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\TrialBalanceExport;
+use Illuminate\Support\Facades\Log;
 
 class TrialBalanceController extends Controller
 {
     public function index(Request $request)
     {
-        $dateS = $request->input('dateStart', now()->startOfMonth()->toDateString());
-        $dateE = $request->input('dateEnd', now()->endOfMonth()->toDateString());
-            // $branch = $request->input('branch'); // Removed branch input
+        try {
+            $periodKey = $request->input('period', null);
 
-        $bindingsMovement = [$dateS, $dateE, $dateS, $dateE];
-        $bindingsOpening = [$dateS, $dateS];
-        $branchWhere = '';
-
-        // Aggregate across branches: do NOT group by DT_1ST_BR_CODE so the same account is combined
-        $movementSql = "
-            SELECT account_number, account_name, SUM(DR) AS DR, SUM(CR) AS CR
-            FROM (
-                SELECT AC.AC_CODE AS account_number, AC.AC_THAIDESC AS account_name,
-                       SUM(GL.TRJ_DEBIT) AS DR, SUM(GL.TRJ_CREDIT) AS CR
-                FROM TRANSTKJ GL
-                INNER JOIN DOCINFO DI ON GL.TRJ_DI = DI.DI_KEY
-                INNER JOIN ACCOUNTCHART AC ON GL.TRJ_AC = AC.AC_KEY
-                INNER JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
-                WHERE DI.DI_DATE BETWEEN ? AND ?
-                GROUP BY AC.AC_CODE, AC.AC_THAIDESC
-
-                UNION ALL
-
-                SELECT AC.AC_CODE AS account_number, AC.AC_THAIDESC AS account_name,
-                       SUM(GL.TPJ_DEBIT) AS DR, SUM(GL.TPJ_CREDIT) AS CR
-                FROM TRANPAYJ GL
-                INNER JOIN ACCOUNTCHART AC ON GL.TPJ_AC = AC.AC_KEY
-                INNER JOIN DOCINFO DI ON GL.TPJ_DI = DI.DI_KEY
-                INNER JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
-                WHERE DI.DI_DATE BETWEEN ? AND ?
-                GROUP BY AC.AC_CODE, AC.AC_THAIDESC
-            ) x
-            GROUP BY account_number, account_name
-            ORDER BY account_number
-        ";
-
-        // Opening balances aggregated across branches (no branch grouping)
-        $openingSql = "
-            SELECT account_number, account_name, SUM(DR) AS DR, SUM(CR) AS CR
-            FROM (
-                SELECT AC.AC_CODE AS account_number, AC.AC_THAIDESC AS account_name,
-                       SUM(GL.TRJ_DEBIT) AS DR, SUM(GL.TRJ_CREDIT) AS CR
-                FROM TRANSTKJ GL
-                INNER JOIN DOCINFO DI ON GL.TRJ_DI = DI.DI_KEY
-                INNER JOIN ACCOUNTCHART AC ON GL.TRJ_AC = AC.AC_KEY
-                INNER JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
-                WHERE DI.DI_DATE < ?
-                GROUP BY AC.AC_CODE, AC.AC_THAIDESC
-
-                UNION ALL
-
-                SELECT AC.AC_CODE AS account_number, AC.AC_THAIDESC AS account_name,
-                       SUM(GL.TPJ_DEBIT) AS DR, SUM(GL.TPJ_CREDIT) AS CR
-                FROM TRANPAYJ GL
-                INNER JOIN ACCOUNTCHART AC ON GL.TPJ_AC = AC.AC_KEY
-                INNER JOIN DOCINFO DI ON GL.TPJ_DI = DI.DI_KEY
-                INNER JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
-                WHERE DI.DI_DATE < ?
-                GROUP BY AC.AC_CODE, AC.AC_THAIDESC
-            ) x
-            GROUP BY account_number, account_name
-            ORDER BY account_number
-        ";
-
-        $movementRows = DB::select($movementSql, $bindingsMovement);
-        $openingRows = DB::select($openingSql, $bindingsOpening);
-
-        // merge and calculate balances (same logic as component)
-        $map = [];
-        // Key by account only (aggregated across branches)
-        foreach ($openingRows as $r) {
-            $key = $r->account_number;
-            $map[$key] = [
-                'account_number' => $r->account_number,
-                'account_name' => $r->account_name,
-                'opening_debit' => (float) $r->DR,
-                'opening_credit' => (float) $r->CR,
-                'movement_debit' => 0.0,
-                'movement_credit' => 0.0,
-            ];
-        }
-        foreach ($movementRows as $r) {
-            $key = $r->account_number;
-            if (!isset($map[$key])) {
-                $map[$key] = [
-                    'account_number' => $r->account_number,
-                    'account_name' => $r->account_name,
-                    'opening_debit' => 0.0,
-                    'opening_credit' => 0.0,
-                    'movement_debit' => (float) $r->DR,
-                    'movement_credit' => (float) $r->CR,
-                ];
-            } else {
-                $map[$key]['movement_debit'] = (float) $r->DR;
-                $map[$key]['movement_credit'] = (float) $r->CR;
+            if (!$periodKey) {
+                // Default to current month if no period selected
+                $currentMonth = now()->format('Y-m');
+                $periods = TrialBalance::getGLPeriods();
+                foreach ($periods as $period) {
+                    if (substr($period->GLP_ST_DATE, 0, 7) === $currentMonth) {
+                        $periodKey = $period->GLP_KEY;
+                        break;
+                    }
+                }
+                if (!$periodKey && $periods) {
+                    $periodKey = $periods[0]->GLP_KEY; // fallback to first period
+                }
             }
-        }
 
-        $rows = [];
-        foreach ($map as $k => $v) {
-            $net = ($v['opening_debit'] - $v['opening_credit']) + ($v['movement_debit'] - $v['movement_credit']);
-            $rows[] = [
-                'account_number' => $v['account_number'],
-                'account_name' => $v['account_name'],
-                'opening_debit' => $v['opening_debit'],
-                'opening_credit' => $v['opening_credit'],
-                'movement_debit' => $v['movement_debit'],
-                'movement_credit' => $v['movement_credit'],
-                'balance_debit' => $net >= 0 ? $net : 0,
-                'balance_credit' => $net < 0 ? abs($net) : 0,
-            ];
-        }
+            $period = TrialBalance::getPeriodByKey($periodKey);
 
-        return view('trial_balance_plain', [
-            'rows' => $rows,
-            'dateStart' => $dateS,
-            'dateEnd' => $dateE,
-        ]);
+            if (!$period) {
+                return view('trial_balance_plain', [
+                    'rows' => [],
+                    'periods' => TrialBalance::getGLPeriods(),
+                    'selectedPeriod' => null,
+                    'error' => 'ไม่พบงวดบัญชีที่เลือก',
+                    'companies' => \App\Services\CompanyManager::listCompanies(),
+                    'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
+                ]);
+            }
+
+            $movementRows = TrialBalance::getMovementBalancesForPeriod($periodKey);
+            $openingRows = TrialBalance::getOpeningBalancesForPeriod($periodKey);
+
+            $rows = TrialBalance::processTrialBalanceData($movementRows, $openingRows);
+
+            $currentMenu = \App\Models\Menu::where('route', 'trial-balance.plain')->first();
+
+            return view('trial_balance_plain', [
+                'rows' => $rows,
+                'periods' => TrialBalance::getGLPeriods(),
+                'selectedPeriod' => $period,
+                'companies' => \App\Services\CompanyManager::listCompanies(),
+                'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
+                'currentMenu' => $currentMenu,
+            ]);
+        } catch (\Throwable $e) {
+            $currentMenu = \App\Models\Menu::where('route', 'trial-balance.plain')->first();
+
+            return view('trial_balance_plain', [
+                'rows' => [],
+                'periods' => [],
+                'selectedPeriod' => null,
+                'error' => 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้',
+                'companies' => \App\Services\CompanyManager::listCompanies(),
+                'selectedCompany' => \App\Services\CompanyManager::getSelectedKey(),
+                'currentMenu' => $currentMenu,
+            ]);
+        }
     }
 
-    // Return JSON detail rows for a given account and date range
+    // Return JSON detail rows for a given account and period
     public function detail(Request $request)
     {
         $account = $request->query('account');
-        $dateS = $request->query('dateStart', now()->startOfMonth()->toDateString());
-        $dateE = $request->query('dateEnd', now()->endOfMonth()->toDateString());
+        $periodKey = $request->query('period');
+        $format = strtolower((string) $request->query('format', 'csv'));
 
-        if (! $account) {
+        // Accept account code "0"; only reject when truly missing
+        if ($account === null || $account === '' || $periodKey === null || $periodKey === '') {
             return response()->json(['data' => []]);
         }
 
-        $bindings = [$account, $dateS, $dateE, $account, $dateS, $dateE];
+        try {
+            $period = TrialBalance::getPeriodByKey($periodKey);
+            if (!$period) {
+                return response()->json(['data' => [], 'error' => 'invalid period']);
+            }
 
-        // Return per-document aggregated amounts and include DI_KEY (doc_key) and DI_DT (doc_type)
-        $sql = "
-            SELECT DI.DI_KEY AS doc_key, DI.DI_REF as doc_ref, DI.DI_DATE as doc_date,
-                   DT.DT_THAIDESC as doc_type, DT.DT_1ST_BR_CODE as branch_code,
-                   SUM(SUM_PART.DR) as DR, SUM(SUM_PART.CR) as CR, SUM_PART.SOURCE as source
-            FROM (
-                SELECT DI.DI_KEY, DI.DI_REF, DI.DI_DATE, GL.TRJ_DEBIT AS DR, GL.TRJ_CREDIT AS CR, 'TRANSTKJ' AS SOURCE
-                FROM TRANSTKJ GL
-                INNER JOIN DOCINFO DI ON GL.TRJ_DI = DI.DI_KEY
-                INNER JOIN ACCOUNTCHART AC ON GL.TRJ_AC = AC.AC_KEY
-                INNER JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
-                WHERE AC.AC_CODE = ? AND DI.DI_DATE BETWEEN ? AND ?
+            // For detail, show transactions within the selected period
+            $dateS = $period->GLP_ST_DATE;
+            $dateE = $period->GLP_EN_DATE;
 
-                UNION ALL
+            // Opening net balance before start date (DR-CR)
+            $opening = TrialBalance::getAccountOpeningNet($account, $dateS);
 
-                SELECT DI.DI_KEY, DI.DI_REF, DI.DI_DATE, GL.TPJ_DEBIT AS DR, GL.TPJ_CREDIT AS CR, 'TRANPAYJ' AS SOURCE
-                FROM TRANPAYJ GL
-                INNER JOIN ACCOUNTCHART AC ON GL.TPJ_AC = AC.AC_KEY
-                INNER JOIN DOCINFO DI ON GL.TPJ_DI = DI.DI_KEY
-                INNER JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
-                WHERE AC.AC_CODE = ? AND DI.DI_DATE BETWEEN ? AND ?
-            ) SUM_PART
-            INNER JOIN DOCINFO DI ON SUM_PART.DI_KEY = DI.DI_KEY
-            LEFT JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
-            GROUP BY DI.DI_KEY, DI.DI_REF, DI.DI_DATE, DT.DT_THAIDESC, DT.DT_1ST_BR_CODE, SUM_PART.SOURCE
-            ORDER BY DI.DI_DATE, DI.DI_REF
-        ";
+            $rows = TrialBalance::getAccountDetails($account, $dateS, $dateE);
 
-        $rows = DB::select($sql, $bindings);
-
-        return response()->json(['data' => $rows]);
+            return response()->json(['data' => $rows, 'opening' => $opening]);
+        } catch (\Throwable $e) {
+            return response()->json(['data' => [], 'error' => 'connection error']);
+        }
     }
 
     // Return accounting entries (postings) for a given document DI_KEY
@@ -183,26 +115,215 @@ class TrialBalanceController extends Controller
             return response()->json(['data' => []]);
         }
 
-        $bindings = [$docKey, $docKey];
+        try {
+            $rows = TrialBalance::getDocumentEntries($docKey);
+            return response()->json(['data' => $rows]);
+        } catch (\Throwable $e) {
+            return response()->json(['data' => [], 'error' => 'connection error']);
+        }
+    }
 
-        $sql = "
-            SELECT AC.AC_CODE as account_code, AC.AC_THAIDESC as account_name, lines.DR as DR, lines.CR as CR,
-                   DT.DT_THAIDESC as doc_type, DI.DI_REMARK as doc_remark
-            FROM (
-                SELECT TRJ_AC as AC_KEY, TRJ_DEBIT as DR, TRJ_CREDIT as CR, 'TRANSTKJ' as SOURCE, TRJ_DI as DI_KEY
-                FROM TRANSTKJ WHERE TRJ_DI = ?
-                UNION ALL
-                SELECT TPJ_AC as AC_KEY, TPJ_DEBIT as DR, TPJ_CREDIT as CR, 'TRANPAYJ' as SOURCE, TPJ_DI as DI_KEY
-                FROM TRANPAYJ WHERE TPJ_DI = ?
-            ) lines
-            LEFT JOIN ACCOUNTCHART AC ON lines.AC_KEY = AC.AC_KEY
-            LEFT JOIN DOCINFO DI ON lines.DI_KEY = DI.DI_KEY
-            LEFT JOIN DOCTYPE DT ON DI.DI_DT = DT.DT_KEY
-            ORDER BY COALESCE(lines.DR,0) DESC, COALESCE(lines.CR,0) DESC
-        ";
+    public function pdf(Request $request)
+    {
+        $periodKey = $request->query('period');
+        $engine = $request->query('engine'); // optional: 'mpdf' (default) or 'dompdf'
+        $rowLimit = (int) ($request->query('limit') ?? 0); // optional: debug limit
+        $companyKey = \App\Services\CompanyManager::getSelectedKey();
+        $companies = \App\Services\CompanyManager::listCompanies();
+        $companyLabel = is_array($companies[$companyKey] ?? null)
+            ? (($companies[$companyKey]['label'] ?? $companyKey))
+            : ($companies[$companyKey] ?? $companyKey);
 
-        $rows = DB::select($sql, $bindings);
+        $period = TrialBalance::getPeriodByKey($periodKey);
+        if (!$period) {
+            abort(404, 'Invalid period');
+        }
 
-        return response()->json(['data' => $rows]);
+        $movementRows = TrialBalance::getMovementBalancesForPeriod($periodKey);
+        $openingRows = TrialBalance::getOpeningBalancesForPeriod($periodKey);
+        $rows = TrialBalance::processTrialBalanceData($movementRows, $openingRows);
+        if ($rowLimit > 0) { $rows = array_slice($rows, 0, $rowLimit); }
+
+        // Compute category totals for balances (DR/CR)
+        $totals = [
+            'all' => ['dr' => 0.0, 'cr' => 0.0],
+            'assets' => ['dr' => 0.0, 'cr' => 0.0],
+            'liab' => ['dr' => 0.0, 'cr' => 0.0],
+            'equity' => ['dr' => 0.0, 'cr' => 0.0],
+            'revenue' => ['dr' => 0.0, 'cr' => 0.0],
+            'expense' => ['dr' => 0.0, 'cr' => 0.0],
+        ];
+        foreach ($rows as $r) {
+            $acc = (string)($r['account_number'] ?? '');
+            $first = substr($acc, 0, 1);
+            $group = null;
+            if ($first === '1') $group = 'assets';
+            elseif ($first === '2') $group = 'liab';
+            elseif ($first === '3') $group = 'equity';
+            elseif ($first === '4') $group = 'revenue';
+            else $group = 'expense'; // 5-9 grouped as expenses by default
+
+            $bd = (float)($r['balance_debit'] ?? 0);
+            $bc = (float)($r['balance_credit'] ?? 0);
+            $totals['all']['dr'] += $bd; $totals['all']['cr'] += $bc;
+            $totals[$group]['dr'] += $bd; $totals[$group]['cr'] += $bc;
+        }
+
+        $data = [
+            'company' => $companyLabel,
+            'rows' => $rows,
+            'period' => $period,
+            'totals' => $totals,
+        ];
+
+        // Use mPDF for better Thai rendering
+        $html = view('trial_balance_pdf', $data)->render();
+
+        // If explicitly requested or mPDF class not available, use DomPDF
+        if ($engine === 'dompdf' || !class_exists('Mpdf\\Mpdf')) {
+            // Optional fallback engine for debugging viewer differences
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('a4', 'landscape');
+            $file = 'trial-balance-'.($period->GLP_YEAR).'_'.$period->GLP_SEQUENCE.'.pdf';
+            return $pdf->stream($file);
+        }
+
+        $tempDir = storage_path('app/mpdf');
+        if (!is_dir($tempDir)) {
+            @mkdir($tempDir, 0775, true);
+        }
+
+        $mpdf = new \Mpdf\Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4-L',
+            'tempDir' => $tempDir,
+            'fontDir' => [resource_path('fonts')],
+            'fontdata' => [
+                'sarabun' => [
+                    'R' => 'Sarabun-Regular.ttf',
+                    'B' => 'Sarabun-Bold.ttf',
+                ],
+            ],
+            'default_font' => 'sarabun',
+            'autoScriptToLang' => true,
+            'autoLangToFont' => true,
+        ]);
+        $mpdf->simpleTables = true;
+        $mpdf->packTableData = true;
+        $mpdf->shrink_tables_to_fit = 1;
+        $mpdf->SetAutoPageBreak(true, 10);
+        $mpdf->WriteHTML($html);
+        $file = 'trial-balance-'.($period->GLP_YEAR).'_'.$period->GLP_SEQUENCE.'.pdf';
+        return response($mpdf->Output($file, \Mpdf\Output\Destination::STRING_RETURN), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$file.'"'
+        ]);
+    }
+
+    public function excel(Request $request)
+    {
+        $periodKey = $request->query('period');
+        $format = strtolower((string) $request->query('format', 'csv'));
+        $period = TrialBalance::getPeriodByKey($periodKey);
+        if (!$period) {
+            abort(404, 'Invalid period');
+        }
+
+        $movementRows = TrialBalance::getMovementBalancesForPeriod($periodKey);
+        $openingRows = TrialBalance::getOpeningBalancesForPeriod($periodKey);
+        $rows = TrialBalance::processTrialBalanceData($movementRows, $openingRows);
+        // Default to CSV for reliability; allow xlsx only when explicitly asked
+        if ($format === 'xlsx') {
+            try {
+                $title = 'งบทดลอง ' . ($period->GLP_SEQUENCE ?? '') . '/' . ($period->GLP_YEAR ?? '');
+                $export = new TrialBalanceExport($rows, [/* totals not needed for sheet */], $title);
+                $xlsx = 'trial-balance-' . ($period->GLP_YEAR) . '_' . $period->GLP_SEQUENCE . '.xlsx';
+                return Excel::download($export, $xlsx, \Maatwebsite\Excel\Excel::XLSX);
+            } catch (\Throwable $e) {
+                // Log the underlying error for 500s that may not hit Laravel handler
+                Log::error('XLSX export failed', [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+                // fall through to CSV below
+            }
+        }
+
+        // Fallback: stream CSV with BOM (works on Excel Windows)
+        $filename = 'trial-balance-' . ($period->GLP_YEAR) . '_' . $period->GLP_SEQUENCE . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+        $callback = function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['งบทดลอง']);
+            fputcsv($out, []);
+            fputcsv($out, ['เลขบัญชี','ชื่อบัญชี','ยอดยกมา','','ยอดเคลื่อนไหว','','ยอดคงเหลือ','']);
+            fputcsv($out, ['', '', 'เดบิต','เครดิต','เดบิต','เครดิต','เดบิต','เครดิต']);
+            foreach ($rows as $r) {
+                fputcsv($out, [
+                    $r['account_number'] ?? '',
+                    $r['account_name'] ?? '',
+                    number_format((float)($r['opening_debit'] ?? 0), 2, '.', ''),
+                    number_format((float)($r['opening_credit'] ?? 0), 2, '.', ''),
+                    number_format((float)($r['movement_debit'] ?? 0), 2, '.', ''),
+                    number_format((float)($r['movement_credit'] ?? 0), 2, '.', ''),
+                    number_format((float)($r['balance_debit'] ?? 0), 2, '.', ''),
+                    number_format((float)($r['balance_credit'] ?? 0), 2, '.', ''),
+                ]);
+            }
+            fclose($out);
+        };
+        return response()->stream($callback, 200, $headers);
+    }
+
+    // Blade + JS branch trial balance page (no Livewire) - now using TailAdmin layout
+    public function branch(Request $request)
+    {
+        $periods = TrialBalance::getGLPeriods();
+        $selected = $request->query('period');
+        if (!$selected && $periods) {
+            $currentMonth = now()->format('Y-m');
+            foreach ($periods as $p) {
+                if (substr($p->GLP_ST_DATE,0,7) === $currentMonth) { $selected = $p->GLP_KEY; break; }
+            }
+            if (!$selected) $selected = $periods[0]->GLP_KEY ?? null;
+        }
+        $branches = [];
+        if (\DB::getSchemaBuilder()->hasTable('BRANCH')) {
+            $branches = \DB::table('BRANCH')->select('BR_CODE as code','BR_THAIDESC as name')->orderBy('BR_CODE')->get();
+        } elseif (\DB::getSchemaBuilder()->hasTable('DOCTYPE')) {
+            $branches = \DB::table('DOCTYPE')->select(\DB::raw('DT_1ST_BR_CODE as code'))
+                ->distinct()->orderBy('DT_1ST_BR_CODE')->get()->map(function($r){ $r->name=$r->code; return $r; });
+        } elseif (\DB::getSchemaBuilder()->hasTable('branches')) {
+            $branches = \DB::table('branches')->select('code','name')->orderBy('code')->get();
+        }
+
+        $page = 'trial-balance'; // For active menu state
+        $currentMenu = \App\Models\Menu::where('route', 'trial-balance.branch')->first();
+
+        return view('tailadmin.pages.trial-balance', [
+            'periods' => $periods,
+            'selectedPeriodKey' => $selected,
+            'branches' => $branches,
+            'page' => $page,
+            'currentMenu' => $currentMenu,
+        ]);
+    }
+
+    // JSON data endpoint for branch trial balance table
+    public function branchData(Request $request)
+    {
+        $periodKey = $request->query('period');
+        $branch = $request->query('branch');
+        if (!$periodKey) return response()->json(['data'=>[]]);
+        try {
+            $rows = TrialBalance::getBranchPeriodData($periodKey, $branch ?: null);
+            return response()->json(['data'=>$rows]);
+        } catch (\Throwable $e) {
+            return response()->json(['data'=>[], 'error'=>'connection error']);
+        }
     }
 }
