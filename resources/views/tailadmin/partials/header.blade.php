@@ -63,10 +63,10 @@
             <!-- Hamburger Toggle BTN -->
 
             <a href="{{ route('tailadmin.dashboard') }}" class="xl:hidden">
-                <img class="dark:hidden" src="{{ asset('tailadmin/src/images/logo/GLite-logo.png') }}" alt="Logo" />
+                <img class="dark:hidden" src="{{ asset('tailadmin/src/images/logo/logoGLite_NoB sC.svg') }}" alt="Logo" />
                 <img
                     class="hidden dark:block"
-                    src="{{ asset('tailadmin/src/images/logo/GLite-logo.png') }}"
+                    src="{{ asset('tailadmin/src/images/logo/logoGLite_NoB sC.svg') }}"
                     alt="Logo"
                 />
             </a>

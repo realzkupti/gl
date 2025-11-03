@@ -6,7 +6,7 @@
         <!-- Header -->
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">เลือกบริษัท</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">เลือกบริษัทx</h3>
                 <button onclick="closeCompanySwitchModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -74,42 +74,128 @@
 
 <script>
 function openCompanySwitchModal() {
+    console.log('Opening company switch modal');
     document.getElementById('company-switch-modal').classList.remove('hidden');
 }
 
 function closeCompanySwitchModal() {
+    console.log('Closing company switch modal');
     document.getElementById('company-switch-modal').classList.add('hidden');
 }
 
 function switchCompany(companyId) {
-    // Show loading
-    const modal = document.getElementById('company-switch-modal');
-    const originalContent = modal.innerHTML;
-    modal.innerHTML = '<div class="flex items-center justify-center h-64"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-500"></div></div>';
+    // Close the company switch modal first
+    console.log('Switching to company ID:', companyId);
+    closeCompanySwitchModal();
+
+    // Show SweetAlert2 loading
+    Swal.fire({
+        title: 'กำลังเชื่อมต่อฐานข้อมูล...',
+        html: 'กรุณารอสักครู่',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        allowEnterKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    // Set timeout for connection test (10 seconds)
+    const timeoutId = setTimeout(() => {
+        Swal.fire({
+            icon: 'error',
+            title: 'หมดเวลาการเชื่อมต่อ',
+            html: 'ใช้เวลาเชื่อมต่อนานเกินไป<br><small class="text-gray-500">กรุณาตรวจสอบการเชื่อมต่อเครือข่ายและลองใหม่อีกครั้ง</small>',
+            confirmButtonText: 'ตรวจสอบอีกครั้ง',
+            showCancelButton: true,
+            cancelButtonText: 'ปิด'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                switchCompany(companyId);
+            }
+        });
+    }, 10000); // 10 seconds timeout
 
     // Switch company
-    fetch(`/company/switch/${companyId}`, {
+    fetch('/admin/companies/switch', {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
             'Accept': 'application/json',
             'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+            company_id: companyId
+        })
     })
-    .then(response => response.json())
+    .then(response => {
+        clearTimeout(timeoutId);
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            // Reload page to update sidebar
-            window.location.reload();
+            // Show success message
+            Swal.fire({
+                icon: 'success',
+                title: 'สำเร็จ!',
+                text: data.message,
+                timer: 1500,
+                showConfirmButton: false,
+                willClose: () => {
+                    window.location.reload();
+                }
+            });
         } else {
-            alert(data.message || 'เกิดข้อผิดพลาด');
-            modal.innerHTML = originalContent;
+            // Show error message
+            showConnectionErrorSwal(data);
         }
     })
     .catch(error => {
+        clearTimeout(timeoutId);
         console.error('Error:', error);
-        alert('เกิดข้อผิดพลาดในการเปลี่ยนบริษัท');
-        modal.innerHTML = originalContent;
+        showConnectionErrorSwal({
+            message: 'เกิดข้อผิดพลาดในการเปลี่ยนบริษัท',
+            error: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้'
+        });
+    });
+}
+
+function showConnectionErrorSwal(data) {
+    const technicalDetails = data.technical_details ?
+        `<div class="mt-3 p-3 bg-gray-100 rounded text-xs text-left text-gray-600 overflow-auto" style="max-height: 120px;">
+            <strong>Technical Details:</strong><br>
+            ${data.technical_details}
+        </div>` : '';
+
+    Swal.fire({
+        icon: 'error',
+        title: 'การเชื่อมต่อล้มเหลว',
+        html: `
+            <div class="text-left">
+                <p class="text-base font-semibold text-gray-900 mb-2">
+                    ${data.message || 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้'}
+                </p>
+                <p class="text-sm text-red-600 mb-3">
+                    ${data.error || 'กรุณาตรวจสอบการตั้งค่าการเชื่อมต่อฐานข้อมูล'}
+                </p>
+                ${technicalDetails}
+                <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                    <p class="text-sm text-yellow-800 mb-2">
+                        <strong>คำแนะนำ:</strong> กรุณาติดต่อผู้ดูแลระบบเพื่อตรวจสอบ:
+                    </p>
+                    <ul class="ml-4 text-sm text-yellow-700 list-disc space-y-1">
+                        <li>การตั้งค่า Host และ Port ของฐานข้อมูล</li>
+                        <li>ชื่อผู้ใช้และรหัสผ่านที่ถูกต้อง</li>
+                        <li>ฐานข้อมูลยังคงใช้งานได้ปกติ</li>
+                        <li>Firewall ไม่ได้บล็อกการเชื่อมต่อ</li>
+                    </ul>
+                </div>
+            </div>
+        `,
+        confirmButtonText: 'ตกลง',
+        confirmButtonColor: '#3085d6',
+        width: '600px'
     });
 }
 
