@@ -50,7 +50,7 @@ class Company extends Model
      */
     public function getConfig(): array
     {
-        return [
+        $config = [
             'key' => $this->key,
             'label' => $this->label,
             'driver' => $this->driver,
@@ -62,6 +62,15 @@ class Company extends Model
             'charset' => $this->charset ?? ($this->driver === 'mysql' ? 'utf8mb4' : 'utf8'),
             'collation' => $this->collation,
         ];
+
+        // Add SQL Server Driver 18 compatibility settings (works with Driver 17 too)
+        if ($this->driver === 'sqlsrv') {
+            $config['encrypt'] = 'yes';
+            $config['TrustServerCertificate'] = true;
+            $config['MultipleActiveResultSets'] = true;
+        }
+
+        return $config;
     }
 
     /**

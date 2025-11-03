@@ -14,42 +14,22 @@ class CompanyManager
     {
         if (!is_null(self::$cache)) return self::$cache;
 
-        // Try to read from PostgreSQL database first
+        // Read from PostgreSQL database
         try {
             $schema = Schema::connection('pgsql');
             if ($schema->hasTable('companies')) {
                 $companies = Company::getAllAsArray();
-
-                // If we have companies in DB, use them
-                if (!empty($companies)) {
-                    self::$cache = $companies;
-                    return $companies;
-                }
+                self::$cache = $companies;
+                return $companies;
             }
         } catch (\Throwable $e) {
-            // If DB fails, fall through to JSON fallback
+            \Log::error('Failed to load companies from database', [
+                'error' => $e->getMessage()
+            ]);
         }
 
-        // Fallback to JSON file (legacy support)
-        $path = base_path('config/companies.json');
-        if (!file_exists($path)) return [];
-        $raw = file_get_contents($path);
-        $data = json_decode($raw, true) ?: [];
-
-        // Expand ${ENV} placeholders using current env values
-        foreach ($data as $key => &$cfg) {
-            foreach ($cfg as $k => $v) {
-                if (is_string($v)) {
-                    $cfg[$k] = preg_replace_callback('/\$\{([A-Z0-9_]+)\}/i', function ($m) {
-                        return env($m[1], '');
-                    }, $v);
-                }
-            }
-        }
-        unset($cfg);
-
-        self::$cache = $data;
-        return $data;
+        // Return empty array if database not available
+        return [];
     }
 
     // Allow external callers to clear cached company list
