@@ -29,19 +29,11 @@ class UserController extends Controller
 
         $tab = $request->get('tab', 'active'); // active or pending
 
-        if ($tab === 'pending') {
-            // Users waiting for approval (is_active = false)
-            $users = User::with(['department', 'companies'])
-                ->where('is_active', false)
-                ->orderBy('created_at', 'desc')
-                ->get();
-        } else {
-            // Active users
-            $users = User::with(['department', 'companies'])
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get();
-        }
+        // Get ALL users (both active and pending) for client-side filtering
+        $users = User::with(['department', 'companies'])
+            ->orderBy('is_active', 'asc') // pending first (is_active=0), then active (is_active=1)
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         $departments = Department::orderBy('sort_order')->get();
         $companies = Company::where('is_active', true)->orderBy('sort_order')->get();
@@ -141,25 +133,43 @@ class UserController extends Controller
     /**
      * Delete user
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $this->ensureAdmin();
 
         $user = User::findOrFail($id);
 
         if ($user->email === 'admin@local') {
+            // Support both AJAX and traditional requests
+            if ($request->expectsJson() || $request->header('Accept') === 'application/json') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ไม่สามารถลบ admin@local ได้'
+                ], 403);
+            }
             return back()->with('error', 'ไม่สามารถลบ admin@local ได้');
         }
 
+        $userName = $user->name;
         $user->delete();
 
-        return redirect()->route('admin.users')->with('status', 'ลบผู้ใช้เรียบร้อยแล้ว');
+        $message = 'ลบผู้ใช้ ' . $userName . ' เรียบร้อยแล้ว';
+
+        // Support both AJAX and traditional requests
+        if ($request->expectsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ]);
+        }
+
+        return redirect()->route('admin.users')->with('status', $message);
     }
 
     /**
      * Approve pending user
      */
-    public function approve($id)
+    public function approve(Request $request, $id)
     {
         $this->ensureAdmin();
 
@@ -167,27 +177,55 @@ class UserController extends Controller
         $user->is_active = true;
         $user->save();
 
+        $message = 'อนุมัติผู้ใช้ ' . $user->name . ' เรียบร้อยแล้ว';
+
+        // Support both AJAX and traditional requests
+        if ($request->expectsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ]);
+        }
+
         return redirect()->route('admin.users', ['tab' => 'pending'])
-            ->with('status', 'อนุมัติผู้ใช้ ' . $user->name . ' เรียบร้อยแล้ว');
+            ->with('status', $message);
     }
 
     /**
      * Reject pending user
      */
-    public function reject($id)
+    public function reject(Request $request, $id)
     {
         $this->ensureAdmin();
 
         $user = User::findOrFail($id);
 
         if ($user->email === 'admin@local') {
+            // Support both AJAX and traditional requests
+            if ($request->expectsJson() || $request->header('Accept') === 'application/json') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ไม่สามารถปฏิเสธ admin@local ได้'
+                ], 403);
+            }
             return back()->with('error', 'ไม่สามารถปฏิเสธ admin@local ได้');
         }
 
+        $userName = $user->name;
         $user->delete();
 
+        $message = 'ปฏิเสธและลบผู้ใช้ ' . $userName . ' เรียบร้อยแล้ว';
+
+        // Support both AJAX and traditional requests
+        if ($request->expectsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ]);
+        }
+
         return redirect()->route('admin.users', ['tab' => 'pending'])
-            ->with('status', 'ปฏิเสธและลบผู้ใช้เรียบร้อยแล้ว');
+            ->with('status', $message);
     }
 
     /**
