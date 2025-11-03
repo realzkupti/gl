@@ -6,6 +6,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ChequeApiController;
 use App\Http\Controllers\Admin\UserPermissionController;
 use App\Http\Controllers\Admin\UserApprovalController;
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Services\CompanyManager;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TailAdminController;
@@ -17,6 +18,9 @@ use App\Http\Controllers\Admin\DepartmentPermissionController;
 use App\Http\Controllers\StickyNoteController;
 use App\Http\Controllers\Bplus\DashboardController;
 use App\Http\Controllers\Bplus\TrialBalanceController as BplusTrialBalanceController;
+use App\Http\Controllers\Financial\FinancialDashboardController;
+use App\Http\Controllers\Financial\BankStatementController;
+use App\Http\Controllers\Financial\ChequeController;
 
 Route::get('/', [HomeController::class, 'index'])->middleware(['auth', 'company.connection'])->name('home');
 Route::get('teset', function () {
@@ -205,6 +209,35 @@ Route::middleware(['auth'])->group(function(){
     Route::patch('admin/companies/{id}/toggle', [CompanyController::class, 'toggle'])->name('admin.companies.toggle');
     Route::post('admin/companies/{id}/test', [CompanyController::class, 'testConnection'])->name('admin.companies.test');
     Route::delete('admin/companies/{id}', [CompanyController::class, 'destroy'])->name('admin.companies.destroy');
+
+    // Admin: Activity Logs (admin.log menu)
+    Route::middleware(['menu:admin.log,view'])->group(function () {
+        Route::get('admin/log', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('admin.log');
+        Route::get('admin/log/data', [\App\Http\Controllers\Admin\ActivityLogController::class, 'data'])->name('admin.log.data');
+        Route::get('admin/log/{id}', [\App\Http\Controllers\Admin\ActivityLogController::class, 'show'])->name('admin.log.show');
+    });
+
+    // Financial Dashboard (requires company connection + permission)
+    Route::middleware(['company.connection', 'menu:financial_dashboard,view'])->group(function () {
+        Route::get('financial/dashboard', [FinancialDashboardController::class, 'index'])->name('financial.dashboard');
+        Route::get('financial/dashboard/accounts', [FinancialDashboardController::class, 'accountSummary'])->name('financial.dashboard.accounts');
+        Route::get('financial/dashboard/accounts/{accountCode}/statement', [FinancialDashboardController::class, 'accountStatement'])->name('financial.dashboard.accounts.statement');
+        Route::get('financial/dashboard/cheques', [FinancialDashboardController::class, 'chequeSummary'])->name('financial.dashboard.cheques');
+        Route::get('financial/dashboard/cheques/due', [FinancialDashboardController::class, 'chequesByDueDate'])->name('financial.dashboard.cheques.due');
+        Route::get('financial/dashboard/cheques/payees', [FinancialDashboardController::class, 'chequesByPayee'])->name('financial.dashboard.cheques.payees');
+    });
+
+    // Financial: Bank Statement (requires company connection + permission)
+    Route::middleware(['company.connection', 'menu:financial_dashboard,view'])->group(function () {
+        Route::get('financial/statement', [BankStatementController::class, 'index'])->name('financial.statement');
+        Route::get('financial/statement/data', [BankStatementController::class, 'getData'])->name('financial.statement.data');
+    });
+
+    // Financial: Cheque Management (requires company connection + permission)
+    Route::middleware(['company.connection', 'menu:financial_dashboard,view'])->group(function () {
+        Route::get('financial/cheques', [ChequeController::class, 'index'])->name('financial.cheques.index');
+        Route::get('financial/cheques/data', [ChequeController::class, 'getData'])->name('financial.cheques.data');
+    });
 
     // Sticky Notes API
     Route::get('api/sticky-notes', [StickyNoteController::class, 'index'])->name('api.sticky-notes.index');

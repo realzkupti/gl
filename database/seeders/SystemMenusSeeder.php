@@ -16,14 +16,9 @@ class SystemMenusSeeder extends Seeder
     {
         $conn = DB::connection('pgsql');
 
-        // ดึง department ID
-        $departments = $conn->table('sys_departments')->pluck('id', 'key');
-        $systemDeptId = $departments['system'] ?? null;
-
-        if (!$systemDeptId) {
-            $this->command->error('ไม่พบแผนก system กรุณา run DepartmentSeeder ก่อน');
-            return;
-        }
+        // ใช้ system_type แทน department_id
+        // 1 = System, 2 = Bplus, 3 = Admin, 4 = User
+        $systemType = 1; // System
 
         $systemMenus = [
             // แดชบอร์ด
@@ -36,7 +31,7 @@ class SystemMenusSeeder extends Seeder
                 'sort_order' => 1,
                 'is_active' => true,
                 'is_system' => true,
-                'department_id' => $systemDeptId,
+                'system_type' => $systemType,
                 'connection_type' => 'pgsql',
             ],
             // ระบบเช็ค
@@ -49,7 +44,7 @@ class SystemMenusSeeder extends Seeder
                 'sort_order' => 10,
                 'is_active' => true,
                 'is_system' => false,
-                'department_id' => $systemDeptId,
+                'system_type' => $systemType,
                 'connection_type' => 'pgsql',
             ],
             // จัดการเมนู
@@ -62,7 +57,7 @@ class SystemMenusSeeder extends Seeder
                 'sort_order' => 100,
                 'is_active' => true,
                 'is_system' => true,
-                'department_id' => $systemDeptId,
+                'system_type' => $systemType,
                 'connection_type' => 'pgsql',
             ],
             // จัดการแผนก
@@ -75,7 +70,7 @@ class SystemMenusSeeder extends Seeder
                 'sort_order' => 101,
                 'is_active' => true,
                 'is_system' => true,
-                'department_id' => $systemDeptId,
+                'system_type' => $systemType,
                 'connection_type' => 'pgsql',
             ],
             // จัดการผู้ใช้
@@ -88,7 +83,7 @@ class SystemMenusSeeder extends Seeder
                 'sort_order' => 102,
                 'is_active' => true,
                 'is_system' => true,
-                'department_id' => $systemDeptId,
+                'system_type' => $systemType,
                 'connection_type' => 'pgsql',
             ],
             // อนุมัติผู้ใช้
@@ -101,7 +96,7 @@ class SystemMenusSeeder extends Seeder
                 'sort_order' => 103,
                 'is_active' => true,
                 'is_system' => true,
-                'department_id' => $systemDeptId,
+                'system_type' => $systemType,
                 'connection_type' => 'pgsql',
             ],
             // กำหนดสิทธิ์รายคน
@@ -114,7 +109,7 @@ class SystemMenusSeeder extends Seeder
                 'sort_order' => 104,
                 'is_active' => true,
                 'is_system' => true,
-                'department_id' => $systemDeptId,
+                'system_type' => $systemType,
                 'connection_type' => 'pgsql',
             ],
             // กำหนดสิทธิ์แผนก
@@ -127,8 +122,47 @@ class SystemMenusSeeder extends Seeder
                 'sort_order' => 105,
                 'is_active' => true,
                 'is_system' => true,
-                'department_id' => $systemDeptId,
+                'system_type' => $systemType,
                 'connection_type' => 'pgsql',
+            ],
+            // จัดการบริษัท
+            [
+                'key' => 'admin_companies',
+                'label' => 'จัดการบริษัท',
+                'route' => 'admin.companies',
+                'icon' => 'office-building',
+                'parent_id' => null,
+                'sort_order' => 106,
+                'is_active' => true,
+                'is_system' => true,
+                'system_type' => $systemType,
+                'connection_type' => 'pgsql',
+            ],
+            // Activity Log
+            [
+                'key' => 'admin_activity_logs',
+                'label' => 'Activity Log',
+                'route' => 'admin.activity-logs',
+                'icon' => 'clipboard-list',
+                'parent_id' => null,
+                'sort_order' => 107,
+                'is_active' => true,
+                'is_system' => true,
+                'system_type' => $systemType,
+                'connection_type' => 'pgsql',
+            ],
+            // Financial Dashboard
+            [
+                'key' => 'financial_dashboard',
+                'label' => 'Financial Dashboard',
+                'route' => 'financial.dashboard',
+                'icon' => 'chart-bar',
+                'parent_id' => null,
+                'sort_order' => 108,
+                'is_active' => true,
+                'is_system' => true,
+                'system_type' => 2, // Bplus system type
+                'connection_type' => 'sqlsrv', // Uses company database
             ],
             // โปรไฟล์
             [
@@ -140,7 +174,7 @@ class SystemMenusSeeder extends Seeder
                 'sort_order' => 200,
                 'is_active' => true,
                 'is_system' => true,
-                'department_id' => $systemDeptId,
+                'system_type' => $systemType,
                 'connection_type' => 'pgsql',
             ],
             // เปลี่ยนรหัสผ่าน
@@ -153,7 +187,7 @@ class SystemMenusSeeder extends Seeder
                 'sort_order' => 201,
                 'is_active' => true,
                 'is_system' => true,
-                'department_id' => $systemDeptId,
+                'system_type' => $systemType,
                 'connection_type' => 'pgsql',
             ],
         ];

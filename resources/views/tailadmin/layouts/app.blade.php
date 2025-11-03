@@ -91,11 +91,11 @@
         />
     @endif
 
-    <!-- Company Switcher Modal -->
+    <!-- Company Switcher Modal x-->
     <div id="companySwitcherModal" style="display: none;" class="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4" onclick="companySwitcher.handleBackdropClick(event)">
         <div class="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md overflow-hidden" onclick="event.stopPropagation()">
             <div class="bg-gradient-to-r from-brand-600 to-brand-700 px-6 py-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-white" id="modalTitle">เลือกบริษัท</h3>
+                <h3 class="text-lg font-semibold text-white" id="modalTitle">เลือกบริษัทx</h3>
                 <button id="modalCloseBtn" onclick="companySwitcher.closeModal()" class="text-white/90 hover:text-white transition">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -198,7 +198,7 @@
 
         renderCompanies() {
             const container = document.getElementById('companiesList');
-
+            console.log('use this')
             if (this.companies.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -243,6 +243,38 @@
                 return;
             }
 
+            // Close the company switch modal first
+            this.closeModal();
+
+            // Show SweetAlert2 loading
+            Swal.fire({
+                title: 'กำลังเชื่อมต่อฐานข้อมูล...',
+                html: 'กรุณารอสักครู่',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                allowEnterKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Set timeout for connection test (10 seconds)
+            const timeoutId = setTimeout(() => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'หมดเวลาการเชื่อมต่อ',
+                    html: 'ใช้เวลาเชื่อมต่อนานเกินไป<br><small class="text-gray-500">กรุณาตรวจสอบการเชื่อมต่อเครือข่ายและลองใหม่อีกครั้ง</small>',
+                    confirmButtonText: 'ตรวจสอบอีกครั้ง',
+                    showCancelButton: true,
+                    cancelButtonText: 'ปิด'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        this.switchTo(companyId);
+                    }
+                });
+            }, 10000); // 10 seconds timeout
+
             try {
                 const response = await fetch('{{ route('admin.companies.switch') }}', {
                     method: 'POST',
@@ -254,46 +286,76 @@
                     body: JSON.stringify({ company_id: companyId }),
                 });
 
+                clearTimeout(timeoutId);
                 const data = await response.json();
 
                 if (data.success) {
                     // Save to localStorage
                     localStorage.setItem('glite_last_company_id', companyId);
 
-                    // Show toast message
-                    const Toast = Swal.mixin({
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 2000,
-                        timerProgressBar: true
-                    });
-
-                    await Toast.fire({
-                        icon: 'success',
-                        title: data.message
-                    });
-
-                    // Redirect to Bplus Dashboard (or provided redirect URL)
-                    const redirectUrl = data.redirect_url || "{{ url('bplus/dashboard') }}";
-                    window.location.href = redirectUrl;
-                } else {
+                    // Show success message
                     Swal.fire({
-                        icon: 'error',
-                        title: 'เกิดข้อผิดพลาด',
+                        icon: 'success',
+                        title: 'สำเร็จ!',
                         text: data.message,
-                        confirmButtonColor: '#ef4444'
+                        timer: 1500,
+                        showConfirmButton: false,
+                        willClose: () => {
+                            // Redirect to Bplus Dashboard (or provided redirect URL)
+                            const redirectUrl = data.redirect_url || "{{ url('bplus/dashboard') }}";
+                            window.location.href = redirectUrl;
+                        }
                     });
+                } else {
+                    // Show error message with connection details
+                    this.showConnectionErrorSwal(data);
                 }
             } catch (error) {
+                clearTimeout(timeoutId);
                 console.error('Error switching company:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'เกิดข้อผิดพลาด',
-                    text: 'ไม่สามารถสลับบริษัทได้',
-                    confirmButtonColor: '#ef4444'
+                this.showConnectionErrorSwal({
+                    message: 'เกิดข้อผิดพลาดในการเปลี่ยนบริษัท',
+                    error: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้'
                 });
             }
+        },
+
+        showConnectionErrorSwal(data) {
+            const technicalDetails = data.technical_details ?
+                `<div class="mt-3 p-3 bg-gray-100 rounded text-xs text-left text-gray-600 overflow-auto" style="max-height: 120px;">
+                    <strong>Technical Details:</strong><br>
+                    ${data.technical_details}
+                </div>` : '';
+
+            Swal.fire({
+                icon: 'error',
+                title: 'การเชื่อมต่อล้มเหลว',
+                html: `
+                    <div class="text-left">
+                        <p class="text-base font-semibold text-gray-900 mb-2">
+                            ${data.message || 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้'}
+                        </p>
+                        <p class="text-sm text-red-600 mb-3">
+                            ${data.error || 'กรุณาตรวจสอบการตั้งค่าการเชื่อมต่อฐานข้อมูล'}
+                        </p>
+                        ${technicalDetails}
+                        <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                            <p class="text-sm text-yellow-800 mb-2">
+                                <strong>คำแนะนำ:</strong> กรุณาติดต่อผู้ดูแลระบบเพื่อตรวจสอบ:
+                            </p>
+                            <ul class="ml-4 text-sm text-yellow-700 list-disc space-y-1">
+                                <li>การตั้งค่า Host และ Port ของฐานข้อมูล</li>
+                                <li>ชื่อผู้ใช้และรหัสผ่านที่ถูกต้อง</li>
+                                <li>ฐานข้อมูลยังคงใช้งานได้ปกติ</li>
+                                <li>Firewall ไม่ได้บล็อกการเชื่อมต่อ</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'ตกลง',
+                confirmButtonColor: '#3085d6',
+                width: '600px'
+            });
         }
     };
 
