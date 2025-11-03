@@ -314,10 +314,30 @@ class CompanyController extends Controller
             return response()->json(['success' => false, 'message' => 'No access to this company'], 403);
         }
 
+        // Test database connection before switching
+        $connectionName = 'company_' . $company->key;
+        $connectionTest = $this->testCompanyConnection($company, $connectionName);
+
+        if (!$connectionTest['success']) {
+            Log::error('Failed to switch company - connection test failed', [
+                'user_id' => Auth::id(),
+                'company_id' => $company->id,
+                'company_label' => $company->label,
+                'error' => $connectionTest['error']
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'ไม่สามารถเชื่อมต่อฐานข้อมูลของบริษัท: ' . $company->label,
+                'error' => $connectionTest['error'],
+                'technical_details' => $connectionTest['technical_details'] ?? null
+            ], 500);
+        }
+
         // Store company ID in session
         session(['current_company_id' => $company->id]);
 
-        Log::info('Company switched', [
+        Log::info('Company switched successfully', [
             'user_id' => Auth::id(),
             'company_id' => $company->id,
             'company_label' => $company->label,
@@ -334,6 +354,75 @@ class CompanyController extends Controller
                 'logo' => $company->logo,
             ]
         ]);
+    }
+
+    /**
+     * Test database connection for a company
+     *
+     * @param Company $company
+     * @param string $connectionName
+     * @return array ['success' => bool, 'error' => string|null, 'technical_details' => string|null]
+     */
+    protected function testCompanyConnection(Company $company, $connectionName)
+    {
+        try {
+            // Set up dynamic connection config
+            config(['database.connections.' . $connectionName => [
+                'driver' => $company->driver,
+                'host' => $company->host,
+                'port' => $company->port,
+                'database' => $company->database,
+                'username' => $company->username,
+                'password' => Crypt::decryptString($company->password),
+                'charset' => $company->charset ?? 'utf8',
+                'collation' => $company->collation ?? null,
+            ]]);
+
+            // Test the connection with a simple query
+            DB::connection($connectionName)->getPdo();
+
+            // Try a simple SELECT to make sure we can actually query
+            $result = DB::connection($connectionName)->select('SELECT 1 AS test');
+
+            if (empty($result)) {
+                throw new \Exception('Connection test query returned empty result');
+            }
+
+            // Purge the connection after test (optional, to free resources)
+            DB::purge($connectionName);
+
+            return [
+                'success' => true,
+                'error' => null
+            ];
+
+        } catch (\PDOException $e) {
+            $errorMessage = 'เชื่อมต่อฐานข้อมูลไม่สำเร็จ';
+
+            // Provide more specific error messages
+            if (str_contains($e->getMessage(), 'SQLSTATE[HY000] [2002]')) {
+                $errorMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ฐานข้อมูลได้ (Host unreachable)';
+            } elseif (str_contains($e->getMessage(), 'SQLSTATE[28000]')) {
+                $errorMessage = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง (Authentication failed)';
+            } elseif (str_contains($e->getMessage(), 'SQLSTATE[42000]')) {
+                $errorMessage = 'ไม่สามารถเข้าถึงฐานข้อมูลได้ (Database not found or access denied)';
+            } elseif (str_contains($e->getMessage(), 'could not find driver')) {
+                $errorMessage = 'ไม่พบไดรเวอร์ฐานข้อมูล (' . $company->driver . ')';
+            }
+
+            return [
+                'success' => false,
+                'error' => $errorMessage,
+                'technical_details' => config('app.debug') ? $e->getMessage() : null
+            ];
+
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => 'เกิดข้อผิดพลาดในการทดสอบการเชื่อมต่อ',
+                'technical_details' => config('app.debug') ? $e->getMessage() : null
+            ];
+        }
     }
 
     /**

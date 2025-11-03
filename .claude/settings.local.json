@@ -27,7 +27,8 @@
       "Bash(D:laragonbinphpphp-8.3.13-Win32-vs16-x64php.exe enable_sticky_notes.php)",
       "Bash(test:*)",
       "Bash(D:laragonbinphpphp-8.3.13-Win32-vs16-x64php.exe test_connection.php)",
-      "Bash(/d/laragon/bin/php/php-8.3.13-Win32-vs16-x64/php.exe:*)"
+      "Bash(/d/laragon/bin/php/php-8.3.13-Win32-vs16-x64/php.exe:*)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []
