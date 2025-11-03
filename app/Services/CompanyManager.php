@@ -110,7 +110,15 @@ class CompanyManager
                 'sslmode' => 'prefer',
             ];
         } elseif ($driver === 'sqlsrv') {
-            // No special defaults
+            // สำคัญสำหรับ ODBC Driver 18 (ค่า dev/test ให้ต่อได้ทันที)
+            $connection += [
+                // ใช้ค่าจาก companies.json ถ้ามี มิฉะนั้นใช้ค่าเริ่มต้นที่ต่อได้เลย
+                'encrypt'                  => $cfg['encrypt']                  ?? 'yes',
+                'TrustServerCertificate'   => $cfg['TrustServerCertificate']   ?? true,
+                'MultipleActiveResultSets' => $cfg['MultipleActiveResultSets'] ?? true,
+                // (ออปชัน) ติด tag แอปไว้ช่วย debug connection บนเซิร์ฟเวอร์
+                'application_name'         => $cfg['application_name']         ?? config('app.name', 'Laravel'),
+            ];
         }
 
         // Register and set default connection for this request
