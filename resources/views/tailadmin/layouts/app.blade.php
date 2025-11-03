@@ -91,11 +91,11 @@
         />
     @endif
 
-    <!-- Company Switcher Modal x-->
+    <!-- Company Switcher Modal -->
     <div id="companySwitcherModal" style="display: none;" class="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4" onclick="companySwitcher.handleBackdropClick(event)">
         <div class="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md overflow-hidden" onclick="event.stopPropagation()">
             <div class="bg-gradient-to-r from-brand-600 to-brand-700 px-6 py-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-white" id="modalTitle">เลือกบริษัทx</h3>
+                <h3 class="text-lg font-semibold text-black dark:text-white" id="modalTitle">เลือกบริษัท</h3>
                 <button id="modalCloseBtn" onclick="companySwitcher.closeModal()" class="text-white/90 hover:text-white transition">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -154,9 +154,9 @@
             await this.loadCompanies();
         },
 
-        closeModal() {
-            // Prevent closing if in blocking mode
-            if (this.isBlocking) {
+        closeModal(force = false) {
+            // Prevent closing if in blocking mode (unless forced)
+            if (this.isBlocking && !force) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'กรุณาเลือกบริษัท',
@@ -167,6 +167,10 @@
             }
 
             document.getElementById('companySwitcherModal').style.display = 'none';
+            // Reset blocking mode when closing
+            if (force) {
+                this.isBlocking = false;
+            }
         },
 
         handleBackdropClick(event) {
@@ -243,8 +247,8 @@
                 return;
             }
 
-            // Close the company switch modal first
-            this.closeModal();
+            // Close the company switch modal first (force close even in blocking mode)
+            this.closeModal(true);
 
             // Show SweetAlert2 loading
             Swal.fire({
@@ -252,7 +256,6 @@
                 html: 'กรุณารอสักครู่',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
-                allowEnterKey: false,
                 showConfirmButton: false,
                 didOpen: () => {
                     Swal.showLoading();
@@ -366,13 +369,22 @@
         @endif
 
         // Auto-restore from localStorage if no current company
-        @if(!session('current_company_id'))
-            const lastCompanyId = localStorage.getItem('glite_last_company_id');
-            if (lastCompanyId) {
-                console.log('Auto-restoring company from localStorage:', lastCompanyId);
-                companySwitcher.switchTo(parseInt(lastCompanyId));
-            }
-        @endif
+        // @ if(!session('current_company_id'))
+        //     const lastCompanyId = localStorage.getItem('glite_last_company_id');
+        //     const lastSwitchTime = localStorage.getItem('glite_last_switch_time');
+        //     const now = Date.now();
+
+        //     // Only auto-restore if:
+        //     // 1. We have a company ID in localStorage
+        //     // 2. Either no recent switch, OR last switch was more than 10 seconds ago
+        //     if (lastCompanyId && (!lastSwitchTime || (now - parseInt(lastSwitchTime)) > 10000)) {
+        //         console.log('Auto-restoring company from localStorage:', lastCompanyId);
+        //         localStorage.setItem('glite_last_switch_time', now.toString());
+        //         companySwitcher.switchTo(parseInt(lastCompanyId));
+        //     } else if (lastSwitchTime && (now - parseInt(lastSwitchTime)) <= 10000) {
+        //         console.log('Skipping auto-restore - recently switched (within 10 seconds)');
+        //     }
+        // @ endif
     });
     </script>
 

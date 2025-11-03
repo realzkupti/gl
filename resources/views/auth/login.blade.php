@@ -2,6 +2,15 @@
 
 @section('title', 'เข้าสู่ระบบ')
 
+@push('scripts')
+<script>
+// Clear auto-restore timestamp when user comes to login page
+// This ensures auto-restore works on next login
+localStorage.removeItem('glite_last_switch_time');
+console.log('Cleared auto-restore timestamp for fresh login');
+</script>
+@endpush
+
 @section('content')
 <div class="p-4 md:p-6 2xl:p-10">
   <div class="mx-auto max-w-md">
@@ -19,11 +28,11 @@
         @csrf
         <div>
           <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">อีเมล</label>
-          <input name="email" type="email" value="{{ old('email') }}" required class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:focus:border-brand-500" />
+          <input name="email" type="email" value="{{ old('email') }}" required class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 dark:text-white outline-none focus:border-brand-500 dark:border-gray-700 dark:focus:border-brand-500" />
         </div>
         <div>
           <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">รหัสผ่าน</label>
-          <input name="password" type="password" required class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 outline-none focus:border-brand-500 dark:border-gray-700 dark:focus:border-brand-500" />
+          <input name="password" type="password" required class="w-full rounded border border-gray-300 bg-transparent px-4 py-2.5 text-gray-900 dark:text-white outline-none focus:border-brand-500 dark:border-gray-700 dark:focus:border-brand-500" />
         </div>
         <div class="flex items-center justify-between">
           <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">

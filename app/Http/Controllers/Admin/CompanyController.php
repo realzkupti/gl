@@ -337,6 +337,9 @@ class CompanyController extends Controller
         // Store company ID in session
         session(['current_company_id' => $company->id]);
 
+        // Force save session to ensure it persists before page reload
+        session()->save();
+
         Log::info('Company switched successfully', [
             'user_id' => Auth::id(),
             'company_id' => $company->id,
