@@ -177,10 +177,10 @@
 
         async loadCompanies() {
             try {
-                const response = await fetch("{{ url('admin/companies/accessible') }}", {
+                const response = await fetch('{{ route('admin.companies.accessible') }}', {
                     headers: {
                         'Accept': 'application/json',
-                        'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     }
                 });
 
@@ -244,11 +244,11 @@
             }
 
             try {
-                const response = await fetch("{{ url('admin/companies/switch') }}", {
+                const response = await fetch('{{ route('admin.companies.switch') }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
                         'Accept': 'application/json',
                     },
                     body: JSON.stringify({ company_id: companyId }),

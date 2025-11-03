@@ -1014,8 +1014,8 @@ function updateDateDisplay(dateStr) {
     if (dateStr) {
         const parts = dateStr.split('/');
         if (parts.length === 3) {
-            const day = parseInt(parts[0]);
-            const month = parseInt(parts[1]);
+            const day = String(parseInt(parts[0])).padStart(2, '0');
+            const month = String(parseInt(parts[1])).padStart(2, '0');
             const year = parseInt(parts[2]) + 543;
             const displayDate = `${day}${month}${year}`;
             const spacesCount = parseInt(localStorage.getItem('chequeDateSpacing') || '3');
