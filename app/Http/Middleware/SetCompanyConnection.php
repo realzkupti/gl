@@ -69,9 +69,17 @@ class SetCompanyConnection
 
                         // Add driver-specific settings
                         if ($connection['driver'] === 'sqlsrv') {
+                            // PDO options for encoding
                             $connection['options'] = [
                                 \PDO::SQLSRV_ATTR_ENCODING => \PDO::SQLSRV_ENCODING_UTF8
                             ];
+
+                            // Driver 17/18 compatibility - explicitly set encryption settings
+                            // Driver 17: Defaults to Encrypt=no, we enable it for security
+                            // Driver 18: Defaults to Encrypt=yes, we make it explicit
+                            // TrustServerCertificate=true allows self-signed or untrusted certificates
+                            $connection['encrypt'] = 'yes';
+                            $connection['trust_server_certificate'] = true;
                         }
 
                         // Register and set as default connection
