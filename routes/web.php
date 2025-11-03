@@ -66,6 +66,11 @@ Route::middleware(['auth'])->group(function () {
     // Bplus Dashboard - accessible without company (will prompt to select)
     Route::get('bplus/dashboard', [DashboardController::class, 'index'])->name('bplus.dashboard');
 
+    // Test connection - uses middleware for normal operation but has fallback in controller
+    Route::middleware(['company.connection'])->group(function () {
+        Route::get('bplus/test-connection', [DashboardController::class, 'testConnection'])->name('bplus.test-connection');
+    });
+
     // Bplus Trial Balance - requires company connection
     Route::middleware(['company.connection'])->group(function () {
         Route::get('bplus/trial-balance', [BplusTrialBalanceController::class, 'index'])->name('bplus.trial-balance');

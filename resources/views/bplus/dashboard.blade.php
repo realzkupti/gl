@@ -45,12 +45,23 @@
                     <p><span class="font-medium">Server:</span> {{ $company->host }}:{{ $company->port }}</p>
                 </div>
             </div>
-            <button
-                onclick="companySwitcher.openModal(false)"
-                class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-                เปลี่ยนบริษัท
-            </button>
+            <div class="flex flex-col gap-2">
+                <button
+                    onclick="testDatabaseConnection()"
+                    class="rounded-lg border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40 transition shadow-sm hover:shadow-md"
+                >
+                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    ทดสอบการเชื่อมต่อ
+                </button>
+                <button
+                    onclick="companySwitcher.openModal(false)"
+                    class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800 transition"
+                >
+                    เปลี่ยนบริษัท
+                </button>
+            </div>
         </div>
     </div>
 
@@ -75,4 +86,70 @@
     </div>
     @endif
 </div>
+
+@push('scripts')
+<script>
+async function testDatabaseConnection() {
+    try {
+        // Show loading
+        Swal.fire({
+            title: 'กำลังทดสอบการเชื่อมต่อ...',
+            text: 'กรุณารอสักครู่',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const response = await fetch('{{ route('bplus.test-connection') }}', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            await Swal.fire({
+                icon: 'success',
+                title: 'เชื่อมต่อสำเร็จ!',
+                html: `
+                    <div class="text-left">
+                        <p class="mb-2"><strong>ฐานข้อมูล:</strong> ${data.database || '-'}</p>
+                        <p class="mb-2"><strong>Server:</strong> ${data.host || '-'}</p>
+                        <p class="mb-2"><strong>Version:</strong> ${data.version || '-'}</p>
+                        <p class="text-sm text-gray-500 mt-4">เวลาตอบกลับ: ${data.response_time || '-'} ms</p>
+                    </div>
+                `,
+                confirmButtonColor: '#10b981'
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'เชื่อมต่อไม่สำเร็จ!',
+                html: `
+                    <div class="text-left">
+                        <p class="text-red-600">${data.message || 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้'}</p>
+                        ${data.error ? `<p class="text-sm text-gray-500 mt-2">${data.error}</p>` : ''}
+                    </div>
+                `,
+                confirmButtonColor: '#ef4444'
+            });
+        }
+    } catch (error) {
+        console.error('Error testing connection:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด!',
+            text: 'ไม่สามารถทดสอบการเชื่อมต่อได้',
+            confirmButtonColor: '#ef4444'
+        });
+    }
+}
+</script>
+@endpush
+
 @endsection

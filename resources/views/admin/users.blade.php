@@ -61,7 +61,7 @@
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($users as $user)
-                        <tr class="user-row hover:bg-gray-50 dark:hover:bg-gray-700" data-is-active="{{ $user->is_active ? '1' : '0' }}">
+                        <tr class="user-row hover:bg-gray-50 dark:hover:bg-gray-700" data-is-active="{{ $user->is_active ? '1' : '0' }}" data-user-id="{{ $user->id }}">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0 h-10 w-10">
@@ -108,25 +108,14 @@
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 @if($tab === 'pending')
                                     <!-- Pending user actions -->
-                                    <form action="{{ route('admin.users.approve', $user->id) }}" method="POST" class="inline">
-                                        @csrf
-                                        <button type="submit" class="text-green-600 hover:text-green-900 dark:hover:text-green-400 mr-3">อนุมัติ</button>
-                                    </form>
-                                    <form action="{{ route('admin.users.reject', $user->id) }}" method="POST" class="inline" onsubmit="return confirm('แน่ใจหรือไม่ว่าต้องการปฏิเสธและลบผู้ใช้นี้?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-red-600 hover:text-red-900 dark:hover:text-red-400">ปฏิเสธ</button>
-                                    </form>
+                                    <button onclick="approveUser({{ $user->id }}, '{{ $user->name }}')" class="text-green-600 hover:text-green-900 dark:hover:text-green-400 mr-3">อนุมัติ</button>
+                                    <button onclick="rejectUser({{ $user->id }}, '{{ $user->name }}')" class="text-red-600 hover:text-red-900 dark:hover:text-red-400">ปฏิเสธ</button>
                                 @else
                                     <!-- Active user actions -->
                                     <button onclick="openEditUserModal({{ $user->id }}, {{ json_encode($user) }})" class="text-brand-600 hover:text-brand-900 dark:hover:text-brand-400 mr-3">แก้ไข</button>
                                     <a href="{{ route('admin.user-permissions.edit', $user->id) }}" class="text-purple-600 hover:text-purple-900 dark:hover:text-purple-400 mr-3">สิทธิ์</a>
                                     @if($user->email !== 'admin@local')
-                                        <form action="{{ route('admin.users.destroy', $user->id) }}" method="POST" class="inline" onsubmit="return confirm('แน่ใจหรือไม่ว่าต้องการลบผู้ใช้นี้?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-900 dark:hover:text-red-400">ลบ</button>
-                                        </form>
+                                        <button onclick="deleteUser({{ $user->id }}, '{{ $user->name }}')" class="text-red-600 hover:text-red-900 dark:hover:text-red-400">ลบ</button>
                                     @endif
                                 @endif
                             </td>
@@ -212,7 +201,7 @@
                 <button type="button" onclick="closeUserModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                     ยกเลิก
                 </button>
-                <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition">
+                <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition shadow-md hover:shadow-lg">
                     บันทึก
                 </button>
             </div>
@@ -270,12 +259,189 @@ function closeUserModal() {
     document.getElementById('userModal').style.display = 'none';
 }
 
+// Approve user
+async function approveUser(userId, userName) {
+    const result = await Swal.fire({
+        title: 'ยืนยันการอนุมัติ',
+        text: `คุณต้องการอนุมัติผู้ใช้ "${userName}" ใช่หรือไม่?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'อนุมัติ',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#10b981'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        const response = await fetch('{{ route('admin.users.approve', ':id') }}'.replace(':id', userId), {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            await Swal.fire({
+                icon: 'success',
+                title: 'สำเร็จ!',
+                text: data.message,
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            // Remove row from table
+            document.querySelector(`tr[data-user-id="${userId}"]`)?.remove();
+
+            // Reload counts
+            loadUserCounts();
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'ผิดพลาด!',
+                text: data.message || 'เกิดข้อผิดพลาด',
+                confirmButtonColor: '#ef4444'
+            });
+        }
+    } catch (error) {
+        console.error('Error approving user:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'ผิดพลาด!',
+            text: 'ไม่สามารถเชื่อมต่อกับ server ได้',
+            confirmButtonColor: '#ef4444'
+        });
+    }
+}
+
+// Reject user
+async function rejectUser(userId, userName) {
+    const result = await Swal.fire({
+        title: 'ยืนยันการปฏิเสธ',
+        text: `คุณต้องการปฏิเสธและลบผู้ใช้ "${userName}" ใช่หรือไม่?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ปฏิเสธและลบ',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#ef4444'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        const response = await fetch('{{ route('admin.users.reject', ':id') }}'.replace(':id', userId), {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            await Swal.fire({
+                icon: 'success',
+                title: 'สำเร็จ!',
+                text: data.message,
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            // Remove row from table
+            document.querySelector(`tr[data-user-id="${userId}"]`)?.remove();
+
+            // Reload counts
+            loadUserCounts();
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'ผิดพลาด!',
+                text: data.message || 'เกิดข้อผิดพลาด',
+                confirmButtonColor: '#ef4444'
+            });
+        }
+    } catch (error) {
+        console.error('Error rejecting user:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'ผิดพลาด!',
+            text: 'ไม่สามารถเชื่อมต่อกับ server ได้',
+            confirmButtonColor: '#ef4444'
+        });
+    }
+}
+
+// Delete user
+async function deleteUser(userId, userName) {
+    const result = await Swal.fire({
+        title: 'ยืนยันการลบ',
+        text: `คุณต้องการลบผู้ใช้ "${userName}" ใช่หรือไม่?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ลบ',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#ef4444'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        const response = await fetch('{{ route('admin.users.destroy', ':id') }}'.replace(':id', userId), {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            await Swal.fire({
+                icon: 'success',
+                title: 'สำเร็จ!',
+                text: data.message,
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            // Remove row from table
+            document.querySelector(`tr[data-user-id="${userId}"]`)?.remove();
+
+            // Reload counts
+            loadUserCounts();
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'ผิดพลาด!',
+                text: data.message || 'เกิดข้อผิดพลาด',
+                confirmButtonColor: '#ef4444'
+            });
+        }
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'ผิดพลาด!',
+            text: 'ไม่สามารถเชื่อมต่อกับ server ได้',
+            confirmButtonColor: '#ef4444'
+        });
+    }
+}
+
 // Load user counts on page load
 function loadUserCounts() {
     fetch('{{ route('admin.users.counts') }}', {
         headers: {
             'Accept': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
         }
     })
     .then(response => response.json())
@@ -287,11 +453,6 @@ function loadUserCounts() {
     })
     .catch(error => console.error('Error loading user counts:', error));
 }
-
-// Load counts when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    loadUserCounts();
-});
 
 // Switch tab function - filter users without page reload
 let currentTab = '{{ $tab }}';
@@ -314,6 +475,16 @@ function switchTab(tab) {
     });
 
     // Filter user rows
+    filterUserRows(tab);
+
+    // Update URL without reload
+    if (history.pushState) {
+        const newUrl = `/admin/users?tab=${tab}`;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+    }
+}
+
+function filterUserRows(tab) {
     const showActive = (tab === 'active');
     document.querySelectorAll('.user-row').forEach(row => {
         const isActive = row.dataset.isActive === '1';
@@ -325,12 +496,13 @@ function switchTab(tab) {
             row.style.display = isActive ? 'none' : '';
         }
     });
-
-    // Update URL without reload
-    if (history.pushState) {
-        const newUrl = `/admin/users?tab=${tab}`;
-        window.history.pushState({ path: newUrl }, '', newUrl);
-    }
 }
+
+// Load counts and filter initial tab when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadUserCounts();
+    // Apply initial filter based on current tab
+    filterUserRows(currentTab);
+});
 </script>
 @endsection
