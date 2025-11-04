@@ -254,6 +254,8 @@
                             <th class="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">เงินฝาก</th>
                             <th class="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">เงินถอน</th>
                             <th class="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">คงเหลือ</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-900 dark:text-gray-100">เอกสารอ้างอิง</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-900 dark:text-gray-100">remark</th>
                             <th class="px-4 py-3 text-left font-medium text-gray-900 dark:text-gray-100">หมายเหตุ</th>
                         </tr>
                     </thead>
@@ -341,7 +343,7 @@ const bankStatement = {
                 tr.innerHTML = `
                     <td class="px-4 py-3 text-gray-900 dark:text-gray-100">${this.formatDate(row.BSTM_RECNL_DD)}</td>
                     <td class="px-4 py-3">
-                        ${row.Statusx ? `<span class="inline-flex rounded-full px-3 py-1 text-xs font-medium ${this.getStatusColor(row.Statusx)}">
+                        ${row.Statusx ? `<span class="inline-flex rounded-full px-3 py-1 text-xs font-medium ${this.getStatusColor(row.Statusx)}" title="BSTM_TYPE: ${row.BSTM_TYPE || 'N/A'}" style="cursor: help;">
                             ${row.Statusx}
                         </span>` : ''}
                     </td>
@@ -355,6 +357,8 @@ const bankStatement = {
                     <td class="px-4 py-3 text-right text-blue-600 dark:text-blue-400 font-bold">
                         ${this.formatNumber(row.Balance)}
                     </td>
+                    <td class="px-4 py-3 text-gray-700 dark:text-gray-300">${row.DocREf || ''}</td>
+                    <td class="px-4 py-3 text-gray-700 dark:text-gray-300">${row.DI_REMARK || ''}</td>
                     <td class="px-4 py-3 text-gray-700 dark:text-gray-300">${row.BSTM_REMARK || ''}</td>
                 `;
                 tbody.appendChild(tr);
@@ -388,7 +392,10 @@ const bankStatement = {
         const colors = {
             'ยอดยกมา': 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
             'ฝาก': 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
+            'รับชำระหนี้': 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
+            'โอนระหว่างบัญชี': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
             'เช็คผ่าน': 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+            'จ่ายชำระหนี้': 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
             'ค่าธรรมเนียม': 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
         };
         return colors[status] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
