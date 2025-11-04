@@ -74,7 +74,7 @@ class BankStatement extends CompanyModel
             DECLARE @YEAR INT = ?;
             DECLARE @MONTH INT = ?;
 
-            -- หาช่วงวันและยอดยกมาของเดือนที่เลือก
+           -- หาช่วงวันและยอดยกมาของเดือนที่เลือก
             WITH Period AS (
                 SELECT TOP 1
                     BSTMP_ST_DATE,
@@ -82,16 +82,23 @@ class BankStatement extends CompanyModel
                     BSTMP_TOWARD AS CarryOver
                 FROM BSTMPERIOD
                 WHERE BSTMP_BNKAC = @BNKAC
-                    AND BSTMP_YEAR = @YEAR
-                    AND BSTMP_MONTH = @MONTH
-            )
-            , MonthTrans AS (
+                AND BSTMP_YEAR  = @YEAR
+                AND BSTMP_MONTH = @MONTH
+            ),
+            MonthTrans AS (
                 SELECT
-                    *,
-                    ROW_NUMBER() OVER (ORDER BY BSTM_RECNL_DD, BSTM_SHOW_ORDER, BSTM_KEY, BSTM_CHEQUE_NO, BSTM_TYPE) AS rn
-                FROM BANKSTATEMENT, Period
-                WHERE BSTM_BNKAC = @BNKAC
-                    AND BSTM_RECNL_DD BETWEEN Period.BSTMP_ST_DATE AND Period.BSTMP_EN_DATE
+                    B.*,
+                    DI.*,  -- เผื่ออยากใช้ฟิลด์จาก DOCINFO ต่อ
+                    ROW_NUMBER() OVER (
+                        ORDER BY B.BSTM_RECNL_DD, B.BSTM_SHOW_ORDER, B.BSTM_KEY, B.BSTM_CHEQUE_NO, B.BSTM_TYPE
+                    ) AS rn
+                FROM BANKSTATEMENT B
+                INNER JOIN DOCINFO DI
+                    ON B.BSTM_DI = DI.DI_KEY
+                CROSS JOIN Period
+                WHERE B.BSTM_BNKAC = @BNKAC
+                AND B.BSTM_RECNL_DD BETWEEN Period.BSTMP_ST_DATE AND Period.BSTMP_EN_DATE
+                AND DI.DI_ACTIVE = '0'
             )
 
             -- ผลลัพธ์
@@ -104,7 +111,10 @@ class BankStatement extends CompanyModel
                 NULL AS BSTM_DEBIT,
                 NULL AS BSTM_CREDIT,
                 Period.CarryOver AS Balance,
-                N'ยอดยกมา' AS BSTM_REMARK
+                N'ยอดยกมา' AS BSTM_REMARK,
+                '' AS DocREf,
+                '' AS DI_REMARK,
+                '' AS BSTM_TYPE
             FROM Period
 
             UNION ALL
@@ -114,12 +124,14 @@ class BankStatement extends CompanyModel
                 T.BSTM_BNKAC,
                 T.BSTM_RECNL_DD,
                 CASE
-                    WHEN T.BSTM_TYPE='1' THEN N'ฝาก'
-                    WHEN T.BSTM_TYPE='104' THEN N'เช็คผ่าน'
-                    WHEN T.BSTM_TYPE='103' THEN N'ค่าธรรมเนียม'
-                    ELSE ''
+                    WHEN T.BSTM_TYPE = '1'   THEN N'ฝาก'
+                    WHEN T.BSTM_TYPE = '3'   THEN N'รับชำระหนี้'
+                    WHEN T.BSTM_TYPE = '101' THEN N'โอนระหว่างบัญชี'
+                    WHEN T.BSTM_TYPE = '104' THEN N'เช็คผ่าน'
+                    WHEN T.BSTM_TYPE = '103' THEN N'จ่ายชำระหนี้'
+                    ELSE N''
                 END AS Statusx,
-                ISNULL(T.BSTM_CHEQUE_NO,'') AS BSTM_CHEQUE_NO,
+                ISNULL(T.BSTM_CHEQUE_NO, '') AS BSTM_CHEQUE_NO,
                 T.BSTM_DEBIT,
                 T.BSTM_CREDIT,
                 Period.CarryOver +
@@ -128,11 +140,14 @@ class BankStatement extends CompanyModel
                         ORDER BY T.BSTM_RECNL_DD, T.BSTM_SHOW_ORDER, T.BSTM_KEY, T.BSTM_CHEQUE_NO, T.BSTM_TYPE
                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
                     ) AS Balance,
-                T.BSTM_REMARK
+                T.BSTM_REMARK,
+                DI_REF AS DocREf,
+                DI_REMARK,
+                T.BSTM_TYPE
             FROM MonthTrans T
             CROSS JOIN Period
 
-            ORDER BY BSTM_RECNL_DD, BSTM_KEY, BSTM_CHEQUE_NO, Statusx
+            ORDER BY BSTM_RECNL_DD, BSTM_KEY, BSTM_CHEQUE_NO, Statusx;
         ";
 
         $statements = static::executeRawQuery($sql, [$accountKey, $year, $month], $connectionName);
