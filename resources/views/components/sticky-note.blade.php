@@ -5,8 +5,8 @@
      x-init="init()"
      class="sticky-notes-wrapper">
 
-    <!-- Bottom Right Badges (like Screenshot) -->
-    <div class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3">
+    <!-- Bottom Left Badges (next to sidebar) -->
+    <div class="fixed bottom-6 left-[280px] z-[9999] flex flex-col gap-3">
         <!-- Trash Badge -->
         <button @click="toggleTrash()"
                 type="button"
@@ -411,13 +411,14 @@ function stickyNoteManager(menuId, companyId) {
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
 
-                // Avoid sidebar (typically 256px) + some padding
-                const sidebarWidth = 280;
-                const baseX = Math.floor(sidebarWidth + 20);
+                // Position notes on the right side (leaving space for buttons and DataTable)
+                const noteWidth = 300;
+                const rightPadding = 100; // Space for right-side buttons
+                const baseX = Math.floor(screenWidth - noteWidth - rightPadding);
                 const baseY = Math.floor(120); // Start below header (increased to avoid header overlap)
 
-                // Add offset for multiple notes
-                const offsetX = (this.notes.length % 5) * 30;
+                // Add offset for multiple notes (stack them slightly offset)
+                const offsetX = -((this.notes.length % 5) * 30); // Negative to stack leftward
                 const offsetY = Math.floor(this.notes.length / 5) * 30;
 
                 const response = await fetch('/api/sticky-notes', {
